@@ -33,12 +33,40 @@ export const DetailPanel = ({
     setEditingPhaseId(null);
   }, [exhibition]);
 
-  const handleSaveAll = () => { onUpdate(editedEx); setIsEditing(false); };
+  const handleSaveAll = () => {
+    let next = editedEx;
+    if (editingPhaseId && localPhaseDraft) {
+      next = {
+        ...editedEx,
+        phases: editedEx.phases.map(p => p.id === localPhaseDraft.id ? localPhaseDraft : p)
+      };
+      setEditedEx(next);
+      setEditingPhaseId(null);
+      setLocalPhaseDraft(null);
+    }
+    onUpdate(next);
+    setIsEditing(false);
+  };
   const handleFieldChange = (field: keyof Exhibition, value: any) => { setEditedEx(prev => ({ ...prev, [field]: value })); };
+
+  const handleStartDateChange = (value: string) => {
+    setEditedEx(prev => ({
+      ...prev,
+      startDate: value,
+      endDate: !prev.isMilestone && prev.endDate && prev.endDate < value ? value : prev.endDate
+    }));
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setEditedEx(prev => ({
+      ...prev,
+      endDate: value < prev.startDate ? prev.startDate : value
+    }));
+  };
 
   const handleAddPhase = () => {
     const newPhase: ProjectPhase = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).slice(2, 11),
       label: 'NEW PHASE',
       durationMonths: 1,
       typeId: phaseTypes[0]?.id || 'pt1'
@@ -257,11 +285,22 @@ export const DetailPanel = ({
                   role="switch"
                   aria-checked={!!editedEx.isMilestone}
                   aria-label="Toggle milestone mode"
-                  onClick={() => handleFieldChange('isMilestone', !editedEx.isMilestone)}
-                  className={`relative shrink-0 w-11 h-6 border border-slate-300 transition-colors duration-200 focus:ring-2 focus:ring-blue-500/50 ${editedEx.isMilestone ? 'bg-slate-900' : 'bg-slate-200'}`}
+                  onClick={() => {
+                    const next = !editedEx.isMilestone;
+                    setEditedEx(prev => ({
+                      ...prev,
+                      isMilestone: next,
+                      endDate: next
+                        ? prev.startDate
+                        : (prev.endDate <= prev.startDate
+                            ? getDateWithMonthDuration(prev.startDate, 3)
+                            : prev.endDate)
+                    }));
+                  }}
+                  className={`relative shrink-0 inline-flex items-center w-12 h-7 rounded-full border border-slate-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${editedEx.isMilestone ? 'bg-slate-900' : 'bg-slate-200'}`}
                 >
                   <span
-                    className={`absolute top-0.5 w-4 h-4 bg-white border border-slate-300 transition-transform duration-200 ${editedEx.isMilestone ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+                    className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 bg-white border border-slate-300 rounded-full shadow-sm transition-transform duration-200 ${editedEx.isMilestone ? 'translate-x-[20px]' : 'translate-x-0'}`}
                   />
                 </button>
               ) : (
@@ -297,7 +336,7 @@ export const DetailPanel = ({
                       type="date"
                       className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
                       value={editedEx.startDate}
-                      onChange={(e) => handleFieldChange('startDate', e.target.value)}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
                     />
                   ) : (
                     <p className="text-sm font-medium">{exhibition.startDate}</p>
@@ -309,9 +348,10 @@ export const DetailPanel = ({
                     <input
                       id="ex-end-date"
                       type="date"
+                      min={editedEx.startDate}
                       className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
                       value={editedEx.endDate}
-                      onChange={(e) => handleFieldChange('endDate', e.target.value)}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
                     />
                   ) : (
                     <p className="text-sm font-medium">{exhibition.endDate}</p>

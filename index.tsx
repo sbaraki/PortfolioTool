@@ -74,7 +74,7 @@ const StatusIcon = ({ status, size = 12, className = "" }: { status: string; siz
 // --- Main App ---
 
 export default function MasterScheduler() {
-  const SIDEBAR_WIDTH = 176;
+  const SIDEBAR_WIDTH = 240;
   const { currentUser, syncStatus } = useMuseumSync();
   const { 
     museumName, setMuseumName,
@@ -652,12 +652,12 @@ export default function MasterScheduler() {
 
             <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3">
 	              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
-	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] border-b border-slate-200 flex flex-col justify-center px-5 gap-1.5">
+	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] border-b border-slate-200 flex flex-col justify-center px-6 gap-2">
 	                  {(['Proposed', 'In Development', 'Open to Public', 'Closed'] as const).map(s => {
 	                    return (
-	                      <div key={s} className="flex items-center gap-2.5">
-	                        <StatusIcon status={s} size={11} className="text-slate-500 shrink-0" />
-	                        <span className="text-[8px] font-bold uppercase tracking-[0.08em] text-slate-600 leading-none">{s}</span>
+	                      <div key={s} className="flex items-center gap-3">
+	                        <StatusIcon status={s} size={13} className="text-slate-500 shrink-0" />
+	                        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-700 leading-none">{s}</span>
 	                      </div>
 	                    );
 	                  })}
@@ -679,12 +679,12 @@ export default function MasterScheduler() {
 		                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="relative border-b border-black/10 bg-white/80 overflow-hidden">
 		                        <div
 		                          style={{ minHeight: `${MILESTONE_ROW_HEIGHT}px` }}
-		                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex items-center justify-between px-4 py-3 z-20 print:bg-slate-50 border-l-4 ${isPermanent ? 'bg-amber-50/80 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'}`}
+		                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex items-center justify-between gap-3 px-5 py-3.5 z-20 print:bg-slate-50 border-l-4 ${isPermanent ? 'bg-amber-50/80 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'}`}
 		                          title={isPermanent ? 'Permanent gallery space' : 'Temporary exhibition space'}
 		                        >
-		                          <span className="font-bold uppercase text-[10px] tracking-[0.18em] text-slate-900 leading-tight line-clamp-2 pr-2">{gallery.name}</span>
+		                          <span className="font-bold uppercase text-[11px] tracking-[0.14em] text-slate-900 leading-snug line-clamp-2 flex-1 min-w-0">{gallery.name}</span>
 		                          {isPermanent && (
-		                            <span className="shrink-0 text-[7.5px] font-bold uppercase tracking-[0.14em] border border-amber-700/60 bg-white text-amber-800 px-1 py-[1px] rounded-sm">PERM</span>
+		                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.12em] border border-amber-700/60 bg-white text-amber-800 px-1.5 py-0.5 rounded-sm">PERM</span>
 		                          )}
 		                        </div>
                         {galleryProjects.map(ex => {
@@ -695,12 +695,12 @@ export default function MasterScheduler() {
                           return (
                             <div
                               key={`title-${ex.id}`}
-                              className="absolute left-4 w-[calc(100%-1rem)] pr-2 overflow-hidden"
+                              className="absolute left-5 w-[calc(100%-1.25rem)] pr-3 overflow-hidden"
                               style={{ top: topPos + 4, maxHeight: `${titleMaxHeight}px` }}
                             >
-                              <div className="text-[11px] font-bold text-slate-800 leading-tight line-clamp-2 underline-offset-2" title={ex.title}>{ex.title}</div>
+                              <div className="text-[12px] font-bold text-slate-800 leading-snug line-clamp-2 underline-offset-2" title={ex.title}>{ex.title}</div>
                               {ex.exhibitionId && (
-                                <div className="text-[10px] font-bold text-slate-700 mt-0 uppercase tracking-tight truncate">
+                                <div className="text-[10px] font-semibold text-slate-500 mt-0.5 uppercase tracking-[0.1em] truncate">
                                   {ex.exhibitionId}
                                 </div>
                               )}
@@ -1099,25 +1099,22 @@ export default function MasterScheduler() {
                                             }
                                           }
 
-                                          const labelTextColor = phase.type?.color
-                                            ? (parseInt(phase.type.color.slice(1, 3), 16) * 299 + parseInt(phase.type.color.slice(3, 5), 16) * 587 + parseInt(phase.type.color.slice(5, 7), 16) * 114) / 1000 >= 160 ? '#0f172a' : '#ffffff'
-                                            : '#0f172a';
                                           return (
                                             <React.Fragment key={phase.id}>
+                                              {phase.width >= 24 && (
+                                                <div
+                                                  className="absolute pointer-events-none text-[8.5px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
+                                                  style={{ left: `${phase.startX}px`, top: `${phase.y - 10}px`, width: `${Math.max(phase.width - 2, 0)}px` }}
+                                                  title={phase.label}
+                                                >
+                                                  {phase.label}
+                                                </div>
+                                              )}
                                               <div
-                                                className="absolute flex items-center justify-start px-1 shadow-sm hover:shadow-md hover:opacity-90 transition-all pointer-events-auto border border-white/60 overflow-hidden"
+                                                className="absolute shadow-sm hover:shadow-md hover:opacity-90 transition-all pointer-events-auto border border-white/60 overflow-hidden"
                                                 style={{ left: `${phase.startX}px`, top: `${phase.y}px`, width: `${Math.max(phase.width - 2, 0)}px`, height: `${PHASE_BAR_HEIGHT}px`, backgroundColor: phase.type?.color || '#eee' }}
                                                 title={phase.label}
-                                              >
-                                                {phase.width >= 32 && (
-                                                  <span
-                                                    className="text-[8px] font-bold tracking-tight truncate leading-none w-full"
-                                                    style={{ color: labelTextColor }}
-                                                  >
-                                                    {phase.label}
-                                                  </span>
-                                                )}
-                                              </div>
+                                              />
                                               {hasNext && (
                                                 <svg className="absolute overflow-visible pointer-events-none z-0" style={{ left: 0, top: 0, width: 1, height: 1 }}>
                                                   <path 
