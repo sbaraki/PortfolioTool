@@ -75,4 +75,14 @@
     box-shadow: none !important;
     text-shadow: none !important;
   }
+
+  /* Bump small text sizes for paper legibility. After the print zoom shrinks
+     everything by ~50%, the smallest UI text was rendering at ~4-5px on
+     paper. These overrides only take effect in print mode — on screen the
+     original Tailwind sizes stay tight. */
+  [data-print-shell] .text-\[8px\] { font-size: 10px !important; }
+  [data-print-shell] .text-\[8\.5px\] { font-size: 10.5px !important; }
+  [data-print-shell] .text-\[9px\] { font-size: 11px !important; }
+  [data-print-shell] .text-\[10px\] { font-size: 12px !important; }
+  [data-print-shell] .text-\[11px\] { font-size: 12.5px !important; }
 }

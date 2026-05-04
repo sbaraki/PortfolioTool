@@ -173,11 +173,33 @@ export default function MasterScheduler() {
       // style bypasses variable resolution entirely and works in both Chrome
       // and Edge.
       shell.style.zoom = String(scale);
+
+      // After the uniform zoom, the timeline usually fills the page width but
+      // leaves vertical slack (typical portfolios are wide-and-short). Stretch
+      // the shell vertically with transform: scaleY so the content reaches the
+      // bottom of the 11x17 page. Capped to keep text/bar distortion mild.
+      // Transform sits on top of zoom — visual rendering is scaled but the
+      // pagination layout box is still controlled by zoom, so we don't trigger
+      // a second page.
+      const MAX_V_STRETCH = 1.6;
+      const usedH = h * scale;
+      if (usedH < PAGE_H_PX - 20) {
+        const vStretch = Math.min(MAX_V_STRETCH, PAGE_H_PX / usedH);
+        shell.style.transform = `scaleY(${vStretch})`;
+        shell.style.transformOrigin = 'top left';
+      } else {
+        shell.style.transform = '';
+      }
+
       document.documentElement.style.setProperty('--print-scale', String(scale));
     };
     const afterPrint = () => {
       const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
-      if (shell) shell.style.zoom = '';
+      if (shell) {
+        shell.style.zoom = '';
+        shell.style.transform = '';
+        shell.style.transformOrigin = '';
+      }
       document.documentElement.style.removeProperty('--print-scale');
     };
     window.addEventListener('beforeprint', beforePrint);
