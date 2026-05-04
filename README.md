@@ -1,72 +1,102 @@
 # Portfolio Tool
 
-Single-user portfolio scheduling tool for managing exhibition timelines within a phased process flow. Designed for 11×17 landscape print output.
+A timeline-based portfolio planner for museum exhibition and gallery
+redevelopment projects. Built for the Royal Alberta Museum to plan, schedule,
+and print-share long-range project portfolios across multiple galleries.
 
-## Features
+## What it does
 
-- Multi-gallery swimlane timeline with drag-to-reschedule project bars
-- Permanent and temporary gallery types, distinguished visually
-- Per-project phase pipelines (pre- and post-phases) with custom durations and colors
-- Per-gallery milestones with diamond/flag markers and color tags
-- Conflict detection across overlapping projects in the same gallery
-- GitHub Gist sync for cross-device persistence (optional, single-user)
-- Local storage backup with automatic legacy-data migration
-- Print stylesheet tuned for 11×17 landscape paper
+- **Multi-lane timeline.** Each gallery is its own swimlane. Projects sit on
+  collision-free tracks within their lane so overlapping work stacks cleanly.
+- **Two gallery types.**
+  - *Temporary* lanes hold normal start/end exhibitions.
+  - *Permanent* lanes (e.g. Natural History South) are amber-tinted in the
+    sidebar and default new projects to **completion-milestone** mode — a
+    single red diamond marker rather than a date range.
+- **Phased project bars.** Each project shows its preparation phases (Idea →
+  Content → Design → Implementation) flowing into the active window, with an
+  optional post-phase (e.g. Deinstall). Phase labels sit above their bars and
+  dependency arrows trace the handoffs between them.
+- **Location milestones.** Double-click any gallery's milestone row to drop
+  a diamond or flag marker (e.g. board reviews, openings, holidays). Labels
+  auto-stagger above and below to avoid collisions.
+- **Search + status filter.** Filter projects by title/ID/description and
+  by status (Proposed / In Development / Open to Public / Closed).
+- **Long-press drag.** Hold a project bar to drag it horizontally; release
+  to commit the new dates.
 
-## Tech Stack
+## Print
 
-- React 19 + TypeScript
-- Vite 6 build tool
-- Zustand state store
-- Tailwind CSS (via CDN)
-- Motion (Framer Motion successor) for animations
-- Lucide React icons
-- date-fns for date math
+Designed for **11×17 landscape** ledger paper (`@page { size: 17in 11in }`).
 
-## Getting Started
+- The portfolio shell is auto-scaled in the `beforeprint` handler so the full
+  timeline fits on one page when possible.
+- A **minimum scale of 0.75** prevents the smallest UI text from shrinking
+  below readability. If the portfolio is too tall to fit at that floor, it
+  spills to a second page rather than becoming illegible.
+- Print color is forced on (`print-color-adjust: exact`) so phase fills,
+  status colors, and gallery accents render in hard copy.
 
-```bash
+## Settings
+
+A second tab covers organisation-level configuration:
+
+- **Organization name** (rendered in the header).
+- **Phase types** — colour + label for each phase, plus the active-window and
+  post-phase markers used by the timeline renderer.
+- **Locations & galleries** — add, rename, set TEMP vs PERM, and remove. The
+  PERM toggle determines whether new projects in that lane default to
+  milestone mode and whether the lane gets the amber permanent-redevelopment
+  styling.
+
+## Sync
+
+Optional cross-device persistence via **GitHub Gist** using a personal access
+token (PAT). Without sync, all data stays in the browser's `localStorage`
+under the keys defined in `src/constants.ts`.
+
+## Stack
+
+- **React 19** + **TypeScript**
+- **Vite 6** build / dev server
+- **Zustand** for state
+- **Tailwind CSS** (via CDN in `index.html`)
+- **Lucide React** for icons
+- No animation library — interactions use plain CSS transitions for a
+  faster, calmer feel that prints predictably.
+
+## Project layout
+
+```
+index.html                 Vite entry; loads Tailwind via CDN
+index.tsx                  App shell, header, timeline rendering, settings tab
+index.css                  Print-only stylesheet (page size, scale, overflow)
+src/
+  constants.ts             Storage keys, layout constants, status styles,
+                           Alberta statutory-holiday helper
+  types.ts                 Exhibition, Gallery, PhaseType, LocationMilestone
+  store/useStore.ts        Zustand store
+  hooks/
+    useMuseumSync.ts       LocalStorage <-> Gist sync, schema migration
+    useMuseumActions.ts    CRUD helpers (gallery rename, project duplicate,…)
+  lib/
+    dateUtils.ts           Date <-> ISO conversion, timeline positioning
+    layoutEngine.ts        Collision-free track allocation per lane
+    githubGist.ts          Gist read/write
+  components/
+    DetailPanel.tsx        Right-side project editor (status, dates, phases)
+    GithubAuthModal.tsx    PAT entry + gist linking
+```
+
+## Running locally
+
+```sh
 npm install
 npm run dev
 ```
 
-The dev server starts on `http://localhost:5173`. Open the URL in your browser.
+## Deploying
 
-## Build
-
-```bash
-npm run build
-npm run preview
-```
-
-Output goes to `dist/`. The build is configured for deployment under `/SchedulerTool/` (see `vite.config.ts` `base`); change this if your repo or path differs.
-
-## Deployment
-
-A GitHub Pages workflow is provided at `.github/workflows/deploy.yml`. It builds and publishes `dist/` to the `gh-pages` branch on every push to `main`.
-
-To use it:
-1. In repo settings, enable GitHub Pages and point it at the `gh-pages` branch.
-2. If your repo name is not `SchedulerTool`, update the `base` field in `vite.config.ts`.
-
-## Project Structure
-
-```
-.
-├── index.html              # Vite entry HTML
-├── index.tsx               # Main React app component
-├── index.css               # Print stylesheet
-├── src/
-│   ├── components/         # DetailPanel, GithubAuthModal
-│   ├── hooks/              # useMuseumSync, useMuseumActions
-│   ├── lib/                # dateUtils, layoutEngine, githubGist
-│   ├── store/              # Zustand store (useStore)
-│   ├── constants.ts        # Defaults and layout constants
-│   └── types.ts            # Shared type definitions
-└── .github/workflows/
-    └── deploy.yml          # GitHub Pages deploy
-```
-
-## Optional GitHub Gist Sync
-
-To sync data across devices, click **SYNC** in the app header and provide a GitHub Personal Access Token with `gist` scope. The app stores credentials in browser localStorage only — nothing leaves your browser except calls directly to the GitHub Gist API.
+A GitHub Actions workflow (`deploy.yml`) builds and publishes to GitHub
+Pages. The Vite `base` is set to the repository name so asset paths resolve
+correctly under the Pages subpath.

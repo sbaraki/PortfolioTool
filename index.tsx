@@ -40,7 +40,6 @@ import {
   MoreVertical,
   GripVertical,
   Flag,
-  AlertTriangle,
   LogOut,
   LogIn,
   Cloud,
@@ -85,8 +84,7 @@ export default function MasterScheduler() {
     timelineStartDate, setTimelineStartDate,
     timelineEndDate, setTimelineEndDate,
     searchQuery, setSearchQuery,
-    statusFilter, setStatusFilter,
-    showConflicts, setShowConflicts
+    statusFilter, setStatusFilter
   } = useStore();
   const { handleUpdateExhibition, handleRemoveExhibition, handleRenameGallery, handleSetGalleryKind, handleAddGallery, handleRemoveGallery, handleDuplicateProject } = useMuseumActions();
 
@@ -574,15 +572,6 @@ export default function MasterScheduler() {
                     </button>
                   </div>
 
-                  <div className="flex items-center space-x-1 ml-1">
-                    <button
-                      onClick={() => setShowConflicts(!showConflicts)}
-                      className={`p-1.5 border shadow-sm transition-colors ${showConflicts ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-slate-200 text-slate-400'}`}
-                      title="Conflicts"
-                    >
-                      <AlertTriangle size={13} />
-                    </button>
-                  </div>
                 </div>
 
                 {/* Right: User & Actions */}
@@ -898,68 +887,8 @@ export default function MasterScheduler() {
 	                         const laneHeight = galleryLaneHeights[g] || BASE_LANE_HEIGHT;
 	                         const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === g);
 
-	                         const footprints = galleryProjects.map(ex => {
-	                           const startPos = getPositionFromDate(ex.startDate, monthWidth, viewMonths);
-	                           const endPos = getPositionFromDate(ex.endDate, monthWidth, viewMonths);
-	                           const prePhases = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost);
-	                           const totalPreWidth = prePhases.reduce((acc, p) => acc + p.durationMonths * monthWidth, 0) + (prePhases.length * PHASE_GAP);
-	                           const phaseStartPos = startPos - totalPreWidth;
-	                           const activePhase = prePhases.find(p => phaseTypes.find(t => t.id === p.typeId)?.isActive);
-	                           let activeStartPos = startPos;
-	                           let currentOffset = 0;
-	                           for (const p of prePhases) {
-	                             const pWidth = p.durationMonths * monthWidth;
-	                             if (activePhase && p.id === activePhase.id) {
-	                               activeStartPos = phaseStartPos + currentOffset;
-	                               break;
-	                             }
-	                             currentOffset += pWidth + PHASE_GAP;
-	                           }
-	                           return { activeStart: activeStartPos, activeEnd: endPos };
-	                         });
-
-                         const overlapRegions: { startX: number, endX: number }[] = [];
-                         for (let i = 0; i < footprints.length; i++) {
-                           for (let j = i + 1; j < footprints.length; j++) {
-                             const a = footprints[i];
-                             const b = footprints[j];
-                             if (Math.max(a.activeStart, b.activeStart) < Math.min(a.activeEnd, b.activeEnd)) {
-                               overlapRegions.push({
-                                 startX: Math.max(a.activeStart, b.activeStart),
-                                 endX: Math.min(a.activeEnd, b.activeEnd)
-                               });
-                             }
-                           }
-                         }
-
-                         const mergedOverlaps: { startX: number, endX: number }[] = [];
-                         const sortedRegions = overlapRegions.sort((a,b) => a.startX - b.startX);
-                         sortedRegions.forEach(region => {
-                           if (mergedOverlaps.length === 0) {
-                             mergedOverlaps.push({...region});
-                           } else {
-                             const last = mergedOverlaps[mergedOverlaps.length - 1];
-                             if (region.startX <= last.endX) {
-                               last.endX = Math.max(last.endX, region.endX);
-                             } else {
-                               mergedOverlaps.push({...region});
-                             }
-                           }
-                         });
-
                          return (
 	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)]">
-                             {showConflicts && mergedOverlaps.map((overlap, i) => (
-                               <div 
-                                 key={`overlap-${i}`}
-                                 className="absolute bottom-0 z-[15] bg-red-500/5 border-l-2 border-r-2 border-dashed border-red-500/50 pointer-events-none"
-                                 style={{ left: overlap.startX, width: Math.max(2, overlap.endX - overlap.startX), top: `${MILESTONE_ROW_HEIGHT}px` }}
-                               >
-                                 <div className="bg-white border-2 border-red-500/50 text-red-600 font-semibold uppercase text-[8px] tracking-widest flex items-center shadow-sm w-max ml-2 mt-2" style={{ padding: '2px 4px' }}>
-                                   <AlertTriangle size={10} className="mr-1.5 shrink-0" strokeWidth={3} /> CONFLICT
-                                 </div>
-                               </div>
-                             ))}
                              <div
                                style={{ height: `${MILESTONE_ROW_HEIGHT}px` }}
                                className="absolute top-0 left-0 w-full bg-slate-100/60 border-b-2 border-slate-200 z-20 group relative cursor-crosshair overflow-visible shadow-sm"
@@ -1083,7 +1012,12 @@ export default function MasterScheduler() {
                                     return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypes.find(t => t.id === p.typeId), i, isPost: false };
                                   });
 
-                                  const mainBarY = trackTop + (prePhasesRaw.length * TRACK_HEIGHT) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
+                                  // Milestone projects have no main bar — the diamond replaces it.
+                                  // Align it with the last pre-phase row so the dependency arrow flows straight into it
+                                  // instead of dropping down to a wasted row below the phases.
+                                  const mainBarY = ex.isMilestone && prePhasesRaw.length > 0
+                                    ? trackTop + ((prePhasesRaw.length - 1) * TRACK_HEIGHT) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2
+                                    : trackTop + (prePhasesRaw.length * TRACK_HEIGHT) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
 
                                   let postOffset = PHASE_GAP;
                                   const renderedPost = ex.isMilestone ? [] : postPhasesRaw.map((p, i) => {
