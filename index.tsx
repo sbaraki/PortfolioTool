@@ -719,16 +719,16 @@ export default function MasterScheduler() {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined) return null;
                           const topPos = MILESTONE_ROW_HEIGHT + (trackIndex * TRACK_HEIGHT);
-                          const titleMaxHeight = Math.max(0, TRACK_HEIGHT - 6);
+                          const titleMaxHeight = Math.max(0, TRACK_HEIGHT - 4);
                           return (
                             <div
                               key={`title-${ex.id}`}
-                              className="absolute left-5 w-[calc(100%-1.25rem)] pr-3 overflow-hidden"
-                              style={{ top: topPos + 4, maxHeight: `${titleMaxHeight}px` }}
+                              className="absolute left-5 w-[calc(100%-1.25rem)] pr-3 overflow-hidden flex flex-col justify-center"
+                              style={{ top: topPos + 2, height: `${titleMaxHeight}px` }}
                             >
-                              <div className="text-[12px] font-bold text-slate-800 leading-snug line-clamp-2 underline-offset-2" title={ex.title}>{ex.title}</div>
+                              <div className="text-[11px] font-bold text-slate-800 leading-[1.25] line-clamp-2" title={ex.title}>{ex.title}</div>
                               {ex.exhibitionId && (
-                                <div className="text-[10px] font-semibold text-slate-500 mt-0.5 uppercase tracking-[0.1em] truncate">
+                                <div className="text-[9px] font-semibold text-slate-500 mt-0.5 uppercase tracking-[0.1em] truncate leading-none">
                                   {ex.exhibitionId}
                                 </div>
                               )}
@@ -995,10 +995,10 @@ export default function MasterScheduler() {
                                   
                                   for (let i = 0; i < gMilestones.length; i++) {
                                     const curr = gMilestones[i];
-                                    if (curr.xPos - lastTopX >= 65) {
+                                    if (curr.xPos - lastTopX >= 110) {
                                       labelPositions[i] = 'top';
                                       lastTopX = curr.xPos;
-                                    } else if (curr.xPos - lastBottomX >= 65) {
+                                    } else if (curr.xPos - lastBottomX >= 110) {
                                       labelPositions[i] = 'bottom';
                                       lastBottomX = curr.xPos;
                                     } else {
@@ -1033,9 +1033,10 @@ export default function MasterScheduler() {
                                             </div>
                                           )}
                                         </div>
-                                        <div className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[2px] leading-tight border border-slate-200 shadow-md opacity-90 transition-all hover:bg-slate-50 hover:opacity-100 whitespace-nowrap z-30 pointer-events-none flex flex-col items-center ${labelPos === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
-                                          <span className="text-[9px] font-medium uppercase text-slate-700 leading-none">{m.title}</span>
-                                          <span className="text-[8px] font-semibold uppercase tracking-wide text-slate-500 leading-none mt-[2px]">{formatBarDate(m.date)}</span>
+                                        <div className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 whitespace-nowrap z-30 pointer-events-none inline-flex items-center gap-1.5 ${labelPos === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
+                                          <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800">{m.title}</span>
+                                          <span className="w-px h-2 bg-slate-300" />
+                                          <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500">{formatBarDate(m.date)}</span>
                                         </div>
                                       </div>
                                   );
