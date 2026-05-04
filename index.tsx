@@ -634,17 +634,20 @@ export default function MasterScheduler() {
                         const now = new Date();
                         const exStart = getDateWithMonthDuration(toISODate(now), 12);
                         const exEnd = getDateWithMonthDuration(exStart, 3);
-                        const newEx: Exhibition = { 
-                          id, exhibitionId: '', title: 'NEW PROJECT', status: 'Proposed', 
-                          startDate: exStart, endDate: exEnd, gallery: galleries[0]?.name || '',
+                        const defaultGallery = galleries[0];
+                        const isMilestone = defaultGallery?.kind === 'permanent';
+                        const newEx: Exhibition = {
+                          id, exhibitionId: '', title: 'NEW PROJECT', status: 'Proposed',
+                          startDate: exStart, endDate: isMilestone ? exStart : exEnd, gallery: defaultGallery?.name || '',
                           milestones: [], phases: phaseTypes.map(pt => ({
                             id: Math.random().toString(36).substr(2,9), label: pt.label,
                             durationMonths: pt.isPost ? 1 : 3, typeId: pt.id
-                          })), description: '' 
+                          })), description: '',
+                          isMilestone
                         };
                         setExhibitions([...exhibitions, newEx]);
                         setSelectedProjectId(id);
-                      }} 
+                      }}
                       className="px-3 py-1.5 bg-slate-900 text-white font-bold uppercase text-[10px] hover:bg-slate-800 transition-colors flex items-center shadow-sm"
                     >
                       <Plus size={11} className="mr-1" strokeWidth={3} /> NEW PROJECT
@@ -1062,7 +1065,7 @@ export default function MasterScheduler() {
                                   const mainBarY = trackTop + (prePhasesRaw.length * TRACK_HEIGHT) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
 
                                   let postOffset = PHASE_GAP;
-                                  const renderedPost = postPhasesRaw.map((p, i) => {
+                                  const renderedPost = ex.isMilestone ? [] : postPhasesRaw.map((p, i) => {
                                     const pWidth = p.durationMonths * monthWidth;
                                     const pStart = endPos + postOffset;
                                     const pEnd = pStart + pWidth;
@@ -1162,6 +1165,42 @@ export default function MasterScheduler() {
                                         })()}
                                       </div>
 
+                                      {ex.isMilestone ? (
+                                        <motion.div
+                                          layoutId={`project-${ex.id}`}
+                                          aria-label={`Project: ${ex.title} (${ex.status}). Completion milestone on ${formatBarDate(effStartDate)}. Click to view details.`}
+                                          role="button"
+                                          tabIndex={0}
+                                          onMouseDown={(e) => onBarMouseDown(e, ex)}
+                                          onClick={() => { if (!draggingBarId) setSelectedProjectId(ex.id); }}
+                                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
+                                          whileHover={{ scale: 1.15, transition: { duration: 0.2, ease: "easeOut" } }}
+                                          whileTap={{ scale: 0.95 }}
+                                          className={`absolute pointer-events-auto cursor-pointer flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
+                                          style={{
+                                            left: `${startPos}px`,
+                                            top: `${mainBarY + STANDARD_BAR_HEIGHT / 2}px`,
+                                            transform: 'translate(-50%, -50%)',
+                                            zIndex: 25
+                                          }}
+                                          title={`${ex.title} — ${formatBarDate(effStartDate)}`}
+                                        >
+                                          <div
+                                            className="w-5 h-5 border-[2px] border-slate-900 rotate-45 shadow-[2px_2px_0_0_rgba(0,0,0,0.6)] flex items-center justify-center print:shadow-none"
+                                            style={{
+                                              backgroundColor: statusStyle.accent,
+                                            }}
+                                          >
+                                            <div className="w-[5px] h-[5px] bg-white" />
+                                          </div>
+                                          <span
+                                            className="ml-3 font-bold text-[10px] uppercase tracking-[0.14em] whitespace-nowrap px-2 py-0.5 bg-white border border-slate-300 shadow-sm text-slate-900 print:bg-transparent print:border-none print:shadow-none"
+                                            style={{ transform: 'rotate(0deg)' }}
+                                          >
+                                            {ex.title} • {formatBarDate(effStartDate)}
+                                          </span>
+                                        </motion.div>
+                                      ) : (
                                       <motion.div
                                         layoutId={`project-${ex.id}`}
                                         aria-label={`Project: ${ex.title} (${ex.status}). Click to view details, long-press to drag.`}
@@ -1170,8 +1209,8 @@ export default function MasterScheduler() {
                                         onMouseDown={(e) => onBarMouseDown(e, ex)}
                                         onClick={() => { if (!draggingBarId) setSelectedProjectId(ex.id); }}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
-                                        whileHover={{ 
-                                          y: -2, 
+                                        whileHover={{
+                                          y: -2,
                                           scale: 1.005,
                                           transition: { duration: 0.2, ease: "easeOut" }
                                         }}
@@ -1206,6 +1245,7 @@ export default function MasterScheduler() {
                                             )}
                                           </div>
                                       </motion.div>
+                                      )}
                                     </React.Fragment>
                                   );
                                 })}
