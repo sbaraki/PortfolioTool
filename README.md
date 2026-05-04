@@ -1,4 +1,4 @@
-# Scheduler Tool
+# Portfolio Tool
 
 Single-user portfolio scheduling tool for managing exhibition timelines within a phased process flow. Designed for 11×17 landscape print output.
 
