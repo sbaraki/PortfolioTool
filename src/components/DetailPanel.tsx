@@ -506,7 +506,7 @@ export const DetailPanel = ({
         )}
 
         <div className="space-y-2 border border-slate-300 bg-white p-5 shadow-sm">
-          <label htmlFor="ex-description" className="text-[12px] font-semibold uppercase tracking-[0.16em] border-b border-slate-200 pb-2 block text-slate-700">NARRATIVE</label>
+          <label htmlFor="ex-description" className="text-[12px] font-semibold uppercase tracking-[0.16em] border-b border-slate-200 pb-2 block text-slate-700">NOTES</label>
           <div className="p-4 border border-slate-300 bg-slate-50/35 min-h-[120px] shadow-sm">
             {isEditing ? (
               <textarea 
@@ -517,7 +517,7 @@ export const DetailPanel = ({
               />
             ) : (
               <p className="text-[13px] font-medium uppercase leading-relaxed text-slate-700">
-                {exhibition.description || "NO PROJECT DESCRIPTION PROVIDED."}
+                {exhibition.description || "NO NOTES YET."}
               </p>
             )}
           </div>

@@ -29,7 +29,7 @@ export interface LocationMilestone {
   title: string;
   date: string;
   color?: string;
-  icon?: 'diamond' | 'flag';
+  icon?: 'diamond' | 'flag' | 'team' | 'approval' | 'delivery' | 'event';
 }
 
 export interface Exhibition {

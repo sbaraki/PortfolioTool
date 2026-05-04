@@ -40,6 +40,10 @@ import {
   MoreVertical,
   GripVertical,
   Flag,
+  Users,
+  BadgeCheck,
+  Truck,
+  Star,
   LogOut,
   LogIn,
   Cloud,
@@ -399,21 +403,28 @@ export default function MasterScheduler() {
               
               <div className="space-y-4">
                 <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-700">Milestone Icon & Color</label>
-                <div className="flex gap-4 mb-4">
-                  <button 
-                    onClick={() => setEditMilestoneDraft({ ...editMilestoneDraft, icon: 'diamond' })}
-                    className={`flex items-center space-x-2 px-4 py-2 border-2 transition-colors ${editMilestoneDraft.icon !== 'flag' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    <div className="w-3 h-3 bg-white border border-slate-300 rotate-45" />
-                    <span className="text-[12px] font-medium uppercase">Diamond</span>
-                  </button>
-                  <button 
-                    onClick={() => setEditMilestoneDraft({ ...editMilestoneDraft, icon: 'flag' })}
-                    className={`flex items-center space-x-2 px-4 py-2 border-2 transition-colors ${editMilestoneDraft.icon === 'flag' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    <Flag size={14} fill="white" stroke="black" strokeWidth={2} />
-                    <span className="text-[12px] font-medium uppercase">Flag</span>
-                  </button>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {([
+                    { key: 'diamond', label: 'Diamond', preview: <div className="w-3 h-3 bg-white border border-slate-300 rotate-45" /> },
+                    { key: 'flag', label: 'Flag', preview: <Flag size={14} fill="white" stroke="black" strokeWidth={2} /> },
+                    { key: 'team', label: 'Team', preview: <Users size={14} stroke="black" strokeWidth={2} /> },
+                    { key: 'approval', label: 'Approval', preview: <BadgeCheck size={14} stroke="black" strokeWidth={2} /> },
+                    { key: 'delivery', label: 'Delivery', preview: <Truck size={14} stroke="black" strokeWidth={2} /> },
+                    { key: 'event', label: 'Event', preview: <Star size={14} fill="white" stroke="black" strokeWidth={2} /> },
+                  ] as const).map(opt => {
+                    const currentIcon = editMilestoneDraft.icon || 'diamond';
+                    const isActive = currentIcon === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => setEditMilestoneDraft({ ...editMilestoneDraft, icon: opt.key })}
+                        className={`flex items-center space-x-2 px-3 py-2 border-2 transition-colors ${isActive ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        {opt.preview}
+                        <span className="text-[11px] font-medium uppercase">{opt.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
                 <div className="flex flex-wrap gap-3">
                   {MILESTONE_COLORS.map(c => (
@@ -668,9 +679,16 @@ export default function MasterScheduler() {
 	              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
 	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] border-b border-slate-200 flex flex-col justify-center px-6 gap-2">
 	                  {(['Proposed', 'In Development', 'Open to Public', 'Closed'] as const).map(s => {
+	                    const styles = getStatusStyles(s);
 	                    return (
-	                      <div key={s} className="flex items-center gap-3">
-	                        <StatusIcon status={s} size={13} className="text-slate-500 shrink-0" />
+	                      <div key={s} className="flex items-center gap-2.5">
+	                        <div
+	                          className="shrink-0 flex items-center justify-center w-[18px] h-[18px] border border-black/10 shadow-sm"
+	                          style={{ backgroundColor: styles.iconBg }}
+	                          title={s}
+	                        >
+	                          <StatusIcon status={s} size={11} color={styles.iconText} />
+	                        </div>
 	                        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-700 leading-none">{s}</span>
 	                      </div>
 	                    );
@@ -891,7 +909,7 @@ export default function MasterScheduler() {
 	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)]">
                              <div
                                style={{ height: `${MILESTONE_ROW_HEIGHT}px` }}
-                               className="absolute top-0 left-0 w-full bg-slate-100/60 border-b-2 border-slate-200 z-20 group relative cursor-crosshair overflow-visible shadow-sm"
+                               className="absolute top-0 left-0 w-full bg-slate-200/80 border-b-2 border-slate-400 z-20 group relative cursor-crosshair overflow-visible shadow-sm print:bg-slate-200"
                                onDoubleClick={async (e) => {
                                  const rect = e.currentTarget.getBoundingClientRect();
                                  const x = Math.max(0, e.clientX - rect.left + timelineRef.current!.scrollLeft);
@@ -949,15 +967,47 @@ export default function MasterScheduler() {
                                           }}
                                           onDoubleClick={(e) => e.stopPropagation()}
                                         >
-                                          {m.icon === 'flag' ? (
-                                            <div className="relative flex items-center justify-center pointer-events-none mt-1">
-                                              <Flag size={16} fill={m.color || '#dc2626'} stroke="black" strokeWidth={2} className="drop-shadow-[1px_1px_0_rgba(0,0,0,1)]" />
-                                            </div>
-                                          ) : (
-                                            <div className="w-3.5 h-3.5 bg-white border-[1.5px] border-slate-300 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center pointer-events-none">
-                                              <div className="w-[4px] h-[4px]" style={{ backgroundColor: m.color || '#dc2626' }} />
-                                            </div>
-                                          )}
+                                          {(() => {
+                                            const c = m.color || '#dc2626';
+                                            switch (m.icon) {
+                                              case 'flag':
+                                                return (
+                                                  <div className="relative flex items-center justify-center pointer-events-none mt-1">
+                                                    <Flag size={16} fill={c} stroke="black" strokeWidth={2} className="drop-shadow-[1px_1px_0_rgba(0,0,0,1)]" />
+                                                  </div>
+                                                );
+                                              case 'team':
+                                                return (
+                                                  <div className="w-4 h-4 flex items-center justify-center rounded-full border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] pointer-events-none" style={{ backgroundColor: c }}>
+                                                    <Users size={10} stroke="white" strokeWidth={2.5} />
+                                                  </div>
+                                                );
+                                              case 'approval':
+                                                return (
+                                                  <div className="w-4 h-4 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }}>
+                                                    <BadgeCheck size={16} fill={c} stroke="black" strokeWidth={2} />
+                                                  </div>
+                                                );
+                                              case 'delivery':
+                                                return (
+                                                  <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] pointer-events-none" style={{ backgroundColor: c }}>
+                                                    <Truck size={10} stroke="white" strokeWidth={2.5} />
+                                                  </div>
+                                                );
+                                              case 'event':
+                                                return (
+                                                  <div className="flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }}>
+                                                    <Star size={16} fill={c} stroke="black" strokeWidth={2} />
+                                                  </div>
+                                                );
+                                              default:
+                                                return (
+                                                  <div className="w-3.5 h-3.5 bg-white border-[1.5px] border-slate-300 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center pointer-events-none">
+                                                    <div className="w-[4px] h-[4px]" style={{ backgroundColor: c }} />
+                                                  </div>
+                                                );
+                                            }
+                                          })()}
                                         </div>
                                         <div className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 whitespace-nowrap z-30 pointer-events-none inline-flex items-center gap-1.5 ${labelPos === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
                                           <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800">{m.title}</span>
