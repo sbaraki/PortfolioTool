@@ -173,33 +173,11 @@ export default function MasterScheduler() {
       // style bypasses variable resolution entirely and works in both Chrome
       // and Edge.
       shell.style.zoom = String(scale);
-
-      // After the uniform zoom, the timeline usually fills the page width but
-      // leaves vertical slack (typical portfolios are wide-and-short). Stretch
-      // the shell vertically with transform: scaleY so the content reaches the
-      // bottom of the 11x17 page. Capped to keep text/bar distortion mild.
-      // Transform sits on top of zoom — visual rendering is scaled but the
-      // pagination layout box is still controlled by zoom, so we don't trigger
-      // a second page.
-      const MAX_V_STRETCH = 1.6;
-      const usedH = h * scale;
-      if (usedH < PAGE_H_PX - 20) {
-        const vStretch = Math.min(MAX_V_STRETCH, PAGE_H_PX / usedH);
-        shell.style.transform = `scaleY(${vStretch})`;
-        shell.style.transformOrigin = 'top left';
-      } else {
-        shell.style.transform = '';
-      }
-
       document.documentElement.style.setProperty('--print-scale', String(scale));
     };
     const afterPrint = () => {
       const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
-      if (shell) {
-        shell.style.zoom = '';
-        shell.style.transform = '';
-        shell.style.transformOrigin = '';
-      }
+      if (shell) shell.style.zoom = '';
       document.documentElement.style.removeProperty('--print-scale');
     };
     window.addEventListener('beforeprint', beforePrint);
@@ -379,7 +357,7 @@ export default function MasterScheduler() {
 
   return (
     <div
-      className={`min-h-screen bg-[linear-gradient(180deg,#f7f4ec_0%,#f8fafc_28%,#eef2f7_100%)] text-black flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId ? 'cursor-grabbing' : ''}`}
+      className={`min-h-screen bg-[linear-gradient(180deg,#f7f4ec_0%,#f8fafc_28%,#eef2f7_100%)] print:bg-none print:bg-white text-black flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId ? 'cursor-grabbing' : ''}`}
     >
       {showGithubAuth && <div className="no-print"><GithubAuthModal onClose={() => setShowGithubAuth(false)} /></div>}
       <style>{`
@@ -760,7 +738,7 @@ export default function MasterScheduler() {
               </div>
               <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3 print:overflow-visible">
 	              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
-	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] border-b border-slate-200 flex flex-col justify-center px-6 gap-2">
+	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] print:bg-none print:bg-white border-b border-slate-200 flex flex-col justify-center px-6 gap-2">
 	                  {(['Proposed', 'In Development', 'Open to Public', 'Closed'] as const).map(s => {
 	                    const styles = getStatusStyles(s);
 	                    return (
@@ -1001,7 +979,7 @@ export default function MasterScheduler() {
                   </div>
 
                   {/* Grid / Lanes */}
-	                  <div className="relative flex-1 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),rgba(248,250,252,0.88)_45%,rgba(241,245,249,0.92)_100%)]">
+	                  <div className="relative flex-1 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),rgba(248,250,252,0.88)_45%,rgba(241,245,249,0.92)_100%)] print:bg-none print:bg-white">
 	                    <div className="flex flex-col">
 	                      {filteredExhibitions.length === 0 && (
 	                        <div className="absolute inset-0 flex items-center justify-center p-20 pointer-events-none z-0">
@@ -1033,7 +1011,7 @@ export default function MasterScheduler() {
 	                         }
 
                          return (
-	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)]">
+	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
                              <div
                                style={{ height: `${MILESTONE_ROW_HEIGHT}px` }}
                                className="absolute top-0 left-0 w-full bg-slate-200/80 border-b-2 border-slate-400 z-20 group relative cursor-crosshair overflow-visible shadow-sm print:bg-slate-200"
