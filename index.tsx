@@ -1,7 +1,7 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_BOTTOM_PADDING, PHASE_GAP } from './src/constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP } from './src/constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays } from './src/lib/dateUtils';
 import { calculateTracks } from './src/lib/layoutEngine';
 import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectPhase, ExhibitionStatus } from './src/types';
@@ -35,7 +35,6 @@ import {
   ChevronDown,
   Palette,
   Info,
-  Filter,
   Search,
   MoreVertical,
   GripVertical,
@@ -48,32 +47,10 @@ import {
   LogIn,
   Cloud,
   CloudOff,
-  History,
-  Globe,
-  Hammer,
-  CircleDashed,
-  Lock,
-  Ticket,
-  HelpCircle
+  History
 } from 'lucide-react';
 
 import { GithubAuthModal } from './src/components/GithubAuthModal';
-
-// --- Components ---
-const StatusIcon = ({ status, size = 12, className = "", color }: { status: string; size?: number; className?: string; color?: string }) => {
-  const styles = getStatusStyles(status);
-  const iconName = styles.icon;
-
-  switch (iconName) {
-    case 'globe': return <Globe size={size} className={className} color={color} />;
-    case 'hammer': return <Hammer size={size} className={className} color={color} />;
-    case 'circle-dashed': return <CircleDashed size={size} className={className} color={color} />;
-    case 'lock': return <Lock size={size} className={className} color={color} />;
-    case 'ticket': return <Ticket size={size} className={className} color={color} />;
-    default: return <HelpCircle size={size} className={className} color={color} />;
-  }
-};
-
 
 // --- Main App ---
 
@@ -89,13 +66,20 @@ export default function MasterScheduler() {
     monthWidth, setMonthWidth,
     timelineStartDate, setTimelineStartDate,
     timelineEndDate, setTimelineEndDate,
-    searchQuery, setSearchQuery,
-    statusFilter, setStatusFilter
   } = useStore();
   const { handleUpdateExhibition, handleRemoveExhibition, handleRenameGallery, handleSetGalleryKind, handleAddGallery, handleRemoveGallery, handleDuplicateProject } = useMuseumActions();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'portfolio' | 'settings'>('portfolio');
+  const ALL_STATUSES: ExhibitionStatus[] = ['Proposed', 'In Development', 'Open to Public', 'Closed'];
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<ExhibitionStatus>>(new Set(ALL_STATUSES));
+  const toggleStatus = (s: ExhibitionStatus) => {
+    setSelectedStatuses(prev => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s); else next.add(s);
+      return next;
+    });
+  };
   const [showGithubAuth, setShowGithubAuth] = useState(false);
   const [collapsedGalleryIds, setCollapsedGalleryIds] = useState<Set<string>>(new Set());
   const toggleGalleryCollapsed = (id: string) => {
@@ -210,16 +194,8 @@ export default function MasterScheduler() {
   };
 
   const filteredExhibitions = useMemo(() => {
-    const q = searchQuery.toUpperCase();
-    return exhibitions.filter(ex => {
-      const matchesSearch =
-        ex.title.toUpperCase().includes(q) ||
-        (ex.exhibitionId || '').toUpperCase().includes(q) ||
-        (ex.description || '').toUpperCase().includes(q);
-      const matchesStatus = statusFilter === 'All' || ex.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [exhibitions, searchQuery, statusFilter]);
+    return exhibitions.filter(ex => selectedStatuses.has(ex.status));
+  }, [exhibitions, selectedStatuses]);
 
   const viewMonths = useMemo(() => {
     let start = new Date(timelineStartDate + 'T12:00:00');
@@ -322,7 +298,7 @@ export default function MasterScheduler() {
       const tracksCount = galleryLayouts[gallery.name]?.maxTracks || 1;
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
-        MILESTONE_ROW_HEIGHT + tracksCount * TRACK_HEIGHT + LANE_BOTTOM_PADDING
+        MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + tracksCount * TRACK_HEIGHT + LANE_BOTTOM_PADDING
       );
       return acc;
     }, {} as Record<string, number>);
@@ -551,37 +527,10 @@ export default function MasterScheduler() {
           <>
             <header className="bg-white border-b border-slate-200 z-50 shrink-0 print:hidden">
 	      <nav className="px-4 py-2 flex items-center justify-between gap-4">
-                {/* Left: Brand & Search */}
+                {/* Left: Brand */}
                 <div className="flex items-center space-x-4">
                   <div className="flex flex-col min-w-[140px]">
                     <h1 className="text-[11px] font-bold tracking-[0.12em] uppercase leading-none text-slate-900 truncate">{museumName}</h1>
-                    
-                  </div>
-
-                  <div className="flex items-center no-print border border-slate-200 bg-white overflow-hidden shadow-sm">
-                    <div className="relative border-r border-slate-100 group">
-                      <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-black transition-colors" />
-                      <input 
-                        className="h-7 pl-8 pr-3 bg-white text-[11px] font-medium uppercase outline-none focus:bg-slate-50/50 transition-all w-[140px]"
-                        placeholder="SEARCH..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-center px-1 bg-slate-50/50">
-                      <Filter size={10} className="text-slate-400 ml-1" />
-                      <select 
-                        className="bg-transparent border-none outline-none text-[10px] font-bold uppercase cursor-pointer px-1 pr-4 h-7"
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as any)}
-                      >
-                        <option value="All">ALL STATUS</option>
-                        <option value="Proposed">PROPOSED</option>
-                        <option value="In Development">IN DEV</option>
-                        <option value="Open to Public">OPEN</option>
-                        <option value="Closed">CLOSED</option>
-                      </select>
-                    </div>
                   </div>
                 </div>
 
@@ -738,20 +687,24 @@ export default function MasterScheduler() {
               </div>
               <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3 print:overflow-visible">
 	              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
-	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] print:bg-none print:bg-white border-b border-slate-200 flex flex-col justify-center px-6 gap-2">
-	                  {(['Proposed', 'In Development', 'Open to Public', 'Closed'] as const).map(s => {
-	                    const styles = getStatusStyles(s);
+	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] print:bg-none print:bg-white border-b border-slate-200 flex flex-col justify-center px-5 gap-1">
+	                  <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500 mb-0.5 leading-none print:hidden">Filter by Status</div>
+	                  {ALL_STATUSES.map(s => {
+	                    const checked = selectedStatuses.has(s);
 	                    return (
-	                      <div key={s} className="flex items-center gap-2.5">
-	                        <div
-	                          className="shrink-0 flex items-center justify-center w-[18px] h-[18px] border border-black/10 shadow-sm"
-	                          style={{ backgroundColor: styles.iconBg }}
-	                          title={s}
-	                        >
-	                          <StatusIcon status={s} size={11} color={styles.iconText} />
-	                        </div>
-	                        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-700 leading-none">{s}</span>
-	                      </div>
+	                      <label
+	                        key={s}
+	                        className="flex items-center gap-2 cursor-pointer hover:bg-white/70 -mx-1 px-1 py-0.5 transition-colors no-print"
+	                      >
+	                        <input
+	                          type="checkbox"
+	                          checked={checked}
+	                          onChange={() => toggleStatus(s)}
+	                          className="w-3 h-3 accent-slate-900 cursor-pointer shrink-0"
+	                          aria-label={`Show ${s}`}
+	                        />
+	                        <span className={`text-[10px] font-bold uppercase tracking-[0.1em] leading-none ${checked ? 'text-slate-800' : 'text-slate-400 line-through'}`}>{s}</span>
+	                      </label>
 	                    );
 	                  })}
 	                </div>
@@ -816,7 +769,7 @@ export default function MasterScheduler() {
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined) return null;
-                          const topPos = MILESTONE_ROW_HEIGHT + (trackIndex * TRACK_HEIGHT);
+                          const topPos = MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + (trackIndex * TRACK_HEIGHT);
                           const titleMaxHeight = Math.max(0, TRACK_HEIGHT - 4);
                           return (
                             <div
@@ -837,7 +790,7 @@ export default function MasterScheduler() {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined || trackIndex === 0) return null;
                           return (
-                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-200 left-0" style={{ top: MILESTONE_ROW_HEIGHT + trackIndex * TRACK_HEIGHT }} />
+                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-200 left-0" style={{ top: MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + trackIndex * TRACK_HEIGHT }} />
                           );
                         })}
                       </div>
@@ -1129,7 +1082,7 @@ export default function MasterScheduler() {
                                 const trackIndex = galleryLayouts[g]!.tracks[ex.id];
                                 if (trackIndex === undefined || trackIndex === 0) return null;
                                 return (
-                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: MILESTONE_ROW_HEIGHT + trackIndex * TRACK_HEIGHT }} />
+                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + trackIndex * TRACK_HEIGHT }} />
                                 );
                               })}
 
@@ -1147,7 +1100,7 @@ export default function MasterScheduler() {
                                   const endPos = getPositionFromDate(effEndDate, monthWidth, viewMonths);
                                   const width = Math.max(endPos - startPos, 40);
                                   
-                                  const trackTop = MILESTONE_ROW_HEIGHT + (trackIndex * TRACK_HEIGHT);
+                                  const trackTop = MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + (trackIndex * TRACK_HEIGHT);
 
                                   const prePhasesRaw = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost);
                                   const postPhasesRaw = (ex.phases || []).filter(p => phaseTypes.find(t => t.id === p.typeId)?.isPost);
@@ -1322,16 +1275,16 @@ export default function MasterScheduler() {
                                         }}
                                       >
                                           <div
-                                            className="shrink-0 h-full flex items-center justify-center px-2 border-r border-white/30"
-                                            style={{ backgroundColor: statusStyle.iconBg }}
+                                            className="shrink-0 h-full flex items-center justify-center px-2.5 bg-slate-200 text-slate-900 border-r border-white/40"
                                             title={ex.status}
                                           >
-                                            <StatusIcon status={ex.status} size={12} color={statusStyle.iconText} />
+                                            <span className="font-bold text-[9px] uppercase tracking-[0.12em] whitespace-nowrap leading-none">{statusStyle.label}</span>
                                           </div>
                                           <div className="flex-1 min-w-0 flex items-center justify-center px-2">
                                             {width >= 180 ? (
-                                              <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-white truncate block leading-none pb-[0.5px]">
-                                                {ex.title} <span className="ml-1 bg-white text-slate-900 border border-slate-900/40 px-1.5 py-0.5 tracking-[0.1em]">{formatBarDate(effStartDate)} – {formatBarDate(effEndDate)}</span>
+                                              <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-white truncate flex items-center leading-none">
+                                                <span className="truncate">{ex.title}</span>
+                                                <span className="ml-1.5 inline-flex items-center bg-white text-slate-900 border border-slate-900/40 px-1.5 h-[14px] tracking-[0.1em] leading-none whitespace-nowrap">{formatBarDate(effStartDate)} – {formatBarDate(effEndDate)}</span>
                                               </span>
                                             ) : width >= 100 ? (
                                               <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-white truncate block leading-none pb-[0.5px]">{ex.title}</span>

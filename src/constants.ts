@@ -97,8 +97,9 @@ export const getAlbertaHolidays = (startYear: number, endYear: number) => {
 
 export const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 export const FY_QUARTERS = ['Q4', 'Q1', 'Q2', 'Q3'];
-export const MILESTONE_ROW_HEIGHT = 64;
-export const LANE_BOTTOM_PADDING = 36;
+export const MILESTONE_ROW_HEIGHT = 80;
+export const LANE_TOP_PADDING = 18;
+export const LANE_BOTTOM_PADDING = 44;
 export const BASE_LANE_HEIGHT = 132;
 export const COLLAPSED_LANE_HEIGHT = 32;
 export const HOLIDAY_LANE_HEIGHT = 72;
