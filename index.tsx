@@ -137,8 +137,15 @@ export default function MasterScheduler() {
     const beforePrint = () => {
       const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
       if (!shell) return;
+      // Print-only header is `hidden print:flex` so it doesn't contribute to scrollHeight
+      // at measurement time. Force-show it for the measurement, then restore so on-screen
+      // layout doesn't flicker if the user cancels the print dialog.
+      const printHeader = shell.querySelector('[data-print-header]') as HTMLElement | null;
+      const prevDisplay = printHeader?.style.display;
+      if (printHeader) printHeader.style.display = 'flex';
       const w = shell.scrollWidth;
       const h = shell.scrollHeight;
+      if (printHeader) printHeader.style.display = prevDisplay || '';
       if (!w || !h) return;
       const fitScale = Math.min(1, PAGE_W_PX / w, PAGE_H_PX / h);
       const scale = Math.max(MIN_PRINT_SCALE, fitScale);
@@ -700,14 +707,14 @@ export default function MasterScheduler() {
             </header>
 
             <div data-print-shell className="flex-1 flex flex-col overflow-hidden">
-              <div className="hidden print:flex justify-between items-baseline px-3 py-2 border-b border-slate-300 bg-white">
+              <div data-print-header className="hidden print:flex justify-between items-baseline px-3 py-2 border-b border-slate-300 bg-white shrink-0">
                 <h1 className="text-base font-bold uppercase tracking-[0.18em] text-slate-900">{museumName} — Portfolio Plan</h1>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-700">
                   Printed {new Date().toLocaleDateString()} · {filteredExhibitions.length} project{filteredExhibitions.length === 1 ? '' : 's'}
                   {collapsedGalleryIds.size > 0 && ` · ${collapsedGalleryIds.size} lane${collapsedGalleryIds.size === 1 ? '' : 's'} collapsed`}
                 </span>
               </div>
-            <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3">
+              <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3 print:overflow-visible">
 	              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
 	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] border-b border-slate-200 flex flex-col justify-center px-6 gap-2">
 	                  {(['Proposed', 'In Development', 'Open to Public', 'Closed'] as const).map(s => {
