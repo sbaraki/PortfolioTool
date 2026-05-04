@@ -107,6 +107,14 @@ export const STANDARD_BAR_HEIGHT = 24;
 export const PHASE_BAR_HEIGHT = 12;
 export const PHASE_GAP = 0;
 
+// Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
+// the rest of the app palette — phase fills, milestone colours, status pill
+// backgrounds, and the bar reds — so the strip reads as a distinct visual
+// channel that signals status at a glance.
+//   Proposed       → violet  #a78bfa
+//   In Development → yellow  #fde047 (dark icon for contrast)
+//   Open to Public → teal    #2dd4bf
+//   Closed         → pink    #f472b6
 export const getStatusStyles = (status: string) => {
   switch(status) {
     case 'Open to Public': return {
@@ -115,7 +123,9 @@ export const getStatusStyles = (status: string) => {
       border: '#10b981',
       text: '#064e3b',
       label: 'OPEN TO PUBLIC',
-      icon: 'globe'
+      icon: 'globe',
+      iconBg: '#2dd4bf',
+      iconText: '#ffffff'
     };
     case 'In Development': return {
       accent: '#d97706',
@@ -123,7 +133,9 @@ export const getStatusStyles = (status: string) => {
       border: '#f59e0b',
       text: '#78350f',
       label: 'IN DEVELOPMENT',
-      icon: 'hammer'
+      icon: 'hammer',
+      iconBg: '#fde047',
+      iconText: '#1e293b'
     };
     case 'Proposed': return {
       accent: '#4b5563',
@@ -131,7 +143,9 @@ export const getStatusStyles = (status: string) => {
       border: '#d1d5db',
       text: '#1f2937',
       label: 'PROPOSED',
-      icon: 'circle-dashed'
+      icon: 'circle-dashed',
+      iconBg: '#a78bfa',
+      iconText: '#ffffff'
     };
     case 'Closed': return {
       accent: '#000000',
@@ -139,7 +153,9 @@ export const getStatusStyles = (status: string) => {
       border: '#1f2937',
       text: '#000000',
       label: 'CLOSED',
-      icon: 'lock'
+      icon: 'lock',
+      iconBg: '#f472b6',
+      iconText: '#ffffff'
     };
     default: return {
       accent: '#94a3b8',
@@ -147,7 +163,9 @@ export const getStatusStyles = (status: string) => {
       border: '#e2e8f0',
       text: '#475569',
       label: '?',
-      icon: 'help-circle'
+      icon: 'help-circle',
+      iconBg: '#94a3b8',
+      iconText: '#ffffff'
     };
   }
 };

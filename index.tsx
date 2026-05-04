@@ -55,16 +55,16 @@ import {
 import { GithubAuthModal } from './src/components/GithubAuthModal';
 
 // --- Components ---
-const StatusIcon = ({ status, size = 12, className = "" }: { status: string; size?: number; className?: string }) => {
+const StatusIcon = ({ status, size = 12, className = "", color }: { status: string; size?: number; className?: string; color?: string }) => {
   const styles = getStatusStyles(status);
   const iconName = styles.icon;
-  
+
   switch (iconName) {
-    case 'globe': return <Globe size={size} className={className} />;
-    case 'hammer': return <Hammer size={size} className={className} />;
-    case 'circle-dashed': return <CircleDashed size={size} className={className} />;
-    case 'lock': return <Lock size={size} className={className} />;
-    default: return <HelpCircle size={size} className={className} />;
+    case 'globe': return <Globe size={size} className={className} color={color} />;
+    case 'hammer': return <Hammer size={size} className={className} color={color} />;
+    case 'circle-dashed': return <CircleDashed size={size} className={className} color={color} />;
+    case 'lock': return <Lock size={size} className={className} color={color} />;
+    default: return <HelpCircle size={size} className={className} color={color} />;
   }
 };
 
@@ -1167,10 +1167,11 @@ export default function MasterScheduler() {
                                         }}
                                       >
                                           <div
-                                            className="shrink-0 h-full flex items-center justify-center px-2 bg-black/10 border-r border-white/10"
+                                            className="shrink-0 h-full flex items-center justify-center px-2 border-r border-white/30"
+                                            style={{ backgroundColor: statusStyle.iconBg }}
                                             title={ex.status}
                                           >
-                                            <StatusIcon status={ex.status} size={12} className="text-white opacity-90" />
+                                            <StatusIcon status={ex.status} size={12} color={statusStyle.iconText} />
                                           </div>
                                           <div className="flex-1 min-w-0 flex items-center justify-center px-2">
                                             {width >= 180 ? (
