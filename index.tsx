@@ -130,30 +130,54 @@ export default function MasterScheduler() {
   }, []);
 
   // Scale the entire portfolio to fit on a single 11x17 landscape page when printing.
-  // Enforces a minimum scale so text never shrinks below the readability floor — content
-  // is allowed to overflow to a second page rather than become illegible.
+  // We measure the TRUE content extent (the inner row uses overflow:hidden and the
+  // timeline scroller uses overflow:auto, so the shell's scrollWidth would only
+  // report the clipped viewport size — wildly under-reporting actual content).
   useEffect(() => {
     const PAGE_W_PX = 16.7 * 96; // 17in landscape minus 0.15in margins
     const PAGE_H_PX = 10.7 * 96;
-    const MIN_PRINT_SCALE = 0.75; // ~8pt floor for the smallest 10–11px UI text
+    const MIN_PRINT_SCALE = 0.4; // hard floor; content shrinks aggressively to stay on one page
     const beforePrint = () => {
       const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
       if (!shell) return;
-      // Print-only header is `hidden print:flex` so it doesn't contribute to scrollHeight
-      // at measurement time. Force-show it for the measurement, then restore so on-screen
-      // layout doesn't flicker if the user cancels the print dialog.
+      // Print-only header is `hidden print:flex`. Force-show it so its height is
+      // included in the measurement (and restored on cancel).
       const printHeader = shell.querySelector('[data-print-header]') as HTMLElement | null;
       const prevDisplay = printHeader?.style.display;
       if (printHeader) printHeader.style.display = 'flex';
-      const w = shell.scrollWidth;
-      const h = shell.scrollHeight;
+
+      // Measure the deepest content directly — bypasses the overflow:hidden /
+      // overflow:auto chain that would otherwise clip scrollWidth.
+      const aside = shell.querySelector('aside') as HTMLElement | null;
+      const timelineScroll = shell.querySelector('.timeline-container') as HTMLElement | null;
+      const sidebarW = aside?.offsetWidth ?? 240;
+      const sidebarH = aside?.scrollHeight ?? 0;
+      const timelineW = timelineScroll?.scrollWidth ?? 0;
+      const timelineH = timelineScroll?.scrollHeight ?? 0;
+      const headerH = printHeader?.offsetHeight ?? 0;
+
+      // Account for shell padding (px-3 pt-2 pb-3) and inter-column gap (gap-3).
+      const SHELL_PAD_X = 24;
+      const SHELL_PAD_Y = 20;
+      const COL_GAP = 12;
+      const w = sidebarW + COL_GAP + timelineW + SHELL_PAD_X;
+      const h = headerH + Math.max(sidebarH, timelineH) + SHELL_PAD_Y;
+
       if (printHeader) printHeader.style.display = prevDisplay || '';
       if (!w || !h) return;
       const fitScale = Math.min(1, PAGE_W_PX / w, PAGE_H_PX / h);
       const scale = Math.max(MIN_PRINT_SCALE, fitScale);
+      // Apply zoom inline directly on the shell. Edge has a quirk where
+      // `zoom: var(--print-scale)` resolves the variable too late in the print
+      // pipeline and the scale is silently ignored — setting it as an inline
+      // style bypasses variable resolution entirely and works in both Chrome
+      // and Edge.
+      shell.style.zoom = String(scale);
       document.documentElement.style.setProperty('--print-scale', String(scale));
     };
     const afterPrint = () => {
+      const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
+      if (shell) shell.style.zoom = '';
       document.documentElement.style.removeProperty('--print-scale');
     };
     window.addEventListener('beforeprint', beforePrint);
@@ -1307,7 +1331,7 @@ export default function MasterScheduler() {
                                           <div className="flex-1 min-w-0 flex items-center justify-center px-2">
                                             {width >= 180 ? (
                                               <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-white truncate block leading-none pb-[0.5px]">
-                                                {ex.title} • {formatBarDate(effStartDate)} - {formatBarDate(effEndDate)}
+                                                {ex.title} <span className="ml-1 bg-white text-slate-900 border border-slate-900/40 px-1.5 py-0.5 tracking-[0.1em]">{formatBarDate(effStartDate)} – {formatBarDate(effEndDate)}</span>
                                               </span>
                                             ) : width >= 100 ? (
                                               <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-white truncate block leading-none pb-[0.5px]">{ex.title}</span>

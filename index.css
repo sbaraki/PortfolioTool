@@ -26,13 +26,14 @@
   }
 
   /* Scale the entire portfolio shell so all content fits on one page.
-     --print-scale is computed by the beforeprint handler in index.tsx.
+     The `zoom` value is set as an inline style by the beforeprint handler
+     in index.tsx (Edge fails to resolve `zoom: var(--print-scale)` in time
+     for pagination, so the inline style avoids the variable entirely).
      We use `zoom` rather than `transform: scale()` because zoom changes the
      element's layout box (so pagination sees the shrunken size), while
      transform only changes visual rendering — leaving the browser to
      paginate as if the content were still full-size. */
   [data-print-shell] {
-    zoom: var(--print-scale, 1);
     overflow: visible !important;
     width: max-content !important;
     height: max-content !important;
