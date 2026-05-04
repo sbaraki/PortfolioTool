@@ -954,7 +954,7 @@ export default function MasterScheduler() {
                         <div 
                           key={`month-divider-${idx}`} 
                           style={style} 
-                          className="absolute top-0 bottom-0 w-[1px] border-l border-dashed border-black/5 print:border-slate-600"
+                          className="absolute top-0 bottom-0 w-[1px] border-l border-dashed border-black/5 print:border-slate-200"
                         />
                       );
                     })}
