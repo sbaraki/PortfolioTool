@@ -100,6 +100,7 @@ export const FY_QUARTERS = ['Q4', 'Q1', 'Q2', 'Q3'];
 export const MILESTONE_ROW_HEIGHT = 64;
 export const LANE_BOTTOM_PADDING = 36;
 export const BASE_LANE_HEIGHT = 132;
+export const COLLAPSED_LANE_HEIGHT = 32;
 export const HOLIDAY_LANE_HEIGHT = 72;
 export const TRACK_HEIGHT = 46;
 export const HEADER_HEIGHT = 100;

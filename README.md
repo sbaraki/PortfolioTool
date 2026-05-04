@@ -24,6 +24,12 @@ and print-share long-range project portfolios across multiple galleries.
   by status (Proposed / In Development / Open to Public / Closed).
 - **Long-press drag.** Hold a project bar to drag it horizontally; release
   to commit the new dates.
+- **Collapsible lanes.** Click the chevron beside any gallery name to
+  collapse it to a thin header strip — useful for focusing on one or two
+  active galleries without the others taking vertical space. A toolbar
+  button collapses or expands all lanes at once. Collapse state is
+  session-scoped (resets on reload) and is preserved in print output, so
+  printed plans show only the lanes you currently have open.
 
 ## Print
 
@@ -36,6 +42,9 @@ Designed for **11×17 landscape** ledger paper (`@page { size: 17in 11in }`).
   spills to a second page rather than becoming illegible.
 - Print color is forced on (`print-color-adjust: exact`) so phase fills,
   status colors, and gallery accents render in hard copy.
+- A print-only header strip appears above the timeline showing the
+  organisation name, print date, project count, and how many lanes (if
+  any) are collapsed in the current view.
 
 ## Settings
 

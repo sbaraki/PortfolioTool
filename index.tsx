@@ -1,7 +1,7 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_BOTTOM_PADDING, PHASE_GAP } from './src/constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_BOTTOM_PADDING, PHASE_GAP } from './src/constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays } from './src/lib/dateUtils';
 import { calculateTracks } from './src/lib/layoutEngine';
 import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectPhase, ExhibitionStatus } from './src/types';
@@ -95,6 +95,17 @@ export default function MasterScheduler() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'portfolio' | 'settings'>('portfolio');
   const [showGithubAuth, setShowGithubAuth] = useState(false);
+  const [collapsedGalleryIds, setCollapsedGalleryIds] = useState<Set<string>>(new Set());
+  const toggleGalleryCollapsed = (id: string) => {
+    setCollapsedGalleryIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const collapseAllGalleries = () => setCollapsedGalleryIds(new Set(galleries.map(g => g.id)));
+  const expandAllGalleries = () => setCollapsedGalleryIds(new Set());
+  const allCollapsed = galleries.length > 0 && galleries.every(g => collapsedGalleryIds.has(g.id));
   const [isDraggingScroll, setIsDraggingScroll] = useState(false);
   const startXRef = useRef(0);
   const scrollLeftRef = useRef(0);
@@ -275,6 +286,10 @@ export default function MasterScheduler() {
 
   const galleryLaneHeights = useMemo(() => {
     return galleries.reduce((acc, gallery) => {
+      if (collapsedGalleryIds.has(gallery.id)) {
+        acc[gallery.name] = COLLAPSED_LANE_HEIGHT;
+        return acc;
+      }
       const tracksCount = galleryLayouts[gallery.name]?.maxTracks || 1;
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
@@ -282,7 +297,7 @@ export default function MasterScheduler() {
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [galleries, galleryLayouts]);
+  }, [galleries, galleryLayouts, collapsedGalleryIds]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -315,7 +330,7 @@ export default function MasterScheduler() {
     <div
       className={`min-h-screen bg-[linear-gradient(180deg,#f7f4ec_0%,#f8fafc_28%,#eef2f7_100%)] text-black flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId ? 'cursor-grabbing' : ''}`}
     >
-      {showGithubAuth && <GithubAuthModal onClose={() => setShowGithubAuth(false)} />}
+      {showGithubAuth && <div className="no-print"><GithubAuthModal onClose={() => setShowGithubAuth(false)} /></div>}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-left: 1px solid #cbd5e1; }
@@ -371,7 +386,7 @@ export default function MasterScheduler() {
       `}</style>
       
       {editMilestoneDraft && (
-        <div className="fixed inset-0 bg-slate-900/40 z-[100] backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setEditMilestoneDraft(null)}>
+        <div className="fixed inset-0 bg-slate-900/40 z-[100] backdrop-blur-sm flex items-center justify-center p-4 no-print" onClick={() => setEditMilestoneDraft(null)}>
           <div className="bg-white border border-black/10 w-full max-w-sm shadow-xl rounded-xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="bg-slate-900 text-white px-4 py-3 font-semibold tracking-widest flex justify-between items-center text-[12px]">
               <span>EDIT MILESTONE</span>
@@ -627,8 +642,17 @@ export default function MasterScheduler() {
                   )}
 
                   <div className="flex items-center space-x-1.5">
-                    <button 
-                      onClick={() => window.print()} 
+                    <button
+                      onClick={() => allCollapsed ? expandAllGalleries() : collapseAllGalleries()}
+                      disabled={galleries.length === 0}
+                      className="p-1.5 border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={allCollapsed ? 'Expand all lanes' : 'Collapse all lanes'}
+                      aria-label={allCollapsed ? 'Expand all lanes' : 'Collapse all lanes'}
+                    >
+                      {allCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+                    </button>
+                    <button
+                      onClick={() => window.print()}
                       className="p-1.5 border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm"
                       title="Print"
                     >
@@ -675,7 +699,15 @@ export default function MasterScheduler() {
               </nav>
             </header>
 
-            <div data-print-shell className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3">
+            <div data-print-shell className="flex-1 flex flex-col overflow-hidden">
+              <div className="hidden print:flex justify-between items-baseline px-3 py-2 border-b border-slate-300 bg-white">
+                <h1 className="text-base font-bold uppercase tracking-[0.18em] text-slate-900">{museumName} — Portfolio Plan</h1>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-700">
+                  Printed {new Date().toLocaleDateString()} · {filteredExhibitions.length} project{filteredExhibitions.length === 1 ? '' : 's'}
+                  {collapsedGalleryIds.size > 0 && ` · ${collapsedGalleryIds.size} lane${collapsedGalleryIds.size === 1 ? '' : 's'} collapsed`}
+                </span>
+              </div>
+            <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3">
 	              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
 	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] border-b border-slate-200 flex flex-col justify-center px-6 gap-2">
 	                  {(['Proposed', 'In Development', 'Open to Public', 'Closed'] as const).map(s => {
@@ -707,17 +739,50 @@ export default function MasterScheduler() {
 	                    const laneHeight = galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT;
 	                    const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
 	                    const isPermanent = gallery.kind === 'permanent';
+	                    const isCollapsed = collapsedGalleryIds.has(gallery.id);
+	                    if (isCollapsed) {
+	                      return (
+	                        <div
+	                          key={gallery.id}
+	                          style={{ height: `${laneHeight}px` }}
+	                          className={`relative border-b border-black/10 overflow-hidden flex items-center px-3 gap-2 border-l-4 ${isPermanent ? 'bg-amber-100/70 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'} print:bg-slate-50`}
+	                        >
+	                          <button
+	                            type="button"
+	                            aria-label={`Expand ${gallery.name}`}
+	                            onClick={() => toggleGalleryCollapsed(gallery.id)}
+	                            className="shrink-0 w-5 h-5 flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-300/60 transition-colors no-print"
+	                          >
+	                            <ChevronRight size={14} strokeWidth={2.5} />
+	                          </button>
+	                          <span className="font-bold uppercase text-[10px] tracking-[0.12em] text-slate-900 truncate flex-1">{gallery.name}</span>
+	                          <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-700 bg-white/80 border border-slate-300 px-1.5 py-0.5 leading-none">
+	                            {galleryProjects.length} {galleryProjects.length === 1 ? 'PROJ' : 'PROJS'}
+	                          </span>
+	                        </div>
+	                      );
+	                    }
 	                    return (
 		                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b border-black/10 overflow-hidden ${isPermanent ? 'bg-amber-50/60' : 'bg-white/80'}`}>
 		                        <div
 		                          style={{ minHeight: `${MILESTONE_ROW_HEIGHT}px` }}
-		                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex flex-col justify-center gap-0.5 px-5 py-2.5 z-20 print:bg-slate-50 border-l-4 ${isPermanent ? 'bg-amber-100/80 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'}`}
+		                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex items-start gap-2 px-3 py-2.5 z-20 print:bg-slate-50 border-l-4 ${isPermanent ? 'bg-amber-100/80 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'}`}
 		                          title={isPermanent ? 'Permanent gallery redevelopment' : 'Temporary exhibition space'}
 		                        >
-		                          <span className="font-bold uppercase text-[11px] tracking-[0.14em] text-slate-900 leading-snug line-clamp-2">{gallery.name}</span>
-		                          {isPermanent && (
-		                            <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-amber-800 leading-tight">Permanent Gallery Redevelopment</span>
-		                          )}
+		                          <button
+		                            type="button"
+		                            aria-label={`Collapse ${gallery.name}`}
+		                            onClick={() => toggleGalleryCollapsed(gallery.id)}
+		                            className="shrink-0 w-5 h-5 mt-0.5 flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-300/60 transition-colors no-print"
+		                          >
+		                            <ChevronDown size={14} strokeWidth={2.5} />
+		                          </button>
+		                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+		                            <span className="font-bold uppercase text-[11px] tracking-[0.14em] text-slate-900 leading-snug line-clamp-2">{gallery.name}</span>
+		                            {isPermanent && (
+		                              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-amber-800 leading-tight">Permanent Gallery Redevelopment</span>
+		                            )}
+		                          </div>
 		                        </div>
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
@@ -904,6 +969,17 @@ export default function MasterScheduler() {
 	                         const g = gallery.name;
 	                         const laneHeight = galleryLaneHeights[g] || BASE_LANE_HEIGHT;
 	                         const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === g);
+	                         const isCollapsed = collapsedGalleryIds.has(gallery.id);
+
+	                         if (isCollapsed) {
+	                           return (
+	                             <div
+	                               key={gallery.id}
+	                               style={{ height: `${laneHeight}px` }}
+	                               className="border-b border-slate-300 relative overflow-hidden bg-slate-50/80 bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.06)_0px,rgba(148,163,184,0.06)_4px,transparent_4px,transparent_8px)] print:bg-slate-100 print:bg-none"
+	                             />
+	                           );
+	                         }
 
                          return (
 	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)]">
@@ -1259,6 +1335,7 @@ export default function MasterScheduler() {
               </div>
             </main>
           </div>
+            </div>
         </>
 	        ) : (
 	          <div className="p-8 py-6 max-w-4xl mx-auto space-y-8 overflow-y-auto h-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] no-print custom-scrollbar flex flex-col">
