@@ -1275,18 +1275,13 @@ export default function MasterScheduler() {
                                         }}
                                       >
                                           <div
-                                            className="shrink-0 h-full flex items-center justify-center px-2.5 bg-slate-200 text-slate-900 border-r border-white/40"
+                                            className="shrink-0 h-full flex items-center justify-center px-2.5 border-r border-white/40"
                                             title={ex.status}
                                           >
-                                            <span className="font-bold text-[9px] uppercase tracking-[0.12em] whitespace-nowrap leading-none">{statusStyle.label}</span>
+                                            <span className="font-bold text-[9px] uppercase tracking-[0.12em] whitespace-nowrap leading-none text-white">{statusStyle.label}</span>
                                           </div>
                                           <div className="flex-1 min-w-0 flex items-center justify-center px-2">
-                                            {width >= 180 ? (
-                                              <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-white truncate flex items-center leading-none">
-                                                <span className="truncate">{ex.title}</span>
-                                                <span className="ml-1.5 inline-flex items-center bg-white text-slate-900 border border-slate-900/40 px-1.5 h-[14px] tracking-[0.1em] leading-none whitespace-nowrap">{formatBarDate(effStartDate)} – {formatBarDate(effEndDate)}</span>
-                                              </span>
-                                            ) : width >= 100 ? (
+                                            {width >= 100 ? (
                                               <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-white truncate block leading-none pb-[0.5px]">{ex.title}</span>
                                             ) : (
                                               <span className="font-bold text-[9px] uppercase tracking-[0.18em] text-white px-1 leading-none pb-[0.5px] truncate">
@@ -1295,6 +1290,22 @@ export default function MasterScheduler() {
                                             )}
                                           </div>
                                       </div>
+                                      )}
+                                      {!ex.isMilestone && width >= 80 && (
+                                        <div
+                                          className="absolute pointer-events-none flex items-center justify-center"
+                                          style={{
+                                            left: `${startPos}px`,
+                                            width: `${width}px`,
+                                            top: `${mainBarY - 16}px`,
+                                            height: '14px',
+                                            zIndex: 26,
+                                          }}
+                                        >
+                                          <span className="bg-white text-slate-900 border border-slate-900/40 px-1.5 text-[9px] font-bold uppercase tracking-[0.1em] leading-none whitespace-nowrap shadow-sm inline-flex items-center h-[14px]">
+                                            {formatBarDate(effStartDate)} – {formatBarDate(effEndDate)}
+                                          </span>
+                                        </div>
                                       )}
                                     </React.Fragment>
                                   );
