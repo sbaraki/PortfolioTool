@@ -1127,9 +1127,9 @@ export default function MasterScheduler() {
                                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
                                           className={`absolute pointer-events-auto cursor-pointer flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
                                           style={{
-                                            left: `${startPos}px`,
+                                            left: `${startPos - 10}px`,
                                             top: `${mainBarY + STANDARD_BAR_HEIGHT / 2}px`,
-                                            transform: 'translate(-50%, -50%)',
+                                            transform: 'translateY(-50%)',
                                             zIndex: 25
                                           }}
                                           title={`${ex.title} — ${formatBarDate(effStartDate)}`}
