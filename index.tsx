@@ -53,6 +53,7 @@ import {
   Hammer,
   CircleDashed,
   Lock,
+  Ticket,
   HelpCircle
 } from 'lucide-react';
 
@@ -68,6 +69,7 @@ const StatusIcon = ({ status, size = 12, className = "", color }: { status: stri
     case 'hammer': return <Hammer size={size} className={className} color={color} />;
     case 'circle-dashed': return <CircleDashed size={size} className={className} color={color} />;
     case 'lock': return <Lock size={size} className={className} color={color} />;
+    case 'ticket': return <Ticket size={size} className={className} color={color} />;
     default: return <HelpCircle size={size} className={className} color={color} />;
   }
 };
@@ -150,13 +152,9 @@ export default function MasterScheduler() {
       const fitScale = Math.min(1, PAGE_W_PX / w, PAGE_H_PX / h);
       const scale = Math.max(MIN_PRINT_SCALE, fitScale);
       document.documentElement.style.setProperty('--print-scale', String(scale));
-      document.documentElement.style.setProperty('--print-scaled-w', `${w * scale}px`);
-      document.documentElement.style.setProperty('--print-scaled-h', `${h * scale}px`);
     };
     const afterPrint = () => {
       document.documentElement.style.removeProperty('--print-scale');
-      document.documentElement.style.removeProperty('--print-scaled-w');
-      document.documentElement.style.removeProperty('--print-scaled-h');
     };
     window.addEventListener('beforeprint', beforePrint);
     window.addEventListener('afterprint', afterPrint);

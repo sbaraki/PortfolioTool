@@ -115,7 +115,7 @@ export const PHASE_GAP = 0;
 //   Proposed       → violet  #a78bfa
 //   In Development → yellow  #fde047 (dark icon for contrast)
 //   Open to Public → teal    #2dd4bf
-//   Closed         → pink    #f472b6
+//   Closed         → dark grey #475569
 export const getStatusStyles = (status: string) => {
   switch(status) {
     case 'Open to Public': return {
@@ -124,7 +124,7 @@ export const getStatusStyles = (status: string) => {
       border: '#10b981',
       text: '#064e3b',
       label: 'OPEN TO PUBLIC',
-      icon: 'globe',
+      icon: 'ticket',
       iconBg: '#2dd4bf',
       iconText: '#ffffff'
     };
@@ -155,7 +155,7 @@ export const getStatusStyles = (status: string) => {
       text: '#000000',
       label: 'CLOSED',
       icon: 'lock',
-      iconBg: '#f472b6',
+      iconBg: '#475569',
       iconText: '#ffffff'
     };
     default: return {

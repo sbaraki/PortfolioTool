@@ -26,10 +26,13 @@
   }
 
   /* Scale the entire portfolio shell so all content fits on one page.
-     --print-scale is computed by the beforeprint handler in index.tsx. */
+     --print-scale is computed by the beforeprint handler in index.tsx.
+     We use `zoom` rather than `transform: scale()` because zoom changes the
+     element's layout box (so pagination sees the shrunken size), while
+     transform only changes visual rendering — leaving the browser to
+     paginate as if the content were still full-size. */
   [data-print-shell] {
-    transform: scale(var(--print-scale, 1));
-    transform-origin: top left;
+    zoom: var(--print-scale, 1);
     overflow: visible !important;
     width: max-content !important;
     height: max-content !important;
