@@ -105,7 +105,7 @@ export const TRACK_HEIGHT = 46;
 export const HEADER_HEIGHT = 100;
 export const STANDARD_BAR_HEIGHT = 24;
 export const PHASE_BAR_HEIGHT = 12;
-export const PHASE_GAP = 3;
+export const PHASE_GAP = 0;
 
 export const getStatusStyles = (status: string) => {
   switch(status) {

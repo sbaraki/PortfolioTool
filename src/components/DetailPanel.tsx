@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'motion/react';
 import { Check, Edit2, X, Trash2, ChevronUp, ChevronDown, Copy } from 'lucide-react';
 import { Exhibition, Gallery, ProjectPhase, PhaseType } from '../types';
 import { getDateWithMonthDuration, getDurationMonths } from '../lib/dateUtils';
@@ -116,11 +115,7 @@ export const DetailPanel = ({
   };
 
   return (
-    <motion.aside 
-      initial={{ x: '100%' }}
-      animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+    <aside
       className="fixed inset-y-0 right-0 w-full sm:w-[520px] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] border-l border-slate-200 z-[100] flex flex-col no-print shadow-[-20px_0_50px_rgba(0,0,0,0.1)] focus-within:ring-2 focus-within:ring-blue-500/20"
     >
       <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-white/90 backdrop-blur-sm">
@@ -187,10 +182,7 @@ export const DetailPanel = ({
         </div>
       </div>
 
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.4 }}
+      <div
         className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar"
       >
         <div className="grid grid-cols-1 gap-4">
@@ -530,7 +522,7 @@ export const DetailPanel = ({
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
 
           <div className="p-5 border-t border-slate-200 flex gap-3 bg-white/90 backdrop-blur-sm shrink-0">
         {isEditing ? (
@@ -557,6 +549,6 @@ export const DetailPanel = ({
           </>
         )}
       </div>
-    </motion.aside>
+    </aside>
   );
 };

@@ -8,7 +8,6 @@ import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, Project
 import { DetailPanel } from './src/components/DetailPanel';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
   X,
@@ -469,11 +468,8 @@ export default function MasterScheduler() {
           : null;
         if (!selectedExhibition) return null;
         return (
-          <AnimatePresence>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+          <>
+            <div
               className="fixed inset-0 bg-slate-900/40 z-[90] no-print backdrop-blur-[2px]"
               onClick={() => setSelectedProjectId(null)}
             />
@@ -493,7 +489,7 @@ export default function MasterScheduler() {
               galleries={galleries}
               phaseTypes={phaseTypes}
             />
-          </AnimatePresence>
+          </>
         );
       })()}
 
@@ -617,16 +613,13 @@ export default function MasterScheduler() {
                       onClick={() => setShowGithubAuth(true)}
                       className="group relative px-2.5 py-1.5 bg-white border border-slate-300 font-bold uppercase text-[9px] hover:bg-slate-50 transition-all shadow-sm active:scale-95 flex items-center gap-1.5 overflow-hidden"
                     >
-                      <motion.div 
+                      <div
                         className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"
-                        initial={false}
                       />
-                      <LogIn size={11} className="relative z-10" /> 
+                      <LogIn size={11} className="relative z-10" />
                       <span className="relative z-10">SYNC</span>
                       {syncStatus === 'syncing' && (
-                        <motion.div 
-                          animate={{ opacity: [0.4, 1, 0.4] }}
-                          transition={{ repeat: Infinity, duration: 1.5 }}
+                        <div
                           className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-1"
                         />
                       )}
@@ -1138,7 +1131,7 @@ export default function MasterScheduler() {
                                               {phase.width >= 24 && (
                                                 <div
                                                   className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
-                                                  style={{ left: `${phase.startX}px`, top: `${phase.y - 14}px`, width: `${Math.max(phase.width - 2, 0)}px` }}
+                                                  style={{ left: `${phase.startX + 8}px`, top: `${phase.y - 14}px`, width: `${Math.max(phase.width - 10, 0)}px` }}
                                                   title={phase.label}
                                                 >
                                                   {phase.label}
@@ -1191,16 +1184,13 @@ export default function MasterScheduler() {
                                       </div>
 
                                       {ex.isMilestone ? (
-                                        <motion.div
-                                          layoutId={`project-${ex.id}`}
+                                        <div
                                           aria-label={`Project: ${ex.title} (${ex.status}). Completion milestone on ${formatBarDate(effStartDate)}. Click to view details.`}
                                           role="button"
                                           tabIndex={0}
                                           onMouseDown={(e) => onBarMouseDown(e, ex)}
                                           onClick={() => { if (!draggingBarId) setSelectedProjectId(ex.id); }}
                                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
-                                          whileHover={{ scale: 1.15, transition: { duration: 0.2, ease: "easeOut" } }}
-                                          whileTap={{ scale: 0.95 }}
                                           className={`absolute pointer-events-auto cursor-pointer flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
                                           style={{
                                             left: `${startPos}px`,
@@ -1213,34 +1203,26 @@ export default function MasterScheduler() {
                                           <div
                                             className="w-5 h-5 border-[2px] border-slate-900 rotate-45 shadow-[2px_2px_0_0_rgba(0,0,0,0.6)] flex items-center justify-center print:shadow-none"
                                             style={{
-                                              backgroundColor: statusStyle.accent,
+                                              backgroundColor: '#dc2626',
                                             }}
                                           >
                                             <div className="w-[5px] h-[5px] bg-white" />
                                           </div>
                                           <span
                                             className="ml-3 font-bold text-[10px] uppercase tracking-[0.14em] whitespace-nowrap px-2 py-0.5 bg-white border border-slate-300 shadow-sm text-slate-900 print:bg-transparent print:border-none print:shadow-none"
-                                            style={{ transform: 'rotate(0deg)' }}
                                           >
                                             {ex.title} • {formatBarDate(effStartDate)}
                                           </span>
-                                        </motion.div>
+                                        </div>
                                       ) : (
-                                      <motion.div
-                                        layoutId={`project-${ex.id}`}
+                                      <div
                                         aria-label={`Project: ${ex.title} (${ex.status}). Click to view details, long-press to drag.`}
                                         role="button"
                                         tabIndex={0}
                                         onMouseDown={(e) => onBarMouseDown(e, ex)}
                                         onClick={() => { if (!draggingBarId) setSelectedProjectId(ex.id); }}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
-                                        whileHover={{
-                                          y: -2,
-                                          scale: 1.005,
-                                          transition: { duration: 0.2, ease: "easeOut" }
-                                        }}
-                                        whileTap={{ scale: 0.99 }}
-                                        className={`absolute pointer-events-auto border border-black/10 shadow-[0_8px_16px_rgba(15,23,42,0.16)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.25)] transition-all cursor-pointer flex items-stretch overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50 print:border-slate-800 print:shadow-none ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
+                                        className={`absolute pointer-events-auto border border-black/10 shadow-[0_8px_16px_rgba(15,23,42,0.16)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.25)] transition-shadow cursor-pointer flex items-stretch overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50 print:border-slate-800 print:shadow-none ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
                                         style={{
                                           left: `${startPos}px`,
                                           width: `${width}px`,
@@ -1269,7 +1251,7 @@ export default function MasterScheduler() {
                                               </span>
                                             )}
                                           </div>
-                                      </motion.div>
+                                      </div>
                                       )}
                                     </React.Fragment>
                                   );
