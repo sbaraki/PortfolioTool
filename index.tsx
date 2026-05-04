@@ -116,16 +116,20 @@ export default function MasterScheduler() {
   }, []);
 
   // Scale the entire portfolio to fit on a single 11x17 landscape page when printing.
+  // Enforces a minimum scale so text never shrinks below the readability floor — content
+  // is allowed to overflow to a second page rather than become illegible.
   useEffect(() => {
     const PAGE_W_PX = 16.7 * 96; // 17in landscape minus 0.15in margins
     const PAGE_H_PX = 10.7 * 96;
+    const MIN_PRINT_SCALE = 0.75; // ~8pt floor for the smallest 10–11px UI text
     const beforePrint = () => {
       const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
       if (!shell) return;
       const w = shell.scrollWidth;
       const h = shell.scrollHeight;
       if (!w || !h) return;
-      const scale = Math.min(1, PAGE_W_PX / w, PAGE_H_PX / h);
+      const fitScale = Math.min(1, PAGE_W_PX / w, PAGE_H_PX / h);
+      const scale = Math.max(MIN_PRINT_SCALE, fitScale);
       document.documentElement.style.setProperty('--print-scale', String(scale));
       document.documentElement.style.setProperty('--print-scaled-w', `${w * scale}px`);
       document.documentElement.style.setProperty('--print-scaled-h', `${h * scale}px`);
@@ -704,15 +708,15 @@ export default function MasterScheduler() {
 	                    const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
 	                    const isPermanent = gallery.kind === 'permanent';
 	                    return (
-		                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="relative border-b border-black/10 bg-white/80 overflow-hidden">
+		                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b border-black/10 overflow-hidden ${isPermanent ? 'bg-amber-50/60' : 'bg-white/80'}`}>
 		                        <div
 		                          style={{ minHeight: `${MILESTONE_ROW_HEIGHT}px` }}
-		                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex items-center justify-between gap-3 px-5 py-3.5 z-20 print:bg-slate-50 border-l-4 ${isPermanent ? 'bg-amber-50/80 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'}`}
-		                          title={isPermanent ? 'Permanent gallery space' : 'Temporary exhibition space'}
+		                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex flex-col justify-center gap-0.5 px-5 py-2.5 z-20 print:bg-slate-50 border-l-4 ${isPermanent ? 'bg-amber-100/80 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'}`}
+		                          title={isPermanent ? 'Permanent gallery redevelopment' : 'Temporary exhibition space'}
 		                        >
-		                          <span className="font-bold uppercase text-[11px] tracking-[0.14em] text-slate-900 leading-snug line-clamp-2 flex-1 min-w-0">{gallery.name}</span>
+		                          <span className="font-bold uppercase text-[11px] tracking-[0.14em] text-slate-900 leading-snug line-clamp-2">{gallery.name}</span>
 		                          {isPermanent && (
-		                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.12em] border border-amber-700/60 bg-white text-amber-800 px-1.5 py-0.5 rounded-sm">PERM</span>
+		                            <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-amber-800 leading-tight">Permanent Gallery Redevelopment</span>
 		                          )}
 		                        </div>
                         {galleryProjects.map(ex => {
@@ -951,7 +955,7 @@ export default function MasterScheduler() {
                          });
 
                          return (
-	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] ${gallery.kind === 'permanent' ? 'bg-[linear-gradient(180deg,rgba(254,252,232,0.6)_0%,rgba(254,243,199,0.35)_100%)]' : 'bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)]'}`}>
+	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)]">
                              {showConflicts && mergedOverlaps.map((overlap, i) => (
                                <div 
                                  key={`overlap-${i}`}

@@ -6,20 +6,23 @@
 
   html, body {
     width: 17in !important;
-    height: 10.7in !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: hidden !important;
     background-color: white !important;
     color: #334155 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    /* Width is clipped to a single page so the timeline never paginates horizontally,
+       but vertical overflow is allowed: when content can't fit at the readable-text
+       floor, it spills to a second page rather than shrinking below legibility. */
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
   }
 
   #root {
     width: 17in !important;
-    height: 10.7in !important;
-    overflow: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
   }
 
   /* Scale the entire portfolio shell so all content fits on one page.
@@ -54,14 +57,13 @@
     display: none !important;
   }
 
-  /* Prevent any element from forcing a page break */
+  /* Prevent gratuitous page breaks but allow overflow when the readable-text floor
+     is hit — tall portfolios can spill to a second page rather than become illegible. */
   * {
     page-break-before: avoid !important;
     page-break-after: avoid !important;
-    page-break-inside: avoid !important;
     break-before: avoid !important;
     break-after: avoid !important;
-    break-inside: avoid !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     backdrop-filter: none !important;
