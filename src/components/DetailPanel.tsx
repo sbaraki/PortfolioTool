@@ -33,12 +33,40 @@ export const DetailPanel = ({
     setEditingPhaseId(null);
   }, [exhibition]);
 
-  const handleSaveAll = () => { onUpdate(editedEx); setIsEditing(false); };
+  const handleSaveAll = () => {
+    let next = editedEx;
+    if (editingPhaseId && localPhaseDraft) {
+      next = {
+        ...editedEx,
+        phases: editedEx.phases.map(p => p.id === localPhaseDraft.id ? localPhaseDraft : p)
+      };
+      setEditedEx(next);
+      setEditingPhaseId(null);
+      setLocalPhaseDraft(null);
+    }
+    onUpdate(next);
+    setIsEditing(false);
+  };
   const handleFieldChange = (field: keyof Exhibition, value: any) => { setEditedEx(prev => ({ ...prev, [field]: value })); };
+
+  const handleStartDateChange = (value: string) => {
+    setEditedEx(prev => ({
+      ...prev,
+      startDate: value,
+      endDate: !prev.isMilestone && prev.endDate && prev.endDate < value ? value : prev.endDate
+    }));
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setEditedEx(prev => ({
+      ...prev,
+      endDate: value < prev.startDate ? prev.startDate : value
+    }));
+  };
 
   const handleAddPhase = () => {
     const newPhase: ProjectPhase = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: Math.random().toString(36).slice(2, 11),
       label: 'NEW PHASE',
       durationMonths: 1,
       typeId: phaseTypes[0]?.id || 'pt1'
@@ -122,7 +150,11 @@ export const DetailPanel = ({
                   {getStatusStyles(exhibition.status).label}
                 </span>
                 <span className="px-3 py-1 border border-slate-200 bg-white text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-700">{exhibition.gallery}</span>
-                <span className="px-3 py-1 border border-slate-200 bg-white text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-700">{totalProjectDuration} Months</span>
+                {exhibition.isMilestone ? (
+                  <span className="px-3 py-1 border border-slate-300 bg-slate-900 text-[12px] font-semibold uppercase tracking-[0.14em] text-white">Completion Milestone</span>
+                ) : (
+                  <span className="px-3 py-1 border border-slate-200 bg-white text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-700">{totalProjectDuration} Months</span>
+                )}
               </div>
             </div>
           )}
@@ -213,11 +245,21 @@ export const DetailPanel = ({
           <div className="space-y-1">
             <label htmlFor="ex-gallery" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">GALLERY LANE</label>
             {isEditing ? (
-              <select 
+              <select
                 id="ex-gallery"
-                className="w-full font-medium border border-slate-300 p-2 outline-none text-sm bg-white text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm" 
-                value={editedEx.gallery} 
-                onChange={(e) => handleFieldChange('gallery', e.target.value)}
+                className="w-full font-medium border border-slate-300 p-2 outline-none text-sm bg-white text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                value={editedEx.gallery}
+                onChange={(e) => {
+                  const nextGalleryName = e.target.value;
+                  const nextGallery = galleries.find(g => g.name === nextGalleryName);
+                  const shouldBeMilestone = nextGallery?.kind === 'permanent';
+                  setEditedEx(prev => ({
+                    ...prev,
+                    gallery: nextGalleryName,
+                    isMilestone: shouldBeMilestone,
+                    endDate: shouldBeMilestone ? prev.startDate : prev.endDate
+                  }));
+                }}
               >
                 {galleries.map(g => (
                   <option key={g.id} value={g.name}>
@@ -229,58 +271,106 @@ export const DetailPanel = ({
               <p className="font-medium text-sm uppercase">{exhibition.gallery}</p>
             )}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label htmlFor="ex-start-date" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">START DATE</label>
+          <div className="pt-2 pb-2 border-t border-slate-200">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <span className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight block">Track as Completion Milestone</span>
+                <span className="text-[10px] text-slate-500 uppercase tracking-tight block mt-1">
+                  Use a single date instead of a run with start/end dates. Recommended for permanent installations.
+                </span>
+              </div>
               {isEditing ? (
-                <input 
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!!editedEx.isMilestone}
+                  aria-label="Toggle milestone mode"
+                  onClick={() => handleFieldChange('isMilestone', !editedEx.isMilestone)}
+                  className={`relative shrink-0 w-11 h-6 border border-slate-300 transition-colors duration-200 focus:ring-2 focus:ring-blue-500/50 ${editedEx.isMilestone ? 'bg-slate-900' : 'bg-slate-200'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-4 h-4 bg-white border border-slate-300 transition-transform duration-200 ${editedEx.isMilestone ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+                  />
+                </button>
+              ) : (
+                <span className={`shrink-0 px-2 py-0.5 border text-[10px] font-semibold uppercase tracking-[0.14em] ${exhibition.isMilestone ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-300'}`}>
+                  {exhibition.isMilestone ? 'ON' : 'OFF'}
+                </span>
+              )}
+            </div>
+          </div>
+          {editedEx.isMilestone ? (
+            <div className="space-y-1">
+              <label htmlFor="ex-start-date" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">COMPLETION DATE</label>
+              {isEditing ? (
+                <input
                   id="ex-start-date"
-                  type="date" 
-                  className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm" 
-                  value={editedEx.startDate} 
-                  onChange={(e) => handleFieldChange('startDate', e.target.value)} 
+                  type="date"
+                  className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                  value={editedEx.startDate}
+                  onChange={(e) => handleFieldChange('startDate', e.target.value)}
                 />
               ) : (
                 <p className="text-sm font-medium">{exhibition.startDate}</p>
               )}
             </div>
-            <div className="space-y-1">
-              <label htmlFor="ex-end-date" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">END DATE</label>
-              {isEditing ? (
-                <input 
-                  id="ex-end-date"
-                  type="date" 
-                  className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm" 
-                  value={editedEx.endDate} 
-                  onChange={(e) => handleFieldChange('endDate', e.target.value)} 
-                />
-              ) : (
-                <p className="text-sm font-medium">{exhibition.endDate}</p>
-              )}
-            </div>
-          </div>
-          <div className="pt-2 border-t border-slate-200">
-            <label htmlFor="ex-duration" className="text-[11px] font-semibold uppercase text-slate-600 block tracking-tight">TOTAL PROJECT DURATION</label>
-            {isEditing ? (
-              <div className="flex items-center space-x-2 mt-1">
-                <input 
-                  id="ex-duration"
-                  type="number"
-                  min="0.1"
-                  step="0.1"
-                  className="w-24 border border-slate-300 bg-white text-slate-900 font-semibold p-2 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
-                  value={totalProjectDuration}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    if (!isNaN(val)) handleDurationChange(val);
-                  }}
-                />
-                <span className="text-xs font-semibold uppercase tracking-tight">MONTHS</span>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label htmlFor="ex-start-date" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">START DATE</label>
+                  {isEditing ? (
+                    <input
+                      id="ex-start-date"
+                      type="date"
+                      className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                      value={editedEx.startDate}
+                      onChange={(e) => handleStartDateChange(e.target.value)}
+                    />
+                  ) : (
+                    <p className="text-sm font-medium">{exhibition.startDate}</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="ex-end-date" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">END DATE</label>
+                  {isEditing ? (
+                    <input
+                      id="ex-end-date"
+                      type="date"
+                      min={editedEx.startDate}
+                      className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                      value={editedEx.endDate}
+                      onChange={(e) => handleEndDateChange(e.target.value)}
+                    />
+                  ) : (
+                    <p className="text-sm font-medium">{exhibition.endDate}</p>
+                  )}
+                </div>
               </div>
-            ) : (
-              <p className="text-sm font-semibold text-slate-900 mt-1 uppercase tracking-tight">{totalProjectDuration} MONTHS</p>
-            )}
-          </div>
+              <div className="pt-2 border-t border-slate-200">
+                <label htmlFor="ex-duration" className="text-[11px] font-semibold uppercase text-slate-600 block tracking-tight">TOTAL PROJECT DURATION</label>
+                {isEditing ? (
+                  <div className="flex items-center space-x-2 mt-1">
+                    <input
+                      id="ex-duration"
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      className="w-24 border border-slate-300 bg-white text-slate-900 font-semibold p-2 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                      value={totalProjectDuration}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) handleDurationChange(val);
+                      }}
+                    />
+                    <span className="text-xs font-semibold uppercase tracking-tight">MONTHS</span>
+                  </div>
+                ) : (
+                  <p className="text-sm font-semibold text-slate-900 mt-1 uppercase tracking-tight">{totalProjectDuration} MONTHS</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {isEditing && (

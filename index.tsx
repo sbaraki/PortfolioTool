@@ -75,9 +75,7 @@ const StatusIcon = ({ status, size = 12, className = "" }: { status: string; siz
 
 export default function MasterScheduler() {
   const SIDEBAR_WIDTH = 176;
-  const PRINT_SAFE_WIDTH = 1540;
-  const PRINT_SAFE_HEIGHT = 980;
-  const { currentUser, syncStatus, setSyncStatus, isInitialLoad } = useMuseumSync();
+  const { currentUser, syncStatus } = useMuseumSync();
   const { 
     museumName, setMuseumName,
     galleries, setGalleries,
@@ -97,16 +95,25 @@ export default function MasterScheduler() {
   const [activeTab, setActiveTab] = useState<'portfolio' | 'settings'>('portfolio');
   const [showGithubAuth, setShowGithubAuth] = useState(false);
   const [isDraggingScroll, setIsDraggingScroll] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeftState, setScrollLeftState] = useState(0);
-  
+  const startXRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+
   const [draggingBarId, setDraggingBarId] = useState<string | null>(null);
-  const [dragStartMouseX, setDragStartMouseX] = useState(0);
-  const [dragStartProjectX, setDragStartProjectX] = useState(0);
-  const [dragDurationDays, setDragDurationDays] = useState(0);
+  const dragStartMouseXRef = useRef(0);
+  const dragStartProjectXRef = useRef(0);
+  const dragDurationDaysRef = useRef(0);
   const [dragTempStartDate, setDragTempStartDate] = useState<string | null>(null);
   const [dragTempEndDate, setDragTempEndDate] = useState<string | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const sidebarListRef = useRef<HTMLDivElement>(null);
@@ -130,9 +137,12 @@ export default function MasterScheduler() {
   };
 
   const filteredExhibitions = useMemo(() => {
+    const q = searchQuery.toUpperCase();
     return exhibitions.filter(ex => {
-      const matchesSearch = ex.title.toUpperCase().includes(searchQuery.toUpperCase()) || 
-                           (ex.exhibitionId || '').toUpperCase().includes(searchQuery.toUpperCase());
+      const matchesSearch =
+        ex.title.toUpperCase().includes(q) ||
+        (ex.exhibitionId || '').toUpperCase().includes(q) ||
+        (ex.description || '').toUpperCase().includes(q);
       const matchesStatus = statusFilter === 'All' || ex.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -242,16 +252,6 @@ export default function MasterScheduler() {
   }, [galleries, galleryLayouts]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
-  const totalTimelineHeight = useMemo(() => {
-    const galleryHeight = galleries.reduce((sum, gallery) => sum + (galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT), 0);
-    return HEADER_HEIGHT + galleryHeight + 72;
-  }, [galleries, galleryLaneHeights]);
-
-  const printScale = useMemo(() => {
-    const widthScale = PRINT_SAFE_WIDTH / (SIDEBAR_WIDTH + totalTimelineWidth);
-    const heightScale = PRINT_SAFE_HEIGHT / totalTimelineHeight;
-    return Math.min(1, widthScale, heightScale);
-  }, [SIDEBAR_WIDTH, totalTimelineHeight, totalTimelineWidth]);
 
   const todayPos = useMemo(() => {
     return getPositionFromDate(toISODate(new Date()), monthWidth, viewMonths);
@@ -264,10 +264,10 @@ export default function MasterScheduler() {
     const mouseX = e.clientX;
 
     longPressTimerRef.current = window.setTimeout(() => {
+      dragStartMouseXRef.current = mouseX;
+      dragStartProjectXRef.current = projectX;
+      dragDurationDaysRef.current = durationDays;
       setDraggingBarId(project.id);
-      setDragStartMouseX(mouseX);
-      setDragStartProjectX(projectX);
-      setDragDurationDays(durationDays);
     }, 400);
   };
 
@@ -281,7 +281,6 @@ export default function MasterScheduler() {
   return (
     <div
       className={`min-h-screen bg-[linear-gradient(180deg,#f7f4ec_0%,#f8fafc_28%,#eef2f7_100%)] text-black flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId ? 'cursor-grabbing' : ''}`}
-      style={{ ['--print-scale' as string]: `${printScale}` }}
     >
       {showGithubAuth && <GithubAuthModal onClose={() => setShowGithubAuth(false)} />}
       <style>{`
@@ -402,53 +401,26 @@ export default function MasterScheduler() {
               </div>
               
               <div className="flex justify-between items-center pt-4 border-t border-slate-200/10 mt-6">
-                <button 
-                  onClick={async () => {
+                <button
+                  onClick={() => {
                     const idToRemove = editMilestoneDraft.id;
                     setLocationMilestones(prev => prev.filter(m => m.id !== idToRemove));
                     setEditMilestoneDraft(null);
-                    if (currentUser) {
-                      try {
-                        setSyncStatus('syncing');
-                        // Handled by useMuseumSync auto-save
-                        setSyncStatus('synced');
-                      } catch (err) {
-                        setSyncStatus('error');
-                      }
-                    }
-                  }} 
+                  }}
                   className="text-red-600 font-semibold text-[12px] uppercase tracking-widest hover:underline flex items-center"
                 >
                   <Trash2 size={12} className="mr-1.5" strokeWidth={3} /> DELETE
                 </button>
-                <button 
-                  onClick={async () => {
+                <button
+                  onClick={() => {
                     if (editMilestoneDraft.title.trim() === '') {
                       const idToRemove = editMilestoneDraft.id;
                       setLocationMilestones(prev => prev.filter(m => m.id !== idToRemove));
-                      if (currentUser) {
-                        try {
-                          setSyncStatus('syncing');
-                          // Handled by useMuseumSync auto-save
-                          setSyncStatus('synced');
-                        } catch (err) {
-                          setSyncStatus('error');
-                        }
-                      }
                     } else {
                       setLocationMilestones(prev => prev.map(m => m.id === editMilestoneDraft.id ? editMilestoneDraft : m));
-                      if (currentUser) {
-                        try {
-                          setSyncStatus('syncing');
-                          // No-op for now: handled by useMuseumSync auto-save
-                          setSyncStatus('synced');
-                        } catch (err) {
-                          setSyncStatus('error');
-                        }
-                      }
                     }
                     setEditMilestoneDraft(null);
-                  }} 
+                  }}
                   className="bg-slate-900 text-white px-6 py-2.5 border border-slate-300 font-medium uppercase text-[12px] tracking-widest hover:bg-slate-800 transition-colors shadow-sm active:scale-95"
                 >
                   SAVE OVERRIDE
@@ -459,33 +431,39 @@ export default function MasterScheduler() {
         </div>
       )}
 
-      {selectedProjectId && (
-        <AnimatePresence>
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 z-[90] no-print backdrop-blur-[2px]" 
-            onClick={() => setSelectedProjectId(null)} 
-          />
-          <DetailPanel 
-            key={selectedProjectId}
-            exhibition={exhibitions.find(p => p.id === selectedProjectId)!} 
-            onClose={() => setSelectedProjectId(null)} 
-            onUpdate={handleUpdateExhibition} 
-            onDelete={async (id) => {
-              const beforeCount = useStore.getState().exhibitions.length;
-              await handleRemoveExhibition(id);
-              if (useStore.getState().exhibitions.length < beforeCount) {
-                setSelectedProjectId(null);
-              }
-            }}
-            onDuplicate={handleDuplicateProject}
-            galleries={galleries}
-            phaseTypes={phaseTypes}
-          />
-        </AnimatePresence>
-      )}
+      {(() => {
+        const selectedExhibition = selectedProjectId
+          ? exhibitions.find(p => p.id === selectedProjectId)
+          : null;
+        if (!selectedExhibition) return null;
+        return (
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/40 z-[90] no-print backdrop-blur-[2px]"
+              onClick={() => setSelectedProjectId(null)}
+            />
+            <DetailPanel
+              key={selectedProjectId}
+              exhibition={selectedExhibition}
+              onClose={() => setSelectedProjectId(null)}
+              onUpdate={handleUpdateExhibition}
+              onDelete={(id) => {
+                const before = useStore.getState().exhibitions.length;
+                handleRemoveExhibition(id);
+                if (useStore.getState().exhibitions.length < before) {
+                  setSelectedProjectId(null);
+                }
+              }}
+              onDuplicate={handleDuplicateProject}
+              galleries={galleries}
+              phaseTypes={phaseTypes}
+            />
+          </AnimatePresence>
+        );
+      })()}
 
       <main className="flex-1 flex flex-col min-w-0">
         {activeTab === 'portfolio' ? (
@@ -532,12 +510,22 @@ export default function MasterScheduler() {
                     <input aria-label="Start" type="date" value={timelineStartDate} onChange={(e) => setTimelineStartDate(e.target.value)} className="bg-transparent text-[10px] font-bold uppercase outline-none w-[95px] h-5" />
                     <span className="text-slate-300 font-bold">-</span>
                     <input aria-label="End" type="date" value={timelineEndDate} onChange={(e) => setTimelineEndDate(e.target.value)} className="bg-transparent text-[10px] font-bold uppercase outline-none w-[95px] h-5" />
-                    <select aria-label="Presets" onChange={(e) => applyPreset(parseInt(e.target.value))} className="bg-transparent text-[10px] font-bold uppercase outline-none ml-1 border-l border-slate-200 pl-1 cursor-pointer h-5">
-                      <option value="3">PRESETS</option>
+                    <select
+                      aria-label="Presets"
+                      value=""
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v)) applyPreset(v);
+                        e.target.value = '';
+                      }}
+                      className="bg-transparent text-[10px] font-bold uppercase outline-none ml-1 border-l border-slate-200 pl-1 cursor-pointer h-5"
+                    >
+                      <option value="">PRESETS</option>
                       <option value="1">1 YEAR</option>
                       <option value="2">2 YEARS</option>
                       <option value="3">3 YEARS</option>
                       <option value="4">4 YEARS</option>
+                      <option value="5">5 YEARS</option>
                     </select>
                   </div>
                   
@@ -628,19 +616,24 @@ export default function MasterScheduler() {
                     >
                       <Settings size={13} />
                     </button>
-                    <button 
-                      onClick={async () => {
-                        const id = Math.random().toString(36).substr(2,9);
+                    <button
+                      disabled={galleries.length === 0}
+                      onClick={() => {
+                        const defaultGallery = galleries[0];
+                        if (!defaultGallery) {
+                          window.alert('Add a location in Settings before creating a project.');
+                          return;
+                        }
+                        const id = Math.random().toString(36).slice(2, 11);
                         const now = new Date();
                         const exStart = getDateWithMonthDuration(toISODate(now), 12);
                         const exEnd = getDateWithMonthDuration(exStart, 3);
-                        const defaultGallery = galleries[0];
-                        const isMilestone = defaultGallery?.kind === 'permanent';
+                        const isMilestone = defaultGallery.kind === 'permanent';
                         const newEx: Exhibition = {
                           id, exhibitionId: '', title: 'NEW PROJECT', status: 'Proposed',
-                          startDate: exStart, endDate: isMilestone ? exStart : exEnd, gallery: defaultGallery?.name || '',
+                          startDate: exStart, endDate: isMilestone ? exStart : exEnd, gallery: defaultGallery.name,
                           milestones: [], phases: phaseTypes.map(pt => ({
-                            id: Math.random().toString(36).substr(2,9), label: pt.label,
+                            id: Math.random().toString(36).slice(2, 11), label: pt.label,
                             durationMonths: pt.isPost ? 1 : 3, typeId: pt.id
                           })), description: '',
                           isMilestone
@@ -648,7 +641,7 @@ export default function MasterScheduler() {
                         setExhibitions([...exhibitions, newEx]);
                         setSelectedProjectId(id);
                       }}
-                      className="px-3 py-1.5 bg-slate-900 text-white font-bold uppercase text-[10px] hover:bg-slate-800 transition-colors flex items-center shadow-sm"
+                      className="px-3 py-1.5 bg-slate-900 text-white font-bold uppercase text-[10px] hover:bg-slate-800 transition-colors flex items-center shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Plus size={11} className="mr-1" strokeWidth={3} /> NEW PROJECT
                     </button>
@@ -738,12 +731,12 @@ export default function MasterScheduler() {
                       sidebarListRef.current.scrollTop = e.currentTarget.scrollTop;
                     }
                   }}
-                  onMouseDown={(e) => { 
-                  if (e.button === 0 && !longPressTimerRef.current && !draggingBarId) { 
-                    setIsDraggingScroll(true); 
-                    setStartX(e.pageX - timelineRef.current!.offsetLeft); 
-                    setScrollLeftState(timelineRef.current!.scrollLeft); 
-                  } 
+                  onMouseDown={(e) => {
+                  if (e.button === 0 && !longPressTimerRef.current && !draggingBarId) {
+                    setIsDraggingScroll(true);
+                    startXRef.current = e.pageX - timelineRef.current!.offsetLeft;
+                    scrollLeftRef.current = timelineRef.current!.scrollLeft;
+                  }
                 }}
                 onMouseUp={() => {
                   setIsDraggingScroll(false);
@@ -783,14 +776,14 @@ export default function MasterScheduler() {
                   clearLongPress();
                   
 	                  if (draggingBarId) {
-	                    const deltaX = e.clientX - dragStartMouseX;
-	                    const newProjectX = dragStartProjectX + deltaX;
+	                    const deltaX = e.clientX - dragStartMouseXRef.current;
+	                    const newProjectX = dragStartProjectXRef.current + deltaX;
 	                    const newStartDate = getDateFromPosition(newProjectX, monthWidth, viewMonths);
 	                    const start = new Date(newStartDate + 'T12:00:00');
 	                    const draggedEnd = new Date(start);
-	                    draggedEnd.setDate(draggedEnd.getDate() + dragDurationDays);
+	                    draggedEnd.setDate(draggedEnd.getDate() + dragDurationDaysRef.current);
 	                    const newEndDate = toISODate(draggedEnd);
-                    
+
                     setDragTempStartDate(newStartDate);
                     setDragTempEndDate(newEndDate);
                     return;
@@ -798,7 +791,7 @@ export default function MasterScheduler() {
 
                   if (!isDraggingScroll || !timelineRef.current) return;
                   const x = e.pageX - timelineRef.current.offsetLeft;
-                  timelineRef.current.scrollLeft = scrollLeftState - (x - startX) * 1.5;
+                  timelineRef.current.scrollLeft = scrollLeftRef.current - (x - startXRef.current) * 1.5;
 	                }}
 	              >
 	                <div className="inline-flex flex-col relative min-h-full">
@@ -949,12 +942,13 @@ export default function MasterScheduler() {
                                  const rect = e.currentTarget.getBoundingClientRect();
                                  const x = Math.max(0, e.clientX - rect.left + timelineRef.current!.scrollLeft);
                                  const date = getDateFromPosition(x, monthWidth, viewMonths);
-                                 const id = Math.random().toString(36).substr(2,9);
-                                 const newMilestone: LocationMilestone = { 
-                                   id, 
-                                   gallery: g, 
-                                   title: 'MILESTONE', 
-                                   date 
+                                 const id = Math.random().toString(36).slice(2, 11);
+                                 const newMilestone: LocationMilestone = {
+                                   id,
+                                   gallery: g,
+                                   title: 'MILESTONE',
+                                   date,
+                                   icon: 'diamond'
                                  };
                                  setLocationMilestones([...locationMilestones, newMilestone]);
                                  setEditMilestoneDraft(newMilestone);

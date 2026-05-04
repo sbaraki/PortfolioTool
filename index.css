@@ -11,18 +11,15 @@
     print-color-adjust: exact !important;
   }
 
-  /* Hide all interactive UI chrome */
   .no-print,
   .no-print-lane {
     display: none !important;
   }
 
-  /* Hide modals/overlays during print */
-  .fixed.inset-0 {
+  .fixed.inset-0.no-print {
     display: none !important;
   }
 
-  /* Force backgrounds/colors to render */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -30,154 +27,5 @@
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     text-shadow: none !important;
-  }
-
-  /* Flatten heavy backgrounds onto plain white so the timeline reads clearly */
-  .no-print-bg,
-  .timeline-root,
-  .timeline-container,
-  main,
-  aside,
-  header,
-  footer,
-  [class*="bg-[linear-gradient"],
-  [class*="bg-gradient"] {
-    background: white !important;
-    background-image: none !important;
-  }
-
-  /* Let the zebra striping breathe and show up on print */
-  .gallery-lane-bg:nth-child(even) {
-    background-color: #f8fafc !important;
-  }
-
-  /* Project bars: keep solid red — strip the gradient but preserve background-color. */
-  [role="button"][aria-label^="Project:"] {
-    background-image: none !important;
-    background-color: #ef4444 !important; /* Softer red for print */
-    border-color: #f87171 !important; /* Softer border */
-    border-width: 1px !important;
-  }
-
-  /* Project bar title text — refined typography */
-  [role="button"][aria-label^="Project:"] span {
-    color: white !important;
-    font-size: 12px !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.05em !important;
-    line-height: 1.1 !important;
-  }
-
-  /* Status pill */
-  [role="button"][aria-label^="Project:"] span[style*="background-color"] {
-    font-size: 9px !important;
-    font-weight: 600 !important;
-    padding: 2px 4px !important;
-    border-color: rgba(255,255,255,0.4) !important;
-    letter-spacing: 0.05em !important;
-  }
-
-  /* Sidebar gallery banner */
-  aside [class*="from-slate"],
-  aside [class*="bg-[linear-gradient"] {
-    background: white !important;
-    background-image: none !important;
-  }
-
-  aside .font-bold.uppercase,
-  aside .font-semibold.uppercase {
-    font-size: 12px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.1em !important;
-    color: #475569 !important;
-  }
-
-  /* Sidebar project labels */
-  aside [title] {
-    font-size: 11px !important;
-    font-weight: 500 !important;
-    color: #334155 !important;
-    line-height: 1.2 !important;
-  }
-
-  /* Borders: soften for paper */
-  .border-slate-200, .border-slate-300, .border-black\/10 {
-    border-color: #e2e8f0 !important;
-    border-width: 0.5px !important;
-  }
-
-  /* Subtle Grid lines */
-  .border-slate-200\/40, .border-slate-200\/10, .border-slate-200\/5, .border-black\/5 {
-    border-color: #f1f5f9 !important;
-    border-width: 0.5px !important;
-    border-style: dashed !important;
-  }
-
-  /* Drop tinted lane backgrounds (unless it's zebra striping) */
-  .bg-orange-50\/50, .bg-orange-50,
-  .bg-slate-50\/50,
-  .bg-slate-100\/50, .bg-slate-100,
-  .bg-white\/40, .bg-white\/75, .bg-white\/80, .bg-white\/85, .bg-white\/95 {
-    background-color: white !important;
-  }
-  
-  /* Retain slight tint for FY bands if they use bg-slate-50 without opacity */
-  .bg-slate-50 {
-    background-color: #f8fafc !important;
-  }
-
-  /* Timeline page sizing — let the browser scale to fit one page */
-  .timeline-root {
-    display: flex !important;
-    overflow: visible !important;
-    height: auto !important;
-    zoom: var(--print-scale, 1);
-    transform-origin: top left !important;
-    padding: 0 !important;
-    gap: 0 !important;
-  }
-
-  .timeline-container {
-    overflow: visible !important;
-    height: auto !important;
-    width: auto !important;
-    cursor: default !important;
-  }
-
-  .sticky,
-  .sticky.top-0 {
-    position: relative !important;
-    top: 0 !important;
-  }
-
-  .timeline-root,
-  .timeline-container,
-  aside,
-  main {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  /* Today indicator — soften */
-  .bg-red-500 {
-    background-color: #f87171 !important;
-    width: 1px !important;
-  }
-
-  /* Milestone markers — elegant diamonds */
-  .rotate-45 {
-    border-color: #64748b !important;
-    border-width: 1px !important;
-  }
-
-  /* Milestone labels */
-  [class*="bg-white"][class*="border-slate-200"],
-  [class*="bg-white"][class*="border-black\/10"] {
-    background: transparent !important;
-    border: none !important;
-    font-size: 9px !important;
-    color: #475569 !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.05em !important;
   }
 }

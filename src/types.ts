@@ -43,4 +43,5 @@ export interface Exhibition {
   milestones: any[];
   phases: ProjectPhase[];
   description?: string;
+  isMilestone?: boolean;
 }
