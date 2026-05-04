@@ -115,6 +115,34 @@ export default function MasterScheduler() {
     };
   }, []);
 
+  // Scale the entire portfolio to fit on a single 11x17 landscape page when printing.
+  useEffect(() => {
+    const PAGE_W_PX = 16.7 * 96; // 17in landscape minus 0.15in margins
+    const PAGE_H_PX = 10.7 * 96;
+    const beforePrint = () => {
+      const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
+      if (!shell) return;
+      const w = shell.scrollWidth;
+      const h = shell.scrollHeight;
+      if (!w || !h) return;
+      const scale = Math.min(1, PAGE_W_PX / w, PAGE_H_PX / h);
+      document.documentElement.style.setProperty('--print-scale', String(scale));
+      document.documentElement.style.setProperty('--print-scaled-w', `${w * scale}px`);
+      document.documentElement.style.setProperty('--print-scaled-h', `${h * scale}px`);
+    };
+    const afterPrint = () => {
+      document.documentElement.style.removeProperty('--print-scale');
+      document.documentElement.style.removeProperty('--print-scaled-w');
+      document.documentElement.style.removeProperty('--print-scaled-h');
+    };
+    window.addEventListener('beforeprint', beforePrint);
+    window.addEventListener('afterprint', afterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', beforePrint);
+      window.removeEventListener('afterprint', afterPrint);
+    };
+  }, []);
+
   const timelineRef = useRef<HTMLDivElement>(null);
   const sidebarListRef = useRef<HTMLDivElement>(null);
 
@@ -650,7 +678,7 @@ export default function MasterScheduler() {
               </nav>
             </header>
 
-            <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3">
+            <div data-print-shell className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3">
 	              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
 	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] border-b border-slate-200 flex flex-col justify-center px-6 gap-2">
 	                  {(['Proposed', 'In Development', 'Open to Public', 'Closed'] as const).map(s => {
@@ -1005,8 +1033,9 @@ export default function MasterScheduler() {
                                             </div>
                                           )}
                                         </div>
-                                        <div className={`absolute left-1/2 -translate-x-1/2 text-[9px] font-medium uppercase text-slate-600 bg-white px-1.5 py-[1px] leading-tight border border-slate-200 shadow-md opacity-90 transition-all hover:bg-slate-50 hover:opacity-100 whitespace-nowrap z-30 pointer-events-none ${labelPos === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
-                                          {m.title}
+                                        <div className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[2px] leading-tight border border-slate-200 shadow-md opacity-90 transition-all hover:bg-slate-50 hover:opacity-100 whitespace-nowrap z-30 pointer-events-none flex flex-col items-center ${labelPos === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
+                                          <span className="text-[9px] font-medium uppercase text-slate-700 leading-none">{m.title}</span>
+                                          <span className="text-[8px] font-semibold uppercase tracking-wide text-slate-500 leading-none mt-[2px]">{formatBarDate(m.date)}</span>
                                         </div>
                                       </div>
                                   );
@@ -1103,8 +1132,8 @@ export default function MasterScheduler() {
                                             <React.Fragment key={phase.id}>
                                               {phase.width >= 24 && (
                                                 <div
-                                                  className="absolute pointer-events-none text-[8.5px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
-                                                  style={{ left: `${phase.startX}px`, top: `${phase.y - 10}px`, width: `${Math.max(phase.width - 2, 0)}px` }}
+                                                  className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
+                                                  style={{ left: `${phase.startX}px`, top: `${phase.y - 14}px`, width: `${Math.max(phase.width - 2, 0)}px` }}
                                                   title={phase.label}
                                                 >
                                                   {phase.label}

@@ -98,10 +98,10 @@ export const getAlbertaHolidays = (startYear: number, endYear: number) => {
 export const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 export const FY_QUARTERS = ['Q4', 'Q1', 'Q2', 'Q3'];
 export const MILESTONE_ROW_HEIGHT = 64;
-export const LANE_BOTTOM_PADDING = 24;
-export const BASE_LANE_HEIGHT = 116;
+export const LANE_BOTTOM_PADDING = 36;
+export const BASE_LANE_HEIGHT = 132;
 export const HOLIDAY_LANE_HEIGHT = 72;
-export const TRACK_HEIGHT = 34;
+export const TRACK_HEIGHT = 46;
 export const HEADER_HEIGHT = 100;
 export const STANDARD_BAR_HEIGHT = 24;
 export const PHASE_BAR_HEIGHT = 12;
@@ -109,42 +109,42 @@ export const PHASE_GAP = 3;
 
 export const getStatusStyles = (status: string) => {
   switch(status) {
-    case 'Open to Public': return { 
-      accent: '#059669', 
-      bg: '#ecfdf5', 
-      border: '#10b981', 
+    case 'Open to Public': return {
+      accent: '#059669',
+      bg: '#ecfdf5',
+      border: '#10b981',
       text: '#064e3b',
       label: 'OPEN TO PUBLIC',
       icon: 'globe'
     };
-    case 'In Development': return { 
-      accent: '#d97706', 
-      bg: '#fffbeb', 
-      border: '#f59e0b', 
+    case 'In Development': return {
+      accent: '#d97706',
+      bg: '#fffbeb',
+      border: '#f59e0b',
       text: '#78350f',
       label: 'IN DEVELOPMENT',
       icon: 'hammer'
     };
-    case 'Proposed': return { 
-      accent: '#4b5563', 
-      bg: '#f9fafb', 
-      border: '#d1d5db', 
+    case 'Proposed': return {
+      accent: '#4b5563',
+      bg: '#f9fafb',
+      border: '#d1d5db',
       text: '#1f2937',
       label: 'PROPOSED',
       icon: 'circle-dashed'
     };
-    case 'Closed': return { 
-      accent: '#000000', 
-      bg: '#f3f4f6', 
-      border: '#1f2937', 
+    case 'Closed': return {
+      accent: '#000000',
+      bg: '#f3f4f6',
+      border: '#1f2937',
       text: '#000000',
       label: 'CLOSED',
       icon: 'lock'
     };
-    default: return { 
-      accent: '#94a3b8', 
-      bg: '#f8fafc', 
-      border: '#e2e8f0', 
+    default: return {
+      accent: '#94a3b8',
+      bg: '#f8fafc',
+      border: '#e2e8f0',
       text: '#475569',
       label: '?',
       icon: 'help-circle'
