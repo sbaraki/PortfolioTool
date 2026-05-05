@@ -991,20 +991,43 @@ export default function MasterScheduler() {
                                     .map(m => ({ ...m, xPos: getPositionFromDate(m.date, monthWidth, viewMonths) }))
                                     .sort((a, b) => a.xPos - b.xPos);
 
+                                  // Estimate each label's rendered width so we can detect actual collisions
+                                  // (the previous fixed 110px threshold under-counted long titles and let
+                                  // adjacent labels overlap). Label = title + separator + date pill + padding.
+                                  const estimateLabelWidth = (title: string) => {
+                                    const titleChars = (title || '').length;
+                                    // ~5.8px per uppercase char at text-[9px] with 0.06em tracking
+                                    const titleW = titleChars * 5.8;
+                                    // separator (1px) + 2 × gap-1.5 (12px) + date (~55px) + px-1.5 (12px) + border (2px)
+                                    return Math.max(60, titleW + 82);
+                                  };
+
                                   const labelPositions = new Array(gMilestones.length).fill('top');
-                                  let lastTopX = -9999;
-                                  let lastBottomX = -9999;
-                                  
+                                  let topRightEdge = -Infinity;
+                                  let bottomRightEdge = -Infinity;
+                                  const LABEL_GAP = 8;
+
                                   for (let i = 0; i < gMilestones.length; i++) {
                                     const curr = gMilestones[i];
-                                    if (curr.xPos - lastTopX >= 110) {
+                                    const w = estimateLabelWidth(curr.title);
+                                    const left = curr.xPos - w / 2;
+                                    const right = curr.xPos + w / 2;
+
+                                    if (left - LABEL_GAP >= topRightEdge) {
                                       labelPositions[i] = 'top';
-                                      lastTopX = curr.xPos;
-                                    } else if (curr.xPos - lastBottomX >= 110) {
+                                      topRightEdge = right;
+                                    } else if (left - LABEL_GAP >= bottomRightEdge) {
                                       labelPositions[i] = 'bottom';
-                                      lastBottomX = curr.xPos;
+                                      bottomRightEdge = right;
                                     } else {
-                                      labelPositions[i] = 'top';
+                                      // Both rows would collide — pack into whichever row has the further-left right edge.
+                                      if (topRightEdge <= bottomRightEdge) {
+                                        labelPositions[i] = 'top';
+                                        topRightEdge = right;
+                                      } else {
+                                        labelPositions[i] = 'bottom';
+                                        bottomRightEdge = right;
+                                      }
                                     }
                                   }
 
