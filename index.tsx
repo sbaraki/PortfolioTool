@@ -901,9 +901,18 @@ export default function MasterScheduler() {
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined) return null;
-                          const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                          const layout = galleryTrackLayouts[gallery.name];
+                          const trackTops = layout?.trackTops ?? [];
+                          const trackTop = trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                          // A project owns prePhases.length + 1 consecutive tracks. Size the title block
+                          // to span ALL of them (clamped to the lane) so titles vertically align with
+                          // their bars and never crowd the next project's owner-track title.
+                          const prePhasesCount = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
+                          const lastTrackIdx = Math.min(trackIndex + prePhasesCount, Math.max(0, trackTops.length - 1));
+                          const lastTrackTop = trackTops[lastTrackIdx] ?? trackTop;
+                          const projectSpan = (lastTrackTop - trackTop) + TRACK_HEIGHT;
                           const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + trackTop;
-                          const titleMaxHeight = Math.max(0, TRACK_HEIGHT - 4);
+                          const titleMaxHeight = Math.max(0, projectSpan - 4);
                           return (
                             <div
                               key={`title-${ex.id}`}
