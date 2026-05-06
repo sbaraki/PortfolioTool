@@ -96,18 +96,18 @@ export const getAlbertaHolidays = (startYear: number, endYear: number) => {
   return holidays;
 };
 
-export const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const FY_QUARTERS = ['Q4', 'Q1', 'Q2', 'Q3'];
-export const MILESTONE_ROW_HEIGHT = 80;
-export const LANE_TOP_PADDING = 18;
-export const LANE_BOTTOM_PADDING = 44;
-export const BASE_LANE_HEIGHT = 132;
-export const COLLAPSED_LANE_HEIGHT = 32;
-export const HOLIDAY_LANE_HEIGHT = 72;
-export const TRACK_HEIGHT = 46;
-export const HEADER_HEIGHT = 100;
-export const STANDARD_BAR_HEIGHT = 32;
-export const PHASE_BAR_HEIGHT = 12;
+export const MILESTONE_ROW_HEIGHT = 26;
+export const LANE_TOP_PADDING = 4;
+export const LANE_BOTTOM_PADDING = 14;
+export const BASE_LANE_HEIGHT = 76;
+export const COLLAPSED_LANE_HEIGHT = 26;
+export const HOLIDAY_LANE_HEIGHT = 48;
+export const TRACK_HEIGHT = 32;
+export const HEADER_HEIGHT = 70;
+export const STANDARD_BAR_HEIGHT = 22;
+export const PHASE_BAR_HEIGHT = 8;
 export const PHASE_GAP = 0;
 
 // Below this px-per-month value, weekly grid lines are hidden (too dense to read).
@@ -115,12 +115,14 @@ export const PHASE_GAP = 0;
 export const WEEKLY_GRID_THRESHOLD = 100;
 // Hit zone (px) on each edge of project bars and right edge of phase bars for resize.
 export const EDGE_HIT_ZONE = 6;
-// Thin divider height (px) used when a gallery has no LocationMilestones — replaces the full 80px row.
-export const EMPTY_MILESTONE_ROW_HEIGHT = 8;
+// In the v2 design every lane reserves a uniform 26px strip at the top so the sidebar
+// gallery-header row and timeline milestone strip stay vertically aligned (project tracks
+// start at the same Y in both columns regardless of whether the gallery has milestones).
+export const EMPTY_MILESTONE_ROW_HEIGHT = 26;
 // Reserved band (px) added to a track when the project on it carries milestones.
-// Sized for an icon (~14) + 2px gap + a pill row (~14). Tracks without milestones
+// Sized for an icon (~12) + a pill row (~10). Tracks without milestones
 // keep the standard TRACK_HEIGHT.
-export const PROJECT_MILESTONE_ROW_HEIGHT = 30;
+export const PROJECT_MILESTONE_ROW_HEIGHT = 22;
 
 // Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
 // the rest of the app palette — phase fills, milestone colours, status pill
@@ -140,7 +142,8 @@ export const getStatusStyles = (status: string) => {
       label: 'OPEN TO PUBLIC',
       icon: 'ticket',
       iconBg: '#2dd4bf',
-      iconText: '#ffffff'
+      iconText: '#ffffff',
+      barBg: '#0d9488'
     };
     case 'In Development': return {
       accent: '#d97706',
@@ -150,7 +153,8 @@ export const getStatusStyles = (status: string) => {
       label: 'IN DEVELOPMENT',
       icon: 'hammer',
       iconBg: '#fde047',
-      iconText: '#1e293b'
+      iconText: '#1e293b',
+      barBg: '#b45309'
     };
     case 'Proposed': return {
       accent: '#4b5563',
@@ -160,7 +164,8 @@ export const getStatusStyles = (status: string) => {
       label: 'PROPOSED',
       icon: 'circle-dashed',
       iconBg: '#a78bfa',
-      iconText: '#ffffff'
+      iconText: '#ffffff',
+      barBg: '#7c3aed'
     };
     case 'Closed': return {
       accent: '#000000',
@@ -170,7 +175,8 @@ export const getStatusStyles = (status: string) => {
       label: 'CLOSED',
       icon: 'lock',
       iconBg: '#475569',
-      iconText: '#ffffff'
+      iconText: '#ffffff',
+      barBg: '#475569'
     };
     default: return {
       accent: '#94a3b8',
@@ -180,7 +186,8 @@ export const getStatusStyles = (status: string) => {
       label: '?',
       icon: 'help-circle',
       iconBg: '#94a3b8',
-      iconText: '#ffffff'
+      iconText: '#ffffff',
+      barBg: '#94a3b8'
     };
   }
 };

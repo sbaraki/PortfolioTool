@@ -18,6 +18,7 @@ interface AppState {
   timelineEndDate: string;
   searchQuery: string;
   statusFilter: ExhibitionStatus | 'All';
+  showConflicts: boolean;
 
   // Actions
   setMuseumName: (name: string) => void;
@@ -31,6 +32,7 @@ interface AppState {
   setTimelineEndDate: (date: string) => void;
   setSearchQuery: (query: string) => void;
   setStatusFilter: (filter: ExhibitionStatus | 'All') => void;
+  setShowConflicts: (show: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -46,6 +48,7 @@ export const useStore = create<AppState>((set) => ({
   timelineEndDate: '2030-12-31',
   searchQuery: '',
   statusFilter: 'All',
+  showConflicts: true,
 
   setMuseumName: (name) => set({ museumName: name }),
   setExhibitions: (updater) => set((state) => ({ 
@@ -68,4 +71,5 @@ export const useStore = create<AppState>((set) => ({
   setTimelineEndDate: (date) => set({ timelineEndDate: date }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setStatusFilter: (filter) => set({ statusFilter: filter }),
+  setShowConflicts: (show) => set({ showConflicts: show }),
 }));
