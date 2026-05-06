@@ -606,13 +606,13 @@ export const DetailPanel = ({
           </div>
         )}
 
-        {isEditing && (
-          <div className="space-y-4 border border-slate-300 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <div>
-                <h3 className="text-[12px] font-semibold uppercase tracking-tight">PROJECT MILESTONES</h3>
-                <p className="text-[10px] text-slate-500 uppercase tracking-tight mt-1">Inline beats on this project's track — distinct from gallery-wide milestones.</p>
-              </div>
+        <div className="space-y-4 border border-slate-300 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+            <div>
+              <h3 className="text-[12px] font-semibold uppercase tracking-tight">PROJECT MILESTONES</h3>
+              <p className="text-[10px] text-slate-500 uppercase tracking-tight mt-1">Inline beats on this project's track — distinct from gallery-wide milestones.</p>
+            </div>
+            {isEditing && (
               <button
                 aria-label="Add milestone"
                 onClick={handleAddMilestone}
@@ -620,12 +620,15 @@ export const DetailPanel = ({
               >
                 <Plus size={12} className="mr-1" strokeWidth={3} /> ADD MILESTONE
               </button>
-            </div>
-            {(editedEx.milestones || []).length === 0 && (
-              <p className="text-[11px] uppercase tracking-tight text-slate-500 italic">No milestones yet. Add one to mark a key date on this project's track.</p>
             )}
-            <div className="space-y-2">
-              {(editedEx.milestones || []).map((m, idx) => {
+          </div>
+          {((isEditing ? editedEx.milestones : exhibition.milestones) || []).length === 0 && (
+            <p className="text-[11px] uppercase tracking-tight text-slate-500 italic">
+              {isEditing ? "No milestones yet. Add one to mark a key date on this project's track." : "No milestones on this project. Click the edit button above to add one."}
+            </p>
+          )}
+          <div className="space-y-2">
+            {((isEditing ? editedEx.milestones : exhibition.milestones) || []).map((m, idx) => {
                 const isMsEditing = editingMilestoneId === m.id;
                 return (
                   <div key={m.id} className={`border border-slate-300 p-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isMsEditing ? 'bg-yellow-50/30' : ''}`}>
@@ -717,22 +720,24 @@ export const DetailPanel = ({
                             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight">{m.date}</span>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-1 shrink-0 ml-2">
-                          <button
-                            aria-label={`Edit milestone ${idx + 1}`}
-                            onClick={() => handleStartEditMilestone(m)}
-                            className="p-1 text-slate-900 hover:text-blue-600 transition-all duration-200 border border-transparent hover:border-slate-300"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            aria-label={`Remove milestone ${idx + 1}`}
-                            onClick={() => handleRemoveMilestone(m.id)}
-                            className="p-1 text-slate-900 hover:text-red-600 transition-all duration-200 border border-transparent hover:border-slate-300"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                        {isEditing && (
+                          <div className="flex items-center space-x-1 shrink-0 ml-2">
+                            <button
+                              aria-label={`Edit milestone ${idx + 1}`}
+                              onClick={() => handleStartEditMilestone(m)}
+                              className="p-1 text-slate-900 hover:text-blue-600 transition-all duration-200 border border-transparent hover:border-slate-300"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              aria-label={`Remove milestone ${idx + 1}`}
+                              onClick={() => handleRemoveMilestone(m.id)}
+                              className="p-1 text-slate-900 hover:text-red-600 transition-all duration-200 border border-transparent hover:border-slate-300"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -740,7 +745,6 @@ export const DetailPanel = ({
               })}
             </div>
           </div>
-        )}
 
         <div className="space-y-2 border border-slate-300 bg-white p-5 shadow-sm">
           <label htmlFor="ex-description" className="text-[12px] font-semibold uppercase tracking-[0.16em] border-b border-slate-200 pb-2 block text-slate-700">NOTES</label>
