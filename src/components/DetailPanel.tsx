@@ -287,7 +287,7 @@ export const DetailPanel = ({
         className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar"
       >
         <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-1 border border-slate-200 bg-white px-4 py-4 shadow-sm">
+          <div className="space-y-1 border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
             <span id="label-status" className="text-[11px] font-semibold uppercase text-slate-600 tracking-[0.18em]">PROJECT STATUS</span>
             {isEditing ? (
               <select 
@@ -315,7 +315,7 @@ export const DetailPanel = ({
           </div>
         </div>
 
-        <div className="p-5 border border-slate-300 space-y-4 bg-white shadow-sm">
+        <div className="p-5 border border-slate-200 space-y-4 bg-white shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-[14px] font-semibold uppercase tracking-[0.16em] text-slate-700">Scheduling Core</h3>
@@ -478,7 +478,7 @@ export const DetailPanel = ({
         </div>
 
         {isEditing && (
-          <div className="space-y-4 border border-slate-300 bg-white p-5 shadow-sm">
+          <div className="space-y-4 border border-slate-200 bg-white p-5 shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
             <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <h3 className="text-[12px] font-semibold uppercase tracking-tight">INTERNAL PHASING</h3>
               <button 
@@ -494,7 +494,7 @@ export const DetailPanel = ({
                 const isPhaseEditing = editingPhaseId === phase.id;
                 
                 return (
-                  <div key={phase.id} className={`border border-slate-300 p-3 flex items-start justify-between bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isPhaseEditing ? 'bg-yellow-50/30' : ''}`}>
+                  <div key={phase.id} className={`border border-slate-200 p-3 flex items-start justify-between bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isPhaseEditing ? 'bg-yellow-50/30' : ''}`}>
                     <div className="flex items-start space-x-3 w-full">
                       <div className="w-6 h-6 bg-slate-900 text-white flex items-center justify-center text-[10px] font-medium shrink-0 mt-1">{idx + 1}</div>
                       <div className="flex flex-col flex-1 min-w-0">
@@ -606,7 +606,7 @@ export const DetailPanel = ({
           </div>
         )}
 
-        <div className="space-y-4 border border-slate-300 bg-white p-5 shadow-sm">
+        <div className="space-y-4 border border-slate-200 bg-white p-5 shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
           <div className="flex items-center justify-between border-b border-slate-200 pb-3">
             <div>
               <h3 className="text-[12px] font-semibold uppercase tracking-tight">PROJECT MILESTONES</h3>
@@ -631,7 +631,7 @@ export const DetailPanel = ({
             {((isEditing ? editedEx.milestones : exhibition.milestones) || []).map((m, idx) => {
                 const isMsEditing = editingMilestoneId === m.id;
                 return (
-                  <div key={m.id} className={`border border-slate-300 p-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isMsEditing ? 'bg-yellow-50/30' : ''}`}>
+                  <div key={m.id} className={`border border-slate-200 p-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isMsEditing ? 'bg-yellow-50/30' : ''}`}>
                     {isMsEditing && localMilestoneDraft ? (
                       <div className="space-y-3">
                         <div className="space-y-1">
@@ -746,9 +746,9 @@ export const DetailPanel = ({
             </div>
           </div>
 
-        <div className="space-y-2 border border-slate-300 bg-white p-5 shadow-sm">
+        <div className="space-y-2 border border-slate-200 bg-white p-5 shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
           <label htmlFor="ex-description" className="text-[12px] font-semibold uppercase tracking-[0.16em] border-b border-slate-200 pb-2 block text-slate-700">NOTES</label>
-          <div className="p-4 border border-slate-300 bg-slate-50/35 min-h-[120px] shadow-sm">
+          <div className="p-4 border border-slate-200 bg-slate-50/35 min-h-[120px] shadow-sm">
             {isEditing ? (
               <textarea 
                 id="ex-description"

@@ -19,9 +19,9 @@ export const DEFAULT_GALLERIES: Gallery[] = [
 export const DEFAULT_PHASE_TYPES: PhaseType[] = [
   { id: 'pt1', label: 'IDEA DEVELOPMENT', color: '#94a3b8' },
   { id: 'pt2', label: 'CONTENT DEVELOPMENT', color: '#3b82f6' },
-  { id: 'pt3', label: 'DESIGN DEVELOPMENT', color: '#a3cc39' },
-  { id: 'pt4', label: 'IMPLEMENTATION', color: '#fba84a', isActive: true },
-  { id: 'pt5', label: 'DEINSTALL', color: '#fba84a', isPost: true },
+  { id: 'pt3', label: 'DESIGN DEVELOPMENT', color: '#22c55e' },
+  { id: 'pt4', label: 'IMPLEMENTATION', color: '#eab308', isActive: true },
+  { id: 'pt5', label: 'DEINSTALL', color: '#eab308', isPost: true },
 ];
 
 export const MILESTONE_COLORS = [
@@ -96,18 +96,18 @@ export const getAlbertaHolidays = (startYear: number, endYear: number) => {
   return holidays;
 };
 
-export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 export const FY_QUARTERS = ['Q4', 'Q1', 'Q2', 'Q3'];
-export const MILESTONE_ROW_HEIGHT = 26;
-export const LANE_TOP_PADDING = 4;
-export const LANE_BOTTOM_PADDING = 14;
-export const BASE_LANE_HEIGHT = 76;
-export const COLLAPSED_LANE_HEIGHT = 26;
-export const HOLIDAY_LANE_HEIGHT = 48;
-export const TRACK_HEIGHT = 32;
-export const HEADER_HEIGHT = 70;
-export const STANDARD_BAR_HEIGHT = 22;
-export const PHASE_BAR_HEIGHT = 8;
+export const MILESTONE_ROW_HEIGHT = 80;
+export const LANE_TOP_PADDING = 32;
+export const LANE_BOTTOM_PADDING = 52;
+export const BASE_LANE_HEIGHT = 132;
+export const COLLAPSED_LANE_HEIGHT = 32;
+export const HOLIDAY_LANE_HEIGHT = 72;
+export const TRACK_HEIGHT = 46;
+export const HEADER_HEIGHT = 100;
+export const STANDARD_BAR_HEIGHT = 32;
+export const PHASE_BAR_HEIGHT = 12;
 export const PHASE_GAP = 0;
 
 // Below this px-per-month value, weekly grid lines are hidden (too dense to read).
@@ -115,14 +115,12 @@ export const PHASE_GAP = 0;
 export const WEEKLY_GRID_THRESHOLD = 100;
 // Hit zone (px) on each edge of project bars and right edge of phase bars for resize.
 export const EDGE_HIT_ZONE = 6;
-// In the v2 design every lane reserves a uniform 26px strip at the top so the sidebar
-// gallery-header row and timeline milestone strip stay vertically aligned (project tracks
-// start at the same Y in both columns regardless of whether the gallery has milestones).
-export const EMPTY_MILESTONE_ROW_HEIGHT = 26;
+// Thin divider height (px) used when a gallery has no LocationMilestones — replaces the full 80px row.
+export const EMPTY_MILESTONE_ROW_HEIGHT = 8;
 // Reserved band (px) added to a track when the project on it carries milestones.
-// Sized for an icon (~12) + a pill row (~10). Tracks without milestones
+// Sized for an icon (~14) + 2px gap + a pill row (~14). Tracks without milestones
 // keep the standard TRACK_HEIGHT.
-export const PROJECT_MILESTONE_ROW_HEIGHT = 22;
+export const PROJECT_MILESTONE_ROW_HEIGHT = 30;
 
 // Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
 // the rest of the app palette — phase fills, milestone colours, status pill
@@ -142,8 +140,7 @@ export const getStatusStyles = (status: string) => {
       label: 'OPEN TO PUBLIC',
       icon: 'ticket',
       iconBg: '#2dd4bf',
-      iconText: '#ffffff',
-      barBg: '#0d9488'
+      iconText: '#ffffff'
     };
     case 'In Development': return {
       accent: '#d97706',
@@ -153,8 +150,7 @@ export const getStatusStyles = (status: string) => {
       label: 'IN DEVELOPMENT',
       icon: 'hammer',
       iconBg: '#fde047',
-      iconText: '#1e293b',
-      barBg: '#b45309'
+      iconText: '#1e293b'
     };
     case 'Proposed': return {
       accent: '#4b5563',
@@ -164,8 +160,7 @@ export const getStatusStyles = (status: string) => {
       label: 'PROPOSED',
       icon: 'circle-dashed',
       iconBg: '#a78bfa',
-      iconText: '#ffffff',
-      barBg: '#7c3aed'
+      iconText: '#ffffff'
     };
     case 'Closed': return {
       accent: '#000000',
@@ -175,8 +170,7 @@ export const getStatusStyles = (status: string) => {
       label: 'CLOSED',
       icon: 'lock',
       iconBg: '#475569',
-      iconText: '#ffffff',
-      barBg: '#475569'
+      iconText: '#ffffff'
     };
     default: return {
       accent: '#94a3b8',
@@ -186,8 +180,7 @@ export const getStatusStyles = (status: string) => {
       label: '?',
       icon: 'help-circle',
       iconBg: '#94a3b8',
-      iconText: '#ffffff',
-      barBg: '#94a3b8'
+      iconText: '#ffffff'
     };
   }
 };

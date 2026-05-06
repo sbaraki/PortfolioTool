@@ -19,8 +19,6 @@ import {
   Building2,
   Settings,
   ArrowLeft,
-  ZoomIn,
-  ZoomOut,
   Printer,
   Calendar,
   Eye,
@@ -55,7 +53,7 @@ import { GithubAuthModal } from './src/components/GithubAuthModal';
 // --- Main App ---
 
 export default function MasterScheduler() {
-  const SIDEBAR_WIDTH = 220;
+  const SIDEBAR_WIDTH = 240;
   const { currentUser, syncStatus } = useMuseumSync();
   const { 
     museumName, setMuseumName,
@@ -465,66 +463,60 @@ export default function MasterScheduler() {
 
   return (
     <div
-      className={`min-h-screen bg-slate-100 print:bg-none print:bg-white text-slate-900 flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId ? 'cursor-grabbing' : ''}`}
-      style={{ fontFeatureSettings: "'cv11','ss01','ss03'" }}
+      className={`min-h-screen bg-[linear-gradient(180deg,#f7f4ec_0%,#f8fafc_28%,#eef2f7_100%)] print:bg-none print:bg-white text-black flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId ? 'cursor-grabbing' : ''}`}
     >
       {showGithubAuth && <div className="no-print"><GithubAuthModal onClose={() => setShowGithubAuth(false)} /></div>}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 0; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-left: 1px solid #cbd5e1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
         .is-grabbing { cursor: grabbing !important; }
-
-        .timeline-container { outline: none; }
+        
+        .timeline-container {
+          outline: none;
+        }
 
         input[type="range"] {
           -webkit-appearance: none;
           background: #e2e8f0;
-          height: 2px;
-          border-radius: 0;
+          height: 4px;
+          border-radius: 2px;
         }
         input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
-          height: 12px;
-          width: 12px;
-          background: #0f172a;
-          border-radius: 0;
+          height: 18px;
+          width: 8px;
+          background: #000;
+          border: 1px solid #000;
           cursor: pointer;
           transition: transform 0.1s ease;
         }
         input[type="range"]::-webkit-slider-thumb:hover {
-          transform: scale(1.15);
+          transform: scaleY(1.2);
         }
-
+        
         button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-          outline: 1.5px solid #0f172a;
-          outline-offset: 1px;
+          outline: 2px solid black;
+          outline-offset: 2px;
         }
 
         .project-bar-dragging {
-          opacity: 0.7 !important;
+          opacity: 0.6 !important;
           z-index: 100 !important;
           cursor: grabbing !important;
-          box-shadow: 0 4px 10px rgba(15,23,42,0.18) !important;
-          transform: translateY(-1px) !important;
+          box-shadow: 6px 6px 0 0 rgba(0,0,0,1) !important;
+          transform: translateY(-2px) !important;
         }
 
         .gallery-lane-bg {
           background-color: transparent;
-          transition: background-color 0.15s ease;
+          transition: background-color 0.2s ease;
+        }
+        .gallery-lane-bg:nth-child(even) {
+          background-color: rgba(248,250,252,0.6);
         }
         .gallery-lane-bg:hover {
-          background-color: rgba(241,245,249,0.6);
-        }
-
-        kbd.app-kbd {
-          display: inline-flex; align-items: center; justify-content: center;
-          min-width: 16px; height: 16px; padding: 0 4px;
-          font-family: 'JetBrains Mono', ui-monospace, monospace;
-          font-size: 10px; color: #475569;
-          background: #f8fafc; border: 1px solid #e2e8f0; border-bottom-width: 1.5px;
-          border-radius: 3px; line-height: 1;
+          background-color: rgba(241,245,249,0.8);
         }
       `}</style>
       
@@ -664,189 +656,136 @@ export default function MasterScheduler() {
         {activeTab === 'portfolio' ? (
           <>
             <header className="bg-white border-b border-slate-200 z-50 shrink-0 print:hidden">
-              <nav className="px-3 flex items-center justify-between gap-3" style={{ height: '40px' }}>
-                {/* Left: brand + breadcrumb */}
-                <div className="flex items-center gap-2 min-w-0 shrink-0">
-                  <div className="w-5 h-5 bg-slate-900 flex items-center justify-center shrink-0">
-                    <span className="text-white text-[10px] font-bold leading-none">{(museumName || 'R').trim().charAt(0).toUpperCase()}</span>
+	      <nav className="px-4 py-2 flex items-center justify-between gap-4">
+                {/* Left: Brand */}
+                <div className="flex items-center space-x-4">
+                  <div className="flex flex-col min-w-[140px]">
+                    <h1 className="text-[11px] font-bold tracking-[0.12em] uppercase leading-none text-slate-900 truncate">{museumName}</h1>
                   </div>
-                  <span className="text-[12px] font-medium text-slate-900 truncate max-w-[220px]" title={museumName}>{museumName}</span>
-                  <span className="text-slate-300 text-[11px]">/</span>
-                  <span className="text-[11px] text-slate-500">Portfolio</span>
                 </div>
 
-                {/* Center: range + zoom + status pills */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex items-center gap-1.5 border border-slate-200 px-2 leading-none h-7">
-                    <Calendar size={11} className="text-slate-400 shrink-0" />
-                    <input
-                      aria-label="Start date"
-                      type="date"
-                      value={timelineStartDate}
-                      onChange={(e) => setTimelineStartDate(e.target.value)}
-                      className="bg-transparent text-[11px] outline-none w-[100px]"
-                    />
-                    <span className="text-slate-300 text-[11px]">–</span>
-                    <input
-                      aria-label="End date"
-                      type="date"
-                      value={timelineEndDate}
-                      onChange={(e) => setTimelineEndDate(e.target.value)}
-                      className="bg-transparent text-[11px] outline-none w-[100px]"
-                    />
+                {/* Center: View Controls */}
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1 border border-slate-200 bg-white px-2 py-1 shadow-sm">
+                    <input aria-label="Start" type="date" value={timelineStartDate} onChange={(e) => setTimelineStartDate(e.target.value)} className="bg-transparent text-[10px] font-bold uppercase outline-none w-[95px] h-5" />
+                    <span className="text-slate-300 font-bold">-</span>
+                    <input aria-label="End" type="date" value={timelineEndDate} onChange={(e) => setTimelineEndDate(e.target.value)} className="bg-transparent text-[10px] font-bold uppercase outline-none w-[95px] h-5" />
                     <select
-                      aria-label="Range presets"
+                      aria-label="Presets"
                       value=""
                       onChange={(e) => {
                         const v = parseInt(e.target.value);
                         if (!isNaN(v)) applyPreset(v);
                         e.target.value = '';
                       }}
-                      className="bg-transparent text-[10px] text-slate-400 outline-none cursor-pointer border-l border-slate-200 pl-1.5 ml-0.5"
+                      className="bg-transparent text-[10px] font-bold uppercase outline-none ml-1 border-l border-slate-200 pl-1 cursor-pointer h-5"
                     >
-                      <option value="">Preset</option>
-                      <option value="1">1Y</option>
-                      <option value="2">2Y</option>
-                      <option value="3">3Y</option>
-                      <option value="4">4Y</option>
-                      <option value="5">5Y</option>
+                      <option value="">PRESETS</option>
+                      <option value="1">1 YEAR</option>
+                      <option value="2">2 YEARS</option>
+                      <option value="3">3 YEARS</option>
+                      <option value="4">4 YEARS</option>
+                      <option value="5">5 YEARS</option>
                     </select>
                   </div>
 
-                  <div className="w-px h-4 bg-slate-200" />
-
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide">Zoom</span>
-                    <input
-                      aria-label="Zoom"
-                      type="range"
-                      min={24}
-                      max={300}
-                      value={monthWidth}
-                      onChange={(e) => setMonthWidth(parseInt(e.target.value))}
-                      className="w-20"
-                    />
-                    <span className="text-[10px] font-mono text-slate-500 w-7 text-right">{monthWidth}</span>
-                  </div>
-
-                  <div className="w-px h-4 bg-slate-200" />
-
-                  <div className="flex items-center gap-0.5">
-                    {ALL_STATUSES.map(s => {
-                      const checked = selectedStatuses.has(s);
-                      const sty = getStatusStyles(s);
-                      const count = exhibitions.filter(e => e.status === s).length;
-                      const shortLabel = s === 'In Development' ? 'In Dev' : s === 'Open to Public' ? 'Open' : s;
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => toggleStatus(s)}
-                          aria-pressed={checked}
-                          className={`flex items-center gap-1 text-[11px] px-1.5 py-1 hover:bg-slate-50 leading-none transition-colors ${checked ? 'text-slate-700' : 'text-slate-400'}`}
-                          title={`${s} · ${count}`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 shrink-0 ${checked ? '' : 'border border-slate-300'}`}
-                            style={checked ? { background: sty.barBg } : undefined}
-                          />
-                          <span className={checked ? '' : 'line-through'}>{shortLabel}</span>
-                          <span className="text-slate-400 font-mono">{count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
-                {/* Right: sync + actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {currentUser ? (
-                    <button
-                      onClick={() => {
-                        if (window.confirm('Sign out?')) {
-                          localStorage.removeItem('github_pat');
-                          localStorage.removeItem('github_gist_id');
-                          window.location.reload();
-                        }
-                      }}
-                      className="flex items-center gap-1.5 px-1.5 py-1 text-slate-500 hover:bg-slate-50 leading-none transition-colors"
-                      title={`${currentUser.displayName || currentUser.email || 'Signed in'} — click to sign out`}
-                    >
-                      <Cloud size={12} />
-                      <span className="text-[11px]">{syncStatus === 'syncing' ? 'Syncing…' : 'Synced'}</span>
-                      {syncStatus === 'syncing' && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />
-                      )}
-                    </button>
-                  ) : (
-                    <button
+                {/* Right: User & Actions */}
+                <div className="flex items-center space-x-3">
+                  {currentUser && (
+                    <div className="flex items-center space-x-2 border-r border-slate-200 pr-3 mr-1">
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-bold uppercase leading-none text-slate-800">{currentUser.displayName || 'Me'}</span>
+                        <span className="text-[8px] font-medium text-slate-500 leading-none mt-0.5 truncate max-w-[80px]">{currentUser.email}</span>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          if (window.confirm('Sign out?')) {
+                            localStorage.removeItem('github_pat');
+                            localStorage.removeItem('github_gist_id');
+                            window.location.reload();
+                          }
+                        }}
+                        className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                      >
+                        <LogOut size={12} />
+                      </button>
+                    </div>
+                  )}
+
+                  {!currentUser && (
+                    <button 
                       onClick={() => setShowGithubAuth(true)}
-                      className="flex items-center gap-1.5 px-1.5 py-1 text-slate-500 hover:bg-slate-50 leading-none transition-colors"
-                      title="Sign in to sync via GitHub"
+                      className="group relative px-2.5 py-1.5 bg-white border border-slate-300 font-bold uppercase text-[9px] hover:bg-slate-50 transition-all shadow-sm active:scale-95 flex items-center gap-1.5 overflow-hidden"
                     >
-                      <CloudOff size={12} />
-                      <span className="text-[11px]">Sign in</span>
+                      <div
+                        className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                      <LogIn size={11} className="relative z-10" />
+                      <span className="relative z-10">SYNC</span>
+                      {syncStatus === 'syncing' && (
+                        <div
+                          className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-1"
+                        />
+                      )}
                     </button>
                   )}
 
-                  <div className="w-px h-4 bg-slate-200 mx-0.5" />
-
-                  <button
-                    onClick={() => allCollapsed ? expandAllGalleries() : collapseAllGalleries()}
-                    disabled={galleries.length === 0}
-                    className="p-1 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    title={allCollapsed ? 'Expand all lanes' : 'Collapse all lanes'}
-                    aria-label={allCollapsed ? 'Expand all lanes' : 'Collapse all lanes'}
-                  >
-                    {allCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-                  </button>
-                  <button
-                    onClick={() => window.print()}
-                    className="p-1 text-slate-500 hover:bg-slate-50 transition-colors"
-                    title="Print"
-                    aria-label="Print"
-                  >
-                    <Printer size={12} />
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('settings')}
-                    className="p-1 text-slate-500 hover:bg-slate-50 transition-colors"
-                    title="Settings"
-                    aria-label="Settings"
-                  >
-                    <Settings size={12} />
-                  </button>
-                  <button
-                    disabled={galleries.length === 0}
-                    onClick={() => {
-                      const defaultGallery = galleries[0];
-                      if (!defaultGallery) {
-                        window.alert('Add a location in Settings before creating a project.');
-                        return;
-                      }
-                      const id = Math.random().toString(36).slice(2, 11);
-                      const now = new Date();
-                      const exStart = getDateWithMonthDuration(toISODate(now), 12);
-                      const exEnd = getDateWithMonthDuration(exStart, 3);
-                      const isMilestone = defaultGallery.kind === 'permanent';
-                      const newEx: Exhibition = {
-                        id, exhibitionId: '', title: 'NEW PROJECT', status: 'Proposed',
-                        startDate: exStart, endDate: isMilestone ? exStart : exEnd, gallery: defaultGallery.name,
-                        milestones: [], phases: phaseTypes.map(pt => ({
-                          id: Math.random().toString(36).slice(2, 11), label: pt.label,
-                          durationMonths: pt.isPost ? 1 : 3, typeId: pt.id
-                        })), description: '',
-                        isMilestone
-                      };
-                      setExhibitions([...exhibitions, newEx]);
-                      setSelectedProjectId(id);
-                    }}
-                    className="ml-1 px-2 py-1 bg-slate-900 text-white text-[11px] font-medium hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="New project"
-                  >
-                    <Plus size={11} strokeWidth={2.5} />
-                    <span>New project</span>
-                  </button>
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      onClick={() => allCollapsed ? expandAllGalleries() : collapseAllGalleries()}
+                      disabled={galleries.length === 0}
+                      className="p-1.5 border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={allCollapsed ? 'Expand all lanes' : 'Collapse all lanes'}
+                      aria-label={allCollapsed ? 'Expand all lanes' : 'Collapse all lanes'}
+                    >
+                      {allCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+                    </button>
+                    <button
+                      onClick={() => window.print()}
+                      className="p-1.5 border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm"
+                      title="Print"
+                    >
+                      <Printer size={13} />
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab('settings')} 
+                      className="p-1.5 border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-sm"
+                      title="Settings"
+                    >
+                      <Settings size={13} />
+                    </button>
+                    <button
+                      disabled={galleries.length === 0}
+                      onClick={() => {
+                        const defaultGallery = galleries[0];
+                        if (!defaultGallery) {
+                          window.alert('Add a location in Settings before creating a project.');
+                          return;
+                        }
+                        const id = Math.random().toString(36).slice(2, 11);
+                        const now = new Date();
+                        const exStart = getDateWithMonthDuration(toISODate(now), 12);
+                        const exEnd = getDateWithMonthDuration(exStart, 3);
+                        const isMilestone = defaultGallery.kind === 'permanent';
+                        const newEx: Exhibition = {
+                          id, exhibitionId: '', title: 'NEW PROJECT', status: 'Proposed',
+                          startDate: exStart, endDate: isMilestone ? exStart : exEnd, gallery: defaultGallery.name,
+                          milestones: [], phases: phaseTypes.map(pt => ({
+                            id: Math.random().toString(36).slice(2, 11), label: pt.label,
+                            durationMonths: pt.isPost ? 1 : 3, typeId: pt.id
+                          })), description: '',
+                          isMilestone
+                        };
+                        setExhibitions([...exhibitions, newEx]);
+                        setSelectedProjectId(id);
+                      }}
+                      className="px-3 py-1.5 bg-slate-900 text-white font-bold uppercase text-[10px] hover:bg-slate-800 transition-colors flex items-center shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={11} className="mr-1" strokeWidth={3} /> NEW PROJECT
+                    </button>
+                  </div>
                 </div>
               </nav>
             </header>
@@ -860,103 +799,110 @@ export default function MasterScheduler() {
                 </span>
               </div>
               <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3 print:overflow-visible">
-              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
-                {/* 70px sidebar header — counts only. Status filter pills now live in the toolbar. */}
-                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-slate-50/50 border-b border-slate-200 flex items-center justify-between px-3 print:bg-white">
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide leading-none">Galleries</span>
-                    <span className="text-[11px] font-semibold text-slate-700 leading-none mt-1">
-                      <span className="font-mono text-slate-500">{galleries.length}</span>
-                      <span className="text-slate-300 mx-1">·</span>
-                      <span className="font-mono text-slate-500">{filteredExhibitions.length}</span>
-                      {' '}project{filteredExhibitions.length === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  className="flex-1 overflow-y-auto custom-scrollbar"
-                  ref={sidebarListRef}
-                  onScroll={(e) => {
-                    if (timelineRef.current && timelineRef.current.scrollTop !== e.currentTarget.scrollTop) {
-                      timelineRef.current.scrollTop = e.currentTarget.scrollTop;
-                    }
-                  }}
-                >
-                  {galleries.map((gallery) => {
-                    const laneHeight = galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT;
-                    const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
-                    const isPermanent = gallery.kind === 'permanent';
-                    const isCollapsed = collapsedGalleryIds.has(gallery.id);
-                    const headerHeight = mhFor(gallery.name);
-                    if (isCollapsed) {
-                      return (
-                        <div
-                          key={gallery.id}
-                          style={{ height: `${laneHeight}px` }}
-                          className={`relative border-b border-slate-200 overflow-hidden flex items-center px-2.5 gap-1.5 ${isPermanent ? 'bg-amber-50/40' : 'bg-white'} print:bg-white`}
-                        >
-                          <div className={`absolute left-0 top-0 bottom-0 w-[2px] ${isPermanent ? 'bg-amber-600' : 'bg-slate-300'}`} />
-                          <button
-                            type="button"
-                            aria-label={`Expand ${gallery.name}`}
-                            onClick={() => toggleGalleryCollapsed(gallery.id)}
-                            className="shrink-0 w-3.5 h-3.5 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors no-print"
-                          >
-                            <ChevronRight size={12} strokeWidth={2.25} />
-                          </button>
-                          <span className="font-semibold text-[12px] text-slate-900 truncate flex-1" title={gallery.name}>{gallery.name}</span>
-                          {isPermanent && (
-                            <Star size={10} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
-                          )}
-                          <span className="shrink-0 text-[10px] font-mono text-slate-400">{galleryProjects.length}</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b border-slate-200 overflow-hidden ${isPermanent ? 'bg-amber-50/40' : 'bg-white'}`}>
-                        <div className={`absolute left-0 top-0 bottom-0 w-[2px] z-10 ${isPermanent ? 'bg-amber-600' : 'bg-slate-300'}`} />
-                        <div
-                          style={{ height: `${headerHeight}px` }}
-                          className="absolute top-0 left-0 w-full border-b border-slate-200 flex items-center gap-1.5 px-2.5 z-20 bg-white print:bg-white"
-                          title={isPermanent ? 'Permanent gallery' : 'Temporary exhibition space'}
-                        >
-                          <button
-                            type="button"
-                            aria-label={`Collapse ${gallery.name}`}
-                            onClick={() => toggleGalleryCollapsed(gallery.id)}
-                            className="shrink-0 w-3.5 h-3.5 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors no-print"
-                          >
-                            <ChevronDown size={12} strokeWidth={2.25} />
-                          </button>
-                          <span className="font-semibold text-[12px] text-slate-900 truncate flex-1" title={gallery.name}>{gallery.name}</span>
-                          {isPermanent && (
-                            <Star size={10} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
-                          )}
-                          <span className="shrink-0 text-[10px] font-mono text-slate-400">{galleryProjects.length}</span>
-                        </div>
+	              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
+	                <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] print:bg-none print:bg-white border-b border-slate-200 flex flex-col justify-center px-5 gap-1">
+	                  <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500 mb-0.5 leading-none print:hidden">Filter by Status</div>
+	                  {ALL_STATUSES.map(s => {
+	                    const checked = selectedStatuses.has(s);
+	                    return (
+	                      <label
+	                        key={s}
+	                        className="flex items-center gap-2 cursor-pointer hover:bg-white/70 -mx-1 px-1 py-0.5 transition-colors no-print"
+	                      >
+	                        <input
+	                          type="checkbox"
+	                          checked={checked}
+	                          onChange={() => toggleStatus(s)}
+	                          className="w-3 h-3 accent-slate-900 cursor-pointer shrink-0"
+	                          aria-label={`Show ${s}`}
+	                        />
+	                        <span className={`text-[10px] font-bold uppercase tracking-[0.1em] leading-none ${checked ? 'text-slate-800' : 'text-slate-400 line-through'}`}>{s}</span>
+	                      </label>
+	                    );
+	                  })}
+	                </div>
+	                <div
+	                  className="flex-1 overflow-y-auto custom-scrollbar"
+	                  ref={sidebarListRef}
+	                  onScroll={(e) => {
+	                    if (timelineRef.current && timelineRef.current.scrollTop !== e.currentTarget.scrollTop) {
+	                      timelineRef.current.scrollTop = e.currentTarget.scrollTop;
+	                    }
+	                  }}
+	                >
+	                  {galleries.map((gallery) => {
+	                    const laneHeight = galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT;
+	                    const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
+	                    const isPermanent = gallery.kind === 'permanent';
+	                    const isCollapsed = collapsedGalleryIds.has(gallery.id);
+	                    if (isCollapsed) {
+	                      return (
+	                        <div
+	                          key={gallery.id}
+	                          style={{ height: `${laneHeight}px` }}
+	                          className={`relative border-b border-black/10 overflow-hidden flex items-center px-3 gap-2 border-l-4 ${isPermanent ? 'bg-amber-100/70 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'} print:bg-slate-50`}
+	                        >
+	                          <button
+	                            type="button"
+	                            aria-label={`Expand ${gallery.name}`}
+	                            onClick={() => toggleGalleryCollapsed(gallery.id)}
+	                            className="shrink-0 w-5 h-5 flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-300/60 transition-colors no-print"
+	                          >
+	                            <ChevronRight size={14} strokeWidth={2.5} />
+	                          </button>
+	                          <span className="font-bold uppercase text-[10px] tracking-[0.12em] text-slate-900 truncate flex-1">{gallery.name}</span>
+	                          <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.1em] text-slate-700 bg-white/80 border border-slate-300 px-1.5 py-0.5 leading-none">
+	                            {galleryProjects.length} {galleryProjects.length === 1 ? 'PROJ' : 'PROJS'}
+	                          </span>
+	                        </div>
+	                      );
+	                    }
+	                    return (
+		                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b border-black/10 overflow-hidden ${isPermanent ? 'bg-amber-50/60' : 'bg-white/80'}`}>
+		                        <div
+		                          style={{ minHeight: `${mhFor(gallery.name)}px` }}
+		                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex items-start gap-2 px-3 py-2.5 z-20 print:bg-slate-50 border-l-4 ${isPermanent ? 'bg-amber-100/80 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'}`}
+		                          title={isPermanent ? 'Permanent gallery redevelopment' : 'Temporary exhibition space'}
+		                        >
+		                          <button
+		                            type="button"
+		                            aria-label={`Collapse ${gallery.name}`}
+		                            onClick={() => toggleGalleryCollapsed(gallery.id)}
+		                            className="shrink-0 w-5 h-5 mt-0.5 flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-300/60 transition-colors no-print"
+		                          >
+		                            <ChevronDown size={14} strokeWidth={2.5} />
+		                          </button>
+		                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+		                            <span className="font-bold uppercase text-[11px] tracking-[0.14em] text-slate-900 leading-snug line-clamp-2">{gallery.name}</span>
+		                            {isPermanent && (
+		                              <span className="text-[9px] font-semibold uppercase tracking-[0.12em] text-amber-800 leading-tight">Permanent Gallery Redevelopment</span>
+		                            )}
+		                          </div>
+		                        </div>
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined) return null;
                           const layout = galleryTrackLayouts[gallery.name];
                           const trackTops = layout?.trackTops ?? [];
                           const trackTop = trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
-                          // A project owns prePhases.length + 1 consecutive tracks. Position the title
-                          // on the LAST allocated track (where the main bar lives), not the first
-                          // (which holds the topmost pre-phase). This keeps the sidebar title aligned
-                          // with the bar a viewer's eye lands on, mirroring the timeline layout.
+                          // A project owns prePhases.length + 1 consecutive tracks. Size the title block
+                          // to span ALL of them (clamped to the lane) so titles vertically align with
+                          // their bars and never crowd the next project's owner-track title.
                           const prePhasesCount = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
                           const lastTrackIdx = Math.min(trackIndex + prePhasesCount, Math.max(0, trackTops.length - 1));
                           const lastTrackTop = trackTops[lastTrackIdx] ?? trackTop;
-                          const topPos = headerHeight + LANE_TOP_PADDING + lastTrackTop;
+                          const projectSpan = (lastTrackTop - trackTop) + TRACK_HEIGHT;
+                          const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + trackTop;
+                          const titleMaxHeight = Math.max(0, projectSpan - 4);
                           return (
                             <div
                               key={`title-${ex.id}`}
-                              className="absolute flex flex-col justify-center overflow-hidden"
-                              style={{ top: topPos, height: `${TRACK_HEIGHT}px`, left: '12px', right: '10px' }}
+                              className="absolute left-5 w-[calc(100%-1.25rem)] pr-3 overflow-hidden flex flex-col justify-center"
+                              style={{ top: topPos + 2, height: `${titleMaxHeight}px` }}
                             >
-                              <div className="text-[12px] font-medium text-slate-900 truncate leading-tight" title={ex.title}>{ex.title}</div>
+                              <div className="text-[11px] font-bold text-slate-800 leading-[1.25] line-clamp-2" title={ex.title}>{ex.title}</div>
                               {ex.exhibitionId && (
-                                <div className="text-[10px] font-mono text-slate-400 truncate leading-none mt-0.5">
+                                <div className="text-[9px] font-semibold text-slate-500 mt-0.5 uppercase tracking-[0.1em] truncate leading-none">
                                   {ex.exhibitionId}
                                 </div>
                               )}
@@ -968,7 +914,7 @@ export default function MasterScheduler() {
                           if (trackIndex === undefined || trackIndex === 0) return null;
                           const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
                           return (
-                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-100 left-0" style={{ top: headerHeight + LANE_TOP_PADDING + trackTop }} />
+                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-200 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackTop }} />
                           );
                         })}
                       </div>
@@ -1106,20 +1052,20 @@ export default function MasterScheduler() {
                   </div>
 
                   {/* Header */}
-                  <div className="sticky top-0 z-[60] border-b border-slate-200 flex flex-col overflow-hidden bg-white" style={{ height: `${HEADER_HEIGHT}px` }}>
-                    <div className="flex h-[22px] border-b border-slate-200 bg-white relative z-10 print:bg-white print:border-slate-400">
-                      {yearBlocks.map(block => <div key={block.label} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center px-3 font-semibold text-[11px] tracking-[0.06em] text-slate-900 border-r border-slate-200 print:border-slate-400 print:text-black">{block.label}</div>)}
+                  <div className="sticky top-0 z-[60] border-b border-black/10 flex flex-col overflow-hidden shadow-sm" style={{ height: `${HEADER_HEIGHT}px` }}>
+                    <div className="flex h-[30px] border-b border-black/10 bg-white relative z-10 print:bg-white print:border-slate-400">
+                      {yearBlocks.map(block => <div key={block.label} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center px-4 font-bold text-base tracking-[0.1em] text-slate-900 border-r border-black/10 print:border-slate-400 print:text-black">{block.label}</div>)}
                     </div>
-                     <div className="flex h-[16px] border-b border-slate-200 bg-slate-50/60 relative z-10 print:bg-orange-50 print:border-orange-300">
+                     <div className="flex h-[24px] border-b border-slate-300 bg-slate-50 relative z-10 print:bg-orange-100 print:border-orange-300 print:text-orange-900">
                        {fyBlocks.map((block) => (
-                         <div key={block.label} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center justify-start px-3 font-semibold text-[9px] uppercase tracking-[0.08em] border-r border-slate-200 text-slate-600 print:text-orange-900">{block.label}</div>
+                         <div key={block.label} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center justify-start px-4 font-bold text-[9px] uppercase tracking-wider border-r border-black/10 text-slate-700 print:border-orange-300 print:text-orange-900">{block.label}</div>
                        ))}
                      </div>
-                    <div className="flex h-[16px] border-b border-slate-200 bg-slate-50/40 relative z-10 print:bg-slate-50 text-slate-600">
-                      {fyQuarterBlocks.map((block, i) => <div key={`${block.label}-${i}`} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center justify-center border-r border-slate-200 text-[9px] font-medium tracking-[0.06em] text-slate-500 print:text-slate-900">{block.label}</div>)}
+                    <div className="flex h-[24px] border-b border-slate-300 bg-slate-100 relative z-10 print:bg-slate-100 print:text-slate-900 text-slate-700">
+                      {fyQuarterBlocks.map((block, i) => <div key={`${block.label}-${i}`} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center justify-center border-r border-slate-300 text-[9px] font-medium uppercase tracking-wider text-slate-500 print:text-slate-900">{block.label}</div>)}
                     </div>
-                    <div className="flex h-[16px] bg-white relative z-10 print:bg-white text-slate-500">
-                      {viewMonths.map(m => <div key={`${m.year}-${m.month}`} style={{ width: `${monthWidth}px` }} className="shrink-0 h-full flex items-center justify-center border-r border-slate-200 text-[9px] font-medium tracking-[0.04em] print:text-slate-900">{m.label}</div>)}
+                    <div className="flex h-[22px] bg-slate-50 border-b border-black/10 relative z-10 print:bg-white text-slate-500">
+                      {viewMonths.map(m => <div key={`${m.year}-${m.month}`} style={{ width: `${monthWidth}px` }} className="shrink-0 h-full flex items-center justify-center border-r border-black/10 text-[8.5px] font-medium uppercase tracking-wide print:text-slate-900">{m.label}</div>)}
                     </div>
                   </div>
 
@@ -1437,15 +1383,13 @@ export default function MasterScheduler() {
 
                                           return (
                                             <React.Fragment key={phase.id}>
-                                              {phase.width >= 24 && (
-                                                <div
-                                                  className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
-                                                  style={{ left: `${phase.startX + 8}px`, top: `${phase.y - 14}px`, width: `${Math.max(phase.width - 10, 0)}px` }}
-                                                  title={phase.label}
-                                                >
-                                                  {phase.label}
-                                                </div>
-                                              )}
+                                              <div
+                                                className="absolute pointer-events-none text-[9px] font-bold uppercase tracking-[0.08em] text-slate-800 leading-none whitespace-nowrap print:text-slate-900"
+                                                style={{ left: `${phase.startX + 2}px`, top: `${phase.y - 14}px` }}
+                                                title={phase.label}
+                                              >
+                                                {phase.label}
+                                              </div>
                                               <div
                                                 className="absolute shadow-sm hover:shadow-md hover:opacity-90 transition-all pointer-events-auto border border-white/60 overflow-hidden"
                                                 style={{ left: `${phase.startX}px`, top: `${phase.y}px`, width: `${Math.max(phase.width - 2, 0)}px`, height: `${PHASE_BAR_HEIGHT}px`, backgroundColor: phase.type?.color || '#eee' }}
@@ -1543,31 +1487,25 @@ export default function MasterScheduler() {
                                         onMouseDown={(e) => onBarMouseDown(e, ex)}
                                         onClick={() => { if (!draggingBarId) setSelectedProjectId(ex.id); }}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
-                                        className={`absolute pointer-events-auto shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50 print:shadow-none ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
+                                        className={`absolute pointer-events-auto border border-black/10 shadow-[0_8px_16px_rgba(15,23,42,0.16)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.25)] transition-shadow cursor-pointer flex items-stretch overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50 print:border-slate-800 print:shadow-none ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
                                         style={{
                                           left: `${startPos}px`,
                                           width: `${width}px`,
                                           top: `${mainBarY}px`,
                                           height: `${STANDARD_BAR_HEIGHT}px`,
-                                          borderRadius: '2px',
-                                          backgroundColor: statusStyle.barBg,
+                                          backgroundColor: '#b91c1c',
+                                          backgroundImage: 'linear-gradient(180deg, #dc2626 0%, #991b1b 100%)'
                                         }}
-                                        title={`${ex.title} · ${ex.status} · ${formatBarDate(effStartDate)}–${formatBarDate(effEndDate)}`}
                                       >
-                                          <div className="flex-1 min-w-0 flex items-center pl-2.5 pr-1.5">
-                                            {width >= 60 ? (
-                                              <span className="font-medium text-[11px] text-white truncate block leading-none">{ex.title}</span>
-                                            ) : (
-                                              <span className="font-mono text-[9px] text-white/90 px-1 leading-none truncate">
-                                                {ex.exhibitionId || '—'}
-                                              </span>
-                                            )}
+                                          <div
+                                            className="shrink-0 h-full flex items-center justify-center px-2.5 border-r border-white/40"
+                                            title={ex.status}
+                                          >
+                                            <span className="font-bold text-[9px] uppercase tracking-[0.12em] whitespace-nowrap leading-none text-white">{statusStyle.label}</span>
                                           </div>
-                                          {width >= 130 && (
-                                            <span className="shrink-0 font-mono text-[9px] text-white/70 pr-2.5 pl-1.5 leading-none whitespace-nowrap">
-                                              {formatBarDate(effStartDate)}–{formatBarDate(effEndDate)}
-                                            </span>
-                                          )}
+                                          <div className="flex-1 min-w-0 flex items-center justify-center px-2">
+                                            <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-white truncate block leading-none pb-[0.5px]">{ex.title}</span>
+                                          </div>
                                           <div
                                             aria-label="Resize start date"
                                             className="absolute left-0 top-0 bottom-0 cursor-ew-resize hover:bg-white/30 transition-colors no-print"
@@ -1583,6 +1521,40 @@ export default function MasterScheduler() {
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                       </div>
+                                      )}
+                                      {!ex.isMilestone && (
+                                        <div
+                                          className="absolute pointer-events-none flex items-center justify-center"
+                                          style={{
+                                            left: `${startPos}px`,
+                                            width: `${width}px`,
+                                            top: `${mainBarY - 18}px`,
+                                            height: '16px',
+                                            zIndex: 26,
+                                          }}
+                                        >
+                                          <span className="bg-white text-slate-900 border border-slate-900 px-1.5 text-[10px] font-extrabold uppercase tracking-[0.1em] leading-none whitespace-nowrap shadow-sm inline-flex items-center h-[16px]">
+                                            {formatBarDate(effStartDate)} – {formatBarDate(effEndDate)}
+                                          </span>
+                                        </div>
+                                      )}
+
+                                      {/* Overflow label: when the bar is too narrow to hold the title, render
+                                          the full title to the right so labels are visible at every zoom preset. */}
+                                      {!ex.isMilestone && width < 110 && (
+                                        <div
+                                          className="absolute pointer-events-none flex items-center"
+                                          style={{
+                                            left: `${startPos + width + 6}px`,
+                                            top: `${mainBarY}px`,
+                                            height: `${STANDARD_BAR_HEIGHT}px`,
+                                            zIndex: 26,
+                                          }}
+                                        >
+                                          <span className="font-bold text-[10px] uppercase tracking-[0.14em] text-slate-900 whitespace-nowrap leading-none">
+                                            {ex.title}
+                                          </span>
+                                        </div>
                                       )}
 
                                       {/* Per-project milestones — rendered in the reserved band beneath the project track.
@@ -1736,13 +1708,13 @@ export default function MasterScheduler() {
 	            <div className="space-y-8">
 	              <section className="space-y-6">
 	                <div className="flex items-center text-sm font-semibold uppercase tracking-widest space-x-3 text-slate-900"><Building2 size={18} /><span>ORG STANDARDS</span></div>
-	                <div className="border border-slate-300 p-6 bg-white shadow-sm hover:shadow-md transition-all">
-                  <label htmlFor="museum-name-input" className="text-[11px] font-semibold uppercase mb-2 block text-slate-600">ORGANIZATION NAME</label>
-                  <input 
+	                <div className="border border-slate-200 p-6 bg-white shadow-[0_8px_16px_rgba(15,23,42,0.06)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.1)] transition-all">
+                  <label htmlFor="museum-name-input" className="text-[11px] font-semibold uppercase mb-2 block text-slate-600 tracking-[0.16em]">ORGANIZATION NAME</label>
+                  <input
                     id="museum-name-input"
-                    className="w-full text-lg font-semibold bg-white border border-slate-300 p-3 outline-none uppercase shadow-inner focus:border-slate-300 transition-colors" 
-                    value={museumName} 
-                    onChange={(e) => setMuseumName(e.target.value.toUpperCase())} 
+                    className="w-full text-lg font-semibold bg-slate-50 border border-slate-200 p-3 outline-none uppercase focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all"
+                    value={museumName}
+                    onChange={(e) => setMuseumName(e.target.value.toUpperCase())}
                   />
                 </div>
               </section>
@@ -1751,7 +1723,7 @@ export default function MasterScheduler() {
 	                <div className="flex items-center text-sm font-semibold uppercase tracking-widest space-x-3 text-slate-900"><Palette size={18} /><span>PHASE TYPES</span></div>
 	                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 	                  {phaseTypes.map((type, idx) => (
-	                    <div key={type.id} className="flex items-center space-x-3 p-4 border border-slate-300 bg-white shadow-sm hover:shadow-md hover:border-slate-400 transition-all">
+	                    <div key={type.id} className="flex items-center space-x-3 p-4 border border-slate-200 bg-white shadow-[0_8px_16px_rgba(15,23,42,0.06)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.1)] hover:border-slate-300 transition-all">
                       <div className="flex flex-col">
                         <label htmlFor={`phase-color-${idx}`} className="sr-only">Phase Color {idx + 1}</label>
                         <input 
@@ -1801,7 +1773,7 @@ export default function MasterScheduler() {
 	                </div>
 	                <div className="space-y-3">
 	                  {galleries.map((gallery, idx) => (
-	                    <div key={gallery.id} className="flex items-center space-x-3 p-4 border border-slate-300 bg-white shadow-sm hover:shadow-md transition-all">
+	                    <div key={gallery.id} className="flex items-center space-x-3 p-4 border border-slate-200 bg-white shadow-[0_8px_16px_rgba(15,23,42,0.06)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.1)] transition-all">
                       <div className="w-8 h-8 bg-slate-100 flex items-center justify-center font-semibold text-slate-600 text-sm">{idx + 1}</div>
                       <input
                         aria-label={`Location name ${idx + 1}`}
@@ -1854,30 +1826,6 @@ export default function MasterScheduler() {
           </div>
         )}
       </main>
-
-      {activeTab === 'portfolio' && (
-        <footer className="shrink-0 h-6 bg-white border-t border-slate-200 flex items-center justify-between px-3 text-[10px] text-slate-500 leading-none print:hidden">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${currentUser ? (syncStatus === 'syncing' ? 'bg-blue-500' : 'bg-emerald-500') : 'bg-slate-300'}`} />
-              <span>{currentUser ? (syncStatus === 'syncing' ? 'Syncing' : 'Synced') : 'Local only'}</span>
-            </span>
-            <span className="text-slate-300">·</span>
-            <span><span className="font-mono text-slate-600">{filteredExhibitions.length}</span> projects</span>
-            <span className="text-slate-300">·</span>
-            <span><span className="font-mono text-slate-600">{galleries.length}</span> galleries</span>
-            <span className="text-slate-300">·</span>
-            <span><span className="font-mono text-slate-600">{locationMilestones.length}</span> milestones</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden md:inline">Long-press a bar to drag</span>
-            <span className="text-slate-300 hidden md:inline">·</span>
-            <span className="hidden md:inline">Drag bar edges to resize</span>
-            <span className="text-slate-300 hidden md:inline">·</span>
-            <span className="font-mono text-slate-400">PortfolioTool v2</span>
-          </div>
-        </footer>
-      )}
     </div>
   );
 }
