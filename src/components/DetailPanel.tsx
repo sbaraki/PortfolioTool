@@ -1,8 +1,17 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Check, Edit2, X, Trash2, ChevronUp, ChevronDown, Copy } from 'lucide-react';
-import { Exhibition, Gallery, ProjectPhase, PhaseType } from '../types';
+import { Check, Edit2, X, Trash2, ChevronUp, ChevronDown, Copy, Plus, Flag, Users, BadgeCheck, Truck, Star } from 'lucide-react';
+import { Exhibition, Gallery, ProjectPhase, PhaseType, ProjectMilestone, MilestoneIcon } from '../types';
 import { getDateWithMonthDuration, getDurationMonths } from '../lib/dateUtils';
-import { getStatusStyles } from '../constants';
+import { getStatusStyles, MILESTONE_COLORS } from '../constants';
+
+const MILESTONE_ICON_OPTIONS: { key: MilestoneIcon; label: string; preview: React.ReactNode }[] = [
+  { key: 'diamond', label: 'Diamond', preview: <div className="w-3 h-3 bg-white border border-slate-300 rotate-45" /> },
+  { key: 'flag', label: 'Flag', preview: <Flag size={14} fill="white" stroke="black" strokeWidth={2} /> },
+  { key: 'team', label: 'Team', preview: <Users size={14} stroke="black" strokeWidth={2} /> },
+  { key: 'approval', label: 'Approval', preview: <BadgeCheck size={14} stroke="black" strokeWidth={2} /> },
+  { key: 'delivery', label: 'Delivery', preview: <Truck size={14} stroke="black" strokeWidth={2} /> },
+  { key: 'event', label: 'Event', preview: <Star size={14} fill="white" stroke="black" strokeWidth={2} /> },
+];
 
 export const DetailPanel = ({ 
   exhibition, 
@@ -25,24 +34,36 @@ export const DetailPanel = ({
   const [editedEx, setEditedEx] = useState<Exhibition>(exhibition);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [localPhaseDraft, setLocalPhaseDraft] = useState<ProjectPhase | null>(null);
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [localMilestoneDraft, setLocalMilestoneDraft] = useState<ProjectMilestone | null>(null);
 
-  useEffect(() => { 
-    setEditedEx(exhibition); 
-    setIsEditing(false); 
+  useEffect(() => {
+    setEditedEx(exhibition);
+    setIsEditing(false);
     setEditingPhaseId(null);
+    setEditingMilestoneId(null);
+    setLocalMilestoneDraft(null);
   }, [exhibition]);
 
   const handleSaveAll = () => {
     let next = editedEx;
     if (editingPhaseId && localPhaseDraft) {
       next = {
-        ...editedEx,
-        phases: editedEx.phases.map(p => p.id === localPhaseDraft.id ? localPhaseDraft : p)
+        ...next,
+        phases: next.phases.map(p => p.id === localPhaseDraft.id ? localPhaseDraft : p)
       };
-      setEditedEx(next);
       setEditingPhaseId(null);
       setLocalPhaseDraft(null);
     }
+    if (editingMilestoneId && localMilestoneDraft) {
+      next = {
+        ...next,
+        milestones: (next.milestones || []).map(m => m.id === localMilestoneDraft.id ? localMilestoneDraft : m)
+      };
+      setEditingMilestoneId(null);
+      setLocalMilestoneDraft(null);
+    }
+    setEditedEx(next);
     onUpdate(next);
     setIsEditing(false);
   };
@@ -104,6 +125,86 @@ export const DetailPanel = ({
     if (targetIdx < 0 || targetIdx >= newPhases.length) return;
     [newPhases[idx], newPhases[targetIdx]] = [newPhases[targetIdx], newPhases[idx]];
     handleFieldChange('phases', newPhases);
+  };
+
+  const handleAddMilestone = () => {
+    const newMilestone: ProjectMilestone = {
+      id: Math.random().toString(36).slice(2, 11),
+      title: 'NEW MILESTONE',
+      date: editedEx.startDate,
+      icon: 'diamond',
+      color: '#dc2626'
+    };
+    const updated = [...(editedEx.milestones || []), newMilestone];
+    setEditedEx(prev => ({ ...prev, milestones: updated }));
+    setEditingMilestoneId(newMilestone.id);
+    setLocalMilestoneDraft(newMilestone);
+  };
+
+  const handleRemoveMilestone = (id: string) => {
+    setEditedEx(prev => ({
+      ...prev,
+      milestones: (prev.milestones || []).filter(m => m.id !== id)
+    }));
+    if (editingMilestoneId === id) {
+      setEditingMilestoneId(null);
+      setLocalMilestoneDraft(null);
+    }
+  };
+
+  const handleStartEditMilestone = (m: ProjectMilestone) => {
+    setEditingMilestoneId(m.id);
+    setLocalMilestoneDraft({ ...m });
+  };
+
+  const handleSaveMilestoneLocal = () => {
+    if (!localMilestoneDraft) return;
+    const trimmedTitle = localMilestoneDraft.title.trim();
+    if (!trimmedTitle) {
+      handleRemoveMilestone(localMilestoneDraft.id);
+      return;
+    }
+    const next = (editedEx.milestones || []).map(m =>
+      m.id === localMilestoneDraft.id ? { ...localMilestoneDraft, title: trimmedTitle } : m
+    );
+    handleFieldChange('milestones', next);
+    setEditingMilestoneId(null);
+    setLocalMilestoneDraft(null);
+  };
+
+  const handleCancelMilestoneLocal = () => {
+    setEditingMilestoneId(null);
+    setLocalMilestoneDraft(null);
+  };
+
+  const renderMilestoneIcon = (icon: MilestoneIcon | undefined, color: string | undefined) => {
+    const c = color || '#dc2626';
+    switch (icon) {
+      case 'flag':
+        return <Flag size={14} fill={c} stroke="black" strokeWidth={2} />;
+      case 'team':
+        return (
+          <div className="w-4 h-4 flex items-center justify-center rounded-full border-[1.5px] border-slate-900" style={{ backgroundColor: c }}>
+            <Users size={9} stroke="white" strokeWidth={2.5} />
+          </div>
+        );
+      case 'approval':
+        return <BadgeCheck size={14} fill={c} stroke="black" strokeWidth={2} />;
+      case 'delivery':
+        return (
+          <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900" style={{ backgroundColor: c }}>
+            <Truck size={9} stroke="white" strokeWidth={2.5} />
+          </div>
+        );
+      case 'event':
+        return <Star size={14} fill={c} stroke="black" strokeWidth={2} />;
+      default:
+        return (
+          <div className="w-3.5 h-3.5 bg-white border-[1.5px] border-slate-300 rotate-45 flex items-center justify-center">
+            <div className="w-[4px] h-[4px]" style={{ backgroundColor: c }} />
+          </div>
+        );
+    }
   };
 
   const totalProjectDuration = useMemo(() => {
@@ -496,6 +597,142 @@ export const DetailPanel = ({
                         >
                           <Trash2 size={16}/>
                         </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {isEditing && (
+          <div className="space-y-4 border border-slate-300 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="text-[12px] font-semibold uppercase tracking-tight">PROJECT MILESTONES</h3>
+                <p className="text-[10px] text-slate-500 uppercase tracking-tight mt-1">Inline beats on this project's track — distinct from gallery-wide milestones.</p>
+              </div>
+              <button
+                aria-label="Add milestone"
+                onClick={handleAddMilestone}
+                className="bg-slate-900 text-white px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight hover:bg-slate-700 focus:ring-2 focus:ring-blue-500/50 flex items-center"
+              >
+                <Plus size={12} className="mr-1" strokeWidth={3} /> ADD MILESTONE
+              </button>
+            </div>
+            {(editedEx.milestones || []).length === 0 && (
+              <p className="text-[11px] uppercase tracking-tight text-slate-500 italic">No milestones yet. Add one to mark a key date on this project's track.</p>
+            )}
+            <div className="space-y-2">
+              {(editedEx.milestones || []).map((m, idx) => {
+                const isMsEditing = editingMilestoneId === m.id;
+                return (
+                  <div key={m.id} className={`border border-slate-300 p-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isMsEditing ? 'bg-yellow-50/30' : ''}`}>
+                    {isMsEditing && localMilestoneDraft ? (
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">TITLE</label>
+                          <input
+                            autoFocus
+                            aria-label={`Milestone ${idx + 1} title`}
+                            className="font-medium text-xs uppercase border border-slate-300 outline-none bg-white text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm w-full p-2"
+                            value={localMilestoneDraft.title}
+                            onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, title: e.target.value.toUpperCase() } : null)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">DATE</label>
+                          <input
+                            type="date"
+                            aria-label={`Milestone ${idx + 1} date`}
+                            className="font-medium text-xs uppercase border border-slate-300 bg-white text-slate-900 outline-none p-2 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                            value={localMilestoneDraft.date}
+                            onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, date: e.target.value } : null)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">ICON</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {MILESTONE_ICON_OPTIONS.map(opt => {
+                              const currentIcon = localMilestoneDraft.icon || 'diamond';
+                              const isActive = currentIcon === opt.key;
+                              return (
+                                <button
+                                  key={opt.key}
+                                  type="button"
+                                  onClick={() => setLocalMilestoneDraft(prev => prev ? { ...prev, icon: opt.key } : null)}
+                                  className={`flex items-center space-x-2 px-2 py-1.5 border-2 transition-colors ${isActive ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                  {opt.preview}
+                                  <span className="text-[10px] font-medium uppercase">{opt.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">COLOR</label>
+                          <div className="flex flex-wrap gap-2">
+                            {MILESTONE_COLORS.map(c => {
+                              const currentColor = localMilestoneDraft.color || '#dc2626';
+                              const isActive = currentColor === c.value;
+                              return (
+                                <button
+                                  key={c.value}
+                                  type="button"
+                                  onClick={() => setLocalMilestoneDraft(prev => prev ? { ...prev, color: c.value } : null)}
+                                  className={`flex items-center space-x-2 px-2 py-1 border-2 hover:bg-slate-50 transition-colors ${isActive ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200'}`}
+                                >
+                                  <div className="w-3 h-3 border border-slate-300" style={{ backgroundColor: c.value }} />
+                                  <span className="text-[9px] font-medium tracking-widest uppercase">{c.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 pt-1">
+                          <button
+                            onClick={handleSaveMilestoneLocal}
+                            className="bg-slate-900 text-white px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight flex items-center hover:bg-slate-700 transition-all duration-200 shadow-sm active:scale-95"
+                          >
+                            <Check size={14} className="mr-1.5" /> CONFIRM
+                          </button>
+                          <button
+                            onClick={handleCancelMilestoneLocal}
+                            className="bg-white border border-slate-300 text-slate-900 px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight flex items-center hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-95"
+                          >
+                            <X size={14} className="mr-1.5" /> CANCEL
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <div className="shrink-0 w-5 flex items-center justify-center">
+                            {renderMilestoneIcon(m.icon, m.color)}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium text-xs uppercase tracking-tight truncate text-slate-900">{m.title}</span>
+                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight">{m.date}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1 shrink-0 ml-2">
+                          <button
+                            aria-label={`Edit milestone ${idx + 1}`}
+                            onClick={() => handleStartEditMilestone(m)}
+                            className="p-1 text-slate-900 hover:text-blue-600 transition-all duration-200 border border-transparent hover:border-slate-300"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            aria-label={`Remove milestone ${idx + 1}`}
+                            onClick={() => handleRemoveMilestone(m.id)}
+                            className="p-1 text-slate-900 hover:text-red-600 transition-all duration-200 border border-transparent hover:border-slate-300"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

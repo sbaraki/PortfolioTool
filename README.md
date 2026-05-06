@@ -19,11 +19,24 @@ and print-share long-range project portfolios across multiple galleries.
   dependency arrows trace the handoffs between them.
 - **Location milestones.** Double-click any gallery's milestone row to drop
   a diamond or flag marker (e.g. board reviews, openings, holidays). Labels
-  auto-stagger above and below to avoid collisions.
+  auto-stagger above and below to avoid collisions. Galleries with no
+  location milestones automatically collapse the row to a thin divider so
+  empty rows don't take vertical space.
+- **Per-project milestones.** Each project carries its own milestone list,
+  rendered inline beneath the project bar on its own track (icon + label).
+  Edit them in the Detail panel's **Project Milestones** section using the
+  same six-icon, seven-color palette as gallery milestones.
 - **Search + status filter.** Filter projects by title/ID/description and
   by status (Proposed / In Development / Open to Public / Closed).
-- **Long-press drag.** Hold a project bar to drag it horizontally; release
-  to commit the new dates.
+- **Direct manipulation.**
+  - *Long-press drag* (400 ms) on a project bar to move it.
+  - *Edge drag* on a project bar's left/right edge to reschedule
+    start/end dates.
+  - *Edge drag* on the right edge of any phase bar to resize that phase's
+    duration. Subsequent phases reflow live during the drag.
+  - At the 1-year preset and tighter zooms, dotted weekly grid lines appear
+    and drags snap to the nearest Monday. Hold **Alt** while dragging to
+    disable weekly snapping.
 - **Collapsible lanes.** Click the chevron beside any gallery name to
   collapse it to a thin header strip — useful for focusing on one or two
   active galleries without the others taking vertical space. A toolbar

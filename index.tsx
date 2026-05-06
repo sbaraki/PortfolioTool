@@ -1,10 +1,10 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP } from './src/constants';
-import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays } from './src/lib/dateUtils';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, EMPTY_MILESTONE_ROW_HEIGHT } from './src/constants';
+import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './src/lib/dateUtils';
 import { calculateTracks } from './src/lib/layoutEngine';
-import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectPhase, ExhibitionStatus } from './src/types';
+import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectMilestone, ProjectPhase, ExhibitionStatus } from './src/types';
 import { DetailPanel } from './src/components/DetailPanel';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -103,6 +103,18 @@ export default function MasterScheduler() {
   const [dragTempStartDate, setDragTempStartDate] = useState<string | null>(null);
   const [dragTempEndDate, setDragTempEndDate] = useState<string | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
+
+  // Edge-drag resize state — separate from long-press move so resize starts instantly.
+  const [resizingEdge, setResizingEdge] = useState<{ id: string; edge: 'left' | 'right' } | null>(null);
+  const resizeInitialMouseXRef = useRef(0);
+  const resizeInitialStartDateRef = useRef('');
+  const resizeInitialEndDateRef = useRef('');
+
+  // Phase resize (right-edge drag on phase bar updates durationMonths).
+  const [resizingPhase, setResizingPhase] = useState<{ projectId: string; phaseId: string } | null>(null);
+  const phaseResizeInitialMouseXRef = useRef(0);
+  const phaseResizeInitialDurationRef = useRef(0);
+  const [phaseResizeTempDuration, setPhaseResizeTempDuration] = useState<number | null>(null);
 
   useEffect(() => {
     return () => {
@@ -289,6 +301,17 @@ export default function MasterScheduler() {
     return layouts;
   }, [filteredExhibitions, galleries, monthWidth, viewMonths, phaseTypes]);
 
+  const galleryHasMilestones = useMemo(() => {
+    const set = new Set<string>();
+    locationMilestones.forEach(m => set.add(m.gallery));
+    return set;
+  }, [locationMilestones]);
+
+  // Auto-collapse the gallery milestone row to a thin divider when the gallery has no
+  // LocationMilestone entries — keeps lanes compact while preserving the row when used.
+  const mhFor = (galleryName: string) =>
+    galleryHasMilestones.has(galleryName) ? MILESTONE_ROW_HEIGHT : EMPTY_MILESTONE_ROW_HEIGHT;
+
   const galleryLaneHeights = useMemo(() => {
     return galleries.reduce((acc, gallery) => {
       if (collapsedGalleryIds.has(gallery.id)) {
@@ -296,19 +319,40 @@ export default function MasterScheduler() {
         return acc;
       }
       const tracksCount = galleryLayouts[gallery.name]?.maxTracks || 1;
+      const milestoneRow = galleryHasMilestones.has(gallery.name) ? MILESTONE_ROW_HEIGHT : EMPTY_MILESTONE_ROW_HEIGHT;
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
-        MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + tracksCount * TRACK_HEIGHT + LANE_BOTTOM_PADDING
+        milestoneRow + LANE_TOP_PADDING + tracksCount * TRACK_HEIGHT + LANE_BOTTOM_PADDING
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [galleries, galleryLayouts, collapsedGalleryIds]);
+  }, [galleries, galleryLayouts, collapsedGalleryIds, galleryHasMilestones]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
   const todayPos = useMemo(() => {
     return getPositionFromDate(toISODate(new Date()), monthWidth, viewMonths);
   }, [monthWidth, viewMonths]);
+
+  const weeklyPositions = useMemo(() => {
+    if (monthWidth < WEEKLY_GRID_THRESHOLD) return [];
+    const start = new Date(timelineStartDate + 'T12:00:00');
+    const end = new Date(timelineEndDate + 'T12:00:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
+    const positions: number[] = [];
+    const firstMondayOffset = (8 - (start.getDay() || 7)) % 7;
+    const cursor = new Date(start);
+    cursor.setDate(cursor.getDate() + firstMondayOffset);
+    let safety = 0;
+    while (cursor <= end && safety < 600) {
+      positions.push(getPositionFromDate(toISODate(cursor), monthWidth, viewMonths));
+      cursor.setDate(cursor.getDate() + 7);
+      safety += 1;
+    }
+    return positions;
+  }, [timelineStartDate, timelineEndDate, monthWidth, viewMonths]);
+
+  const showWeeklyGrid = monthWidth >= WEEKLY_GRID_THRESHOLD;
 
   const onBarMouseDown = (e: React.MouseEvent, project: Exhibition) => {
     if (e.button !== 0) return;
@@ -329,6 +373,61 @@ export default function MasterScheduler() {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+  };
+
+  const onEdgeMouseDown = (e: React.MouseEvent, project: Exhibition, edge: 'left' | 'right') => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    clearLongPress();
+    resizeInitialMouseXRef.current = e.clientX;
+    resizeInitialStartDateRef.current = project.startDate;
+    resizeInitialEndDateRef.current = project.endDate;
+    setResizingEdge({ id: project.id, edge });
+    setDragTempStartDate(project.startDate);
+    setDragTempEndDate(project.endDate);
+  };
+
+  const onPhaseHandleMouseDown = (e: React.MouseEvent, projectId: string, phase: ProjectPhase) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    clearLongPress();
+    phaseResizeInitialMouseXRef.current = e.clientX;
+    phaseResizeInitialDurationRef.current = phase.durationMonths;
+    setResizingPhase({ projectId, phaseId: phase.id });
+    setPhaseResizeTempDuration(phase.durationMonths);
+  };
+
+  const commitResize = () => {
+    if (resizingEdge && dragTempStartDate && dragTempEndDate) {
+      const ex = exhibitions.find(p => p.id === resizingEdge.id);
+      if (ex) {
+        handleUpdateExhibition({ ...ex, startDate: dragTempStartDate, endDate: dragTempEndDate });
+      }
+    }
+    setResizingEdge(null);
+    if (!draggingBarId) {
+      setDragTempStartDate(null);
+      setDragTempEndDate(null);
+    }
+  };
+
+  const commitPhaseResize = () => {
+    if (resizingPhase && phaseResizeTempDuration !== null) {
+      const ex = exhibitions.find(p => p.id === resizingPhase.projectId);
+      if (ex) {
+        const updated: Exhibition = {
+          ...ex,
+          phases: ex.phases.map(p => p.id === resizingPhase.phaseId
+            ? { ...p, durationMonths: phaseResizeTempDuration }
+            : p)
+        };
+        handleUpdateExhibition(updated);
+      }
+    }
+    setResizingPhase(null);
+    setPhaseResizeTempDuration(null);
   };
 
   return (
@@ -747,7 +846,7 @@ export default function MasterScheduler() {
 	                    return (
 		                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b border-black/10 overflow-hidden ${isPermanent ? 'bg-amber-50/60' : 'bg-white/80'}`}>
 		                        <div
-		                          style={{ minHeight: `${MILESTONE_ROW_HEIGHT}px` }}
+		                          style={{ minHeight: `${mhFor(gallery.name)}px` }}
 		                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex items-start gap-2 px-3 py-2.5 z-20 print:bg-slate-50 border-l-4 ${isPermanent ? 'bg-amber-100/80 border-l-amber-700' : 'bg-slate-100/90 border-l-slate-800'}`}
 		                          title={isPermanent ? 'Permanent gallery redevelopment' : 'Temporary exhibition space'}
 		                        >
@@ -769,7 +868,7 @@ export default function MasterScheduler() {
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined) return null;
-                          const topPos = MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + (trackIndex * TRACK_HEIGHT);
+                          const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + (trackIndex * TRACK_HEIGHT);
                           const titleMaxHeight = Math.max(0, TRACK_HEIGHT - 4);
                           return (
                             <div
@@ -790,7 +889,7 @@ export default function MasterScheduler() {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined || trackIndex === 0) return null;
                           return (
-                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-200 left-0" style={{ top: MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + trackIndex * TRACK_HEIGHT }} />
+                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-200 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackIndex * TRACK_HEIGHT }} />
                           );
                         })}
                       </div>
@@ -829,6 +928,8 @@ export default function MasterScheduler() {
                       });
                     }
                   }
+                  if (resizingEdge) commitResize();
+                  if (resizingPhase) commitPhaseResize();
                   setDraggingBarId(null);
                   setDragTempStartDate(null);
                   setDragTempEndDate(null);
@@ -846,6 +947,8 @@ export default function MasterScheduler() {
                       });
                     }
                   }
+                  if (resizingEdge) commitResize();
+                  if (resizingPhase) commitPhaseResize();
                   setDraggingBarId(null);
                   setDragTempStartDate(null);
                   setDragTempEndDate(null);
@@ -853,11 +956,55 @@ export default function MasterScheduler() {
                 }}
                 onMouseMove={(e) => {
                   clearLongPress();
-                  
+
+                  if (resizingEdge) {
+                    const deltaX = e.clientX - resizeInitialMouseXRef.current;
+                    const dayPxRatio = (365.25 / 12) / monthWidth; // days per pixel
+                    const deltaDays = Math.round(deltaX * dayPxRatio);
+                    if (resizingEdge.edge === 'left') {
+                      const initStart = new Date(resizeInitialStartDateRef.current + 'T12:00:00');
+                      const initEnd = new Date(resizeInitialEndDateRef.current + 'T12:00:00');
+                      const newStart = new Date(initStart);
+                      newStart.setDate(newStart.getDate() + deltaDays);
+                      // Don't allow start to cross end (keep at least 1 day duration).
+                      const minEnd = new Date(initEnd);
+                      minEnd.setDate(minEnd.getDate() - 1);
+                      if (newStart > minEnd) return;
+                      let iso = toISODate(newStart);
+                      if (showWeeklyGrid && !e.altKey) iso = snapDate(iso, 'week');
+                      setDragTempStartDate(iso);
+                      setDragTempEndDate(resizeInitialEndDateRef.current);
+                    } else {
+                      const initStart = new Date(resizeInitialStartDateRef.current + 'T12:00:00');
+                      const initEnd = new Date(resizeInitialEndDateRef.current + 'T12:00:00');
+                      const newEnd = new Date(initEnd);
+                      newEnd.setDate(newEnd.getDate() + deltaDays);
+                      const minStart = new Date(initStart);
+                      minStart.setDate(minStart.getDate() + 1);
+                      if (newEnd < minStart) return;
+                      let iso = toISODate(newEnd);
+                      if (showWeeklyGrid && !e.altKey) iso = snapDate(iso, 'week');
+                      setDragTempStartDate(resizeInitialStartDateRef.current);
+                      setDragTempEndDate(iso);
+                    }
+                    return;
+                  }
+
+                  if (resizingPhase) {
+                    const deltaX = e.clientX - phaseResizeInitialMouseXRef.current;
+                    const deltaMonths = deltaX / monthWidth;
+                    // Snap to quarter-month (~weekly) granularity.
+                    const raw = phaseResizeInitialDurationRef.current + deltaMonths;
+                    const snapped = Math.max(0.25, Math.round(raw * 4) / 4);
+                    setPhaseResizeTempDuration(snapped);
+                    return;
+                  }
+
 	                  if (draggingBarId) {
 	                    const deltaX = e.clientX - dragStartMouseXRef.current;
 	                    const newProjectX = dragStartProjectXRef.current + deltaX;
-	                    const newStartDate = getDateFromPosition(newProjectX, monthWidth, viewMonths);
+	                    let newStartDate = getDateFromPosition(newProjectX, monthWidth, viewMonths);
+	                    if (showWeeklyGrid && !e.altKey) newStartDate = snapDate(newStartDate, 'week');
 	                    const start = new Date(newStartDate + 'T12:00:00');
 	                    const draggedEnd = new Date(start);
 	                    draggedEnd.setDate(draggedEnd.getDate() + dragDurationDaysRef.current);
@@ -899,6 +1046,15 @@ export default function MasterScheduler() {
 
                   {/* Grid Lines (Monthly & Fiscal) */}
                   <div className="absolute top-0 bottom-0 left-0 right-0 pointer-events-none z-[10]">
+                    {/* Weekly Dividers (rendered first so monthly/fiscal sit on top) */}
+                    {showWeeklyGrid && weeklyPositions.map((pos, idx) => (
+                      <div
+                        key={`week-${idx}`}
+                        style={{ left: `${pos}px` }}
+                        className="absolute top-0 bottom-0 w-[1px] border-l border-dotted border-slate-300/40 print:border-slate-200"
+                      />
+                    ))}
+
                     {/* Monthly Dividers */}
                     {viewMonths.map((m, idx) => {
                       if (idx === 0) return null; // Skip first bit
@@ -966,7 +1122,7 @@ export default function MasterScheduler() {
                          return (
 	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
                              <div
-                               style={{ height: `${MILESTONE_ROW_HEIGHT}px` }}
+                               style={{ height: `${mhFor(g)}px` }}
                                className="absolute top-0 left-0 w-full bg-slate-200/80 border-b-2 border-slate-400 z-20 group relative cursor-crosshair overflow-visible shadow-sm print:bg-slate-200"
                                onDoubleClick={async (e) => {
                                  const rect = e.currentTarget.getBoundingClientRect();
@@ -1105,7 +1261,7 @@ export default function MasterScheduler() {
                                 const trackIndex = galleryLayouts[g]!.tracks[ex.id];
                                 if (trackIndex === undefined || trackIndex === 0) return null;
                                 return (
-                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + trackIndex * TRACK_HEIGHT }} />
+                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackIndex * TRACK_HEIGHT }} />
                                 );
                               })}
 
@@ -1123,19 +1279,26 @@ export default function MasterScheduler() {
                                   const endPos = getPositionFromDate(effEndDate, monthWidth, viewMonths);
                                   const width = Math.max(endPos - startPos, 40);
                                   
-                                  const trackTop = MILESTONE_ROW_HEIGHT + LANE_TOP_PADDING + (trackIndex * TRACK_HEIGHT);
+                                  const trackTop = mhFor(g) + LANE_TOP_PADDING + (trackIndex * TRACK_HEIGHT);
 
+                                  // When resizing a phase belonging to this project, swap in the temp duration
+                                  // so the live layout reflects the in-progress drag.
+                                  const isResizingPhaseHere = resizingPhase?.projectId === ex.id && phaseResizeTempDuration !== null;
+                                  const phaseDurationFor = (p: ProjectPhase) =>
+                                    isResizingPhaseHere && p.id === resizingPhase!.phaseId
+                                      ? phaseResizeTempDuration!
+                                      : p.durationMonths;
                                   const prePhasesRaw = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost);
                                   const postPhasesRaw = (ex.phases || []).filter(p => phaseTypes.find(t => t.id === p.typeId)?.isPost);
-                                  
-                                  const totalPrePhaseWidthOnly = prePhasesRaw.reduce((acc, p) => acc + p.durationMonths * monthWidth, 0);
+
+                                  const totalPrePhaseWidthOnly = prePhasesRaw.reduce((acc, p) => acc + phaseDurationFor(p) * monthWidth, 0);
                                   const totalPreGaps = prePhasesRaw.length * PHASE_GAP;
                                   const totalPreWidth = totalPrePhaseWidthOnly + totalPreGaps;
                                   const phaseStartPos = startPos - totalPreWidth;
                                   
                                   let preOffset = 0;
                                   const renderedPre = prePhasesRaw.map((p, i) => {
-                                    const pWidth = p.durationMonths * monthWidth;
+                                    const pWidth = phaseDurationFor(p) * monthWidth;
                                     const pStart = phaseStartPos + preOffset;
                                     const pEnd = pStart + pWidth;
                                     const pY = trackTop + (i * TRACK_HEIGHT) + (TRACK_HEIGHT - PHASE_BAR_HEIGHT) / 2;
@@ -1152,7 +1315,7 @@ export default function MasterScheduler() {
 
                                   let postOffset = PHASE_GAP;
                                   const renderedPost = ex.isMilestone ? [] : postPhasesRaw.map((p, i) => {
-                                    const pWidth = p.durationMonths * monthWidth;
+                                    const pWidth = phaseDurationFor(p) * monthWidth;
                                     const pStart = endPos + postOffset;
                                     const pEnd = pStart + pWidth;
                                     const targetYIndex = prePhasesRaw.length > 0 ? prePhasesRaw.length - 1 : 0;
@@ -1205,7 +1368,19 @@ export default function MasterScheduler() {
                                               <div
                                                 className="absolute shadow-sm hover:shadow-md hover:opacity-90 transition-all pointer-events-auto border border-white/60 overflow-hidden"
                                                 style={{ left: `${phase.startX}px`, top: `${phase.y}px`, width: `${Math.max(phase.width - 2, 0)}px`, height: `${PHASE_BAR_HEIGHT}px`, backgroundColor: phase.type?.color || '#eee' }}
-                                                title={phase.label}
+                                                title={`${phase.label} — drag right edge to resize`}
+                                              />
+                                              <div
+                                                aria-label={`Resize phase ${phase.label}`}
+                                                className="absolute cursor-ew-resize pointer-events-auto hover:bg-slate-900/30 transition-colors no-print"
+                                                style={{
+                                                  left: `${phase.endX - EDGE_HIT_ZONE}px`,
+                                                  top: `${phase.y}px`,
+                                                  width: `${EDGE_HIT_ZONE}px`,
+                                                  height: `${PHASE_BAR_HEIGHT}px`,
+                                                  zIndex: 27
+                                                }}
+                                                onMouseDown={(e) => onPhaseHandleMouseDown(e, ex.id, phase as ProjectPhase)}
                                               />
                                               {hasNext && (
                                                 <svg className="absolute overflow-visible pointer-events-none z-0" style={{ left: 0, top: 0, width: 1, height: 1 }}>
@@ -1312,6 +1487,20 @@ export default function MasterScheduler() {
                                               </span>
                                             )}
                                           </div>
+                                          <div
+                                            aria-label="Resize start date"
+                                            className="absolute left-0 top-0 bottom-0 cursor-ew-resize hover:bg-white/30 transition-colors no-print"
+                                            style={{ width: `${EDGE_HIT_ZONE}px`, zIndex: 27 }}
+                                            onMouseDown={(e) => onEdgeMouseDown(e, ex, 'left')}
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                          <div
+                                            aria-label="Resize end date"
+                                            className="absolute right-0 top-0 bottom-0 cursor-ew-resize hover:bg-white/30 transition-colors no-print"
+                                            style={{ width: `${EDGE_HIT_ZONE}px`, zIndex: 27 }}
+                                            onMouseDown={(e) => onEdgeMouseDown(e, ex, 'right')}
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
                                       </div>
                                       )}
                                       {!ex.isMilestone && width >= 80 && (
@@ -1330,6 +1519,61 @@ export default function MasterScheduler() {
                                           </span>
                                         </div>
                                       )}
+
+                                      {/* Per-project milestones — render inline on the project's track. */}
+                                      {(ex.milestones || []).map((pm) => {
+                                        const xPos = getPositionFromDate(pm.date, monthWidth, viewMonths);
+                                        const c = pm.color || '#dc2626';
+                                        const icon = pm.icon || 'diamond';
+                                        return (
+                                          <div
+                                            key={`pm-${pm.id}`}
+                                            className="absolute pointer-events-auto flex flex-col items-center group"
+                                            style={{
+                                              left: `${xPos}px`,
+                                              top: `${mainBarY + STANDARD_BAR_HEIGHT + 2}px`,
+                                              transform: 'translateX(-50%)',
+                                              zIndex: 28,
+                                            }}
+                                            onClick={(e) => { e.stopPropagation(); setSelectedProjectId(ex.id); }}
+                                            title={`${pm.title} — ${formatBarDate(pm.date)}`}
+                                          >
+                                            <div className="flex items-center justify-center cursor-pointer">
+                                              {(() => {
+                                                switch (icon) {
+                                                  case 'flag':
+                                                    return <Flag size={12} fill={c} stroke="black" strokeWidth={2} className="drop-shadow-[1px_1px_0_rgba(0,0,0,1)]" />;
+                                                  case 'team':
+                                                    return (
+                                                      <div className="w-3 h-3 flex items-center justify-center rounded-full border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)]" style={{ backgroundColor: c }}>
+                                                        <Users size={8} stroke="white" strokeWidth={2.5} />
+                                                      </div>
+                                                    );
+                                                  case 'approval':
+                                                    return <BadgeCheck size={12} fill={c} stroke="black" strokeWidth={2} style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }} />;
+                                                  case 'delivery':
+                                                    return (
+                                                      <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)]" style={{ backgroundColor: c }}>
+                                                        <Truck size={8} stroke="white" strokeWidth={2.5} />
+                                                      </div>
+                                                    );
+                                                  case 'event':
+                                                    return <Star size={12} fill={c} stroke="black" strokeWidth={2} style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }} />;
+                                                  default:
+                                                    return (
+                                                      <div className="w-3 h-3 bg-white border-[1.5px] border-slate-300 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center">
+                                                        <div className="w-[3px] h-[3px]" style={{ backgroundColor: c }} />
+                                                      </div>
+                                                    );
+                                                }
+                                              })()}
+                                            </div>
+                                            <div className="mt-0.5 bg-white border border-slate-300 px-1 py-[1px] leading-none shadow-sm whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.06em] text-slate-800 opacity-90 group-hover:opacity-100 transition-opacity">
+                                              {pm.title}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
                                     </React.Fragment>
                                   );
                                 })}

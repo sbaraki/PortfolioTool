@@ -23,13 +23,23 @@ export interface ProjectPhase {
   typeId: string;
 }
 
+export type MilestoneIcon = 'diamond' | 'flag' | 'team' | 'approval' | 'delivery' | 'event';
+
 export interface LocationMilestone {
   id: string;
   gallery: string;
   title: string;
   date: string;
   color?: string;
-  icon?: 'diamond' | 'flag' | 'team' | 'approval' | 'delivery' | 'event';
+  icon?: MilestoneIcon;
+}
+
+export interface ProjectMilestone {
+  id: string;
+  title: string;
+  date: string;
+  color?: string;
+  icon?: MilestoneIcon;
 }
 
 export interface Exhibition {
@@ -40,7 +50,7 @@ export interface Exhibition {
   startDate: string;
   endDate: string;
   gallery: string;
-  milestones: any[];
+  milestones: ProjectMilestone[];
   phases: ProjectPhase[];
   description?: string;
   isMilestone?: boolean;

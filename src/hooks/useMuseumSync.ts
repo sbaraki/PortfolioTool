@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../store/useStore';
-import { CONFIG_STORAGE_KEY, LEGACY_CONFIG_STORAGE_KEYS, MILESTONES_STORAGE_KEY, STORAGE_KEY, DEFAULT_PHASE_TYPES, DEFAULT_GALLERIES } from '../constants';
-import { Exhibition, Gallery, LocationMilestone, PhaseType } from '../types';
+import { CONFIG_STORAGE_KEY, LEGACY_CONFIG_STORAGE_KEYS, MILESTONES_STORAGE_KEY, STORAGE_KEY, LEGACY_STORAGE_KEYS, DEFAULT_PHASE_TYPES, DEFAULT_GALLERIES } from '../constants';
+import { Exhibition, Gallery, LocationMilestone, MilestoneIcon, PhaseType, ProjectMilestone } from '../types';
 import { getGistData, updateGistData } from '../lib/githubGist';
 
 const galleryIdFromName = (name: string) => `gal_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || Math.random().toString(36).slice(2, 8)}`;
@@ -40,6 +40,33 @@ export interface GithubUser {
   displayName: string;
   email: string;
 }
+
+const VALID_MILESTONE_ICONS: MilestoneIcon[] = ['diamond', 'flag', 'team', 'approval', 'delivery', 'event'];
+
+const normalizeProjectMilestones = (raw: unknown): ProjectMilestone[] => {
+  if (!Array.isArray(raw)) return [];
+  const result: ProjectMilestone[] = [];
+  raw.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') return;
+    const obj = entry as Partial<ProjectMilestone> & { gallery?: string };
+    const title = (obj.title ?? '').toString().trim();
+    const date = (obj.date ?? '').toString().trim();
+    if (!title || !date) return;
+    const id = obj.id?.toString().trim() || Math.random().toString(36).slice(2, 11);
+    const icon = VALID_MILESTONE_ICONS.includes(obj.icon as MilestoneIcon) ? (obj.icon as MilestoneIcon) : 'diamond';
+    const color = typeof obj.color === 'string' ? obj.color : undefined;
+    result.push({ id, title, date, icon, ...(color ? { color } : {}) });
+  });
+  return result;
+};
+
+const normalizeExhibitions = (raw: unknown): Exhibition[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((ex: any) => ({
+    ...ex,
+    milestones: normalizeProjectMilestones(ex?.milestones)
+  }));
+};
 
 const normalizePhaseTypes = (phaseTypes: PhaseType[] = []): PhaseType[] => {
   const normalizedDefaults = DEFAULT_PHASE_TYPES.map((defaultType) => {
@@ -86,8 +113,14 @@ export const useMuseumSync = () => {
   // 1. Initial Load from LocalStorage
   useEffect(() => {
     try {
-      const savedEx = localStorage.getItem(STORAGE_KEY);
-      if (savedEx) setExhibitions(JSON.parse(savedEx));
+      let savedEx = localStorage.getItem(STORAGE_KEY);
+      if (!savedEx) {
+        for (const legacyKey of LEGACY_STORAGE_KEYS) {
+          const legacy = localStorage.getItem(legacyKey);
+          if (legacy) { savedEx = legacy; break; }
+        }
+      }
+      if (savedEx) setExhibitions(normalizeExhibitions(JSON.parse(savedEx)));
       
       const savedMs = localStorage.getItem(MILESTONES_STORAGE_KEY);
       if (savedMs) setLocationMilestones(JSON.parse(savedMs));
@@ -145,7 +178,7 @@ export const useMuseumSync = () => {
           const normalizedGalleries = normalizeGalleries(data.galleries);
           setGalleries(normalizedGalleries);
           if (data.phaseTypes) setPhaseTypes(normalizePhaseTypes(data.phaseTypes));
-          if (data.exhibitions) setExhibitions(data.exhibitions);
+          if (data.exhibitions) setExhibitions(normalizeExhibitions(data.exhibitions));
           if (data.locationMilestones) setLocationMilestones(data.locationMilestones);
 
           lastSyncedStateRef.current = JSON.stringify({

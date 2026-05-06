@@ -85,3 +85,31 @@ export const formatBarDate = (dateStr: string): string => {
   if (!isValid(date)) return '---';
   return format(date, 'MMM d, yyyy').toUpperCase();
 };
+
+/**
+ * Returns the ISO-week start (Monday) for the given ISO date string.
+ */
+export const getISOWeekStart = (dateStr: string): string => {
+  const date = new Date(dateStr + 'T12:00:00');
+  if (!isValid(date)) return dateStr;
+  // Monday = 1, Sunday = 0 → shift Sunday to be 7 so we always step back to Monday.
+  const day = date.getDay() || 7;
+  return toISODate(addDays(date, 1 - day));
+};
+
+/**
+ * Snap an ISO date string to the requested granularity.
+ * - 'day' is a no-op (returns the date as-is).
+ * - 'week' rounds to the nearest Monday (forward 1-3 days, back 0-3 days).
+ */
+export const snapDate = (dateStr: string, mode: 'day' | 'week'): string => {
+  if (mode === 'day') return dateStr;
+  const date = new Date(dateStr + 'T12:00:00');
+  if (!isValid(date)) return dateStr;
+  const day = date.getDay() || 7;
+  // 1 = Monday → 0 offset; 2 = Tue → -1 or +6 (we round to nearest)
+  const backToMonday = 1 - day; // negative or zero
+  const fwdToMonday = 8 - day; // 1..7
+  const offset = Math.abs(backToMonday) <= Math.abs(fwdToMonday) ? backToMonday : fwdToMonday;
+  return toISODate(addDays(date, offset));
+};

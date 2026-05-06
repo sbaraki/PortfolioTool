@@ -1,9 +1,10 @@
 import { Gallery, PhaseType } from './types';
 
 // Storage version: bump when the corresponding data shape changes in a non-back-compatible way.
-// CONFIG is at v6 because galleries became Gallery[] objects (id/name/kind) instead of string[].
-// Migration in useMuseumSync also accepts older v5 payloads.
-export const STORAGE_KEY = 'exhibition_planner_brutalist_v4';
+// EXHIBITIONS bumped to v5 — Exhibition.milestones is now a typed ProjectMilestone[] (was unused any[]).
+// Migration accepts the v4 payload and coerces stray entries.
+export const STORAGE_KEY = 'exhibition_planner_brutalist_v5';
+export const LEGACY_STORAGE_KEYS = ['exhibition_planner_brutalist_v4'];
 export const MILESTONES_STORAGE_KEY = 'exhibition_planner_milestones_v4';
 export const CONFIG_STORAGE_KEY = 'exhibition_planner_config_v6';
 export const LEGACY_CONFIG_STORAGE_KEYS = ['exhibition_planner_config_v5'];
@@ -108,6 +109,14 @@ export const HEADER_HEIGHT = 100;
 export const STANDARD_BAR_HEIGHT = 32;
 export const PHASE_BAR_HEIGHT = 12;
 export const PHASE_GAP = 0;
+
+// Below this px-per-month value, weekly grid lines are hidden (too dense to read).
+// At the 1-year preset (132 px/month) and tighter zooms, weekly lines render between monthly dashes.
+export const WEEKLY_GRID_THRESHOLD = 100;
+// Hit zone (px) on each edge of project bars and right edge of phase bars for resize.
+export const EDGE_HIT_ZONE = 6;
+// Thin divider height (px) used when a gallery has no LocationMilestones — replaces the full 80px row.
+export const EMPTY_MILESTONE_ROW_HEIGHT = 8;
 
 // Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
 // the rest of the app palette — phase fills, milestone colours, status pill
