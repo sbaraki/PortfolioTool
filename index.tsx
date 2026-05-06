@@ -1,7 +1,7 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, EMPTY_MILESTONE_ROW_HEIGHT } from './src/constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, EMPTY_MILESTONE_ROW_HEIGHT, PROJECT_MILESTONE_ROW_HEIGHT } from './src/constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './src/lib/dateUtils';
 import { calculateTracks } from './src/lib/layoutEngine';
 import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectMilestone, ProjectPhase, ExhibitionStatus } from './src/types';
@@ -312,21 +312,54 @@ export default function MasterScheduler() {
   const mhFor = (galleryName: string) =>
     galleryHasMilestones.has(galleryName) ? MILESTONE_ROW_HEIGHT : EMPTY_MILESTONE_ROW_HEIGHT;
 
+  // For each gallery, compute per-track top offsets. Tracks whose project carries
+  // at least one ProjectMilestone get an extra PROJECT_MILESTONE_ROW_HEIGHT band so
+  // milestone icons + pills have reserved space and never overflow into adjacent
+  // tracks or galleries.
+  const galleryTrackLayouts = useMemo(() => {
+    const out: Record<string, { trackTops: number[]; total: number; trackHasMilestones: boolean[] }> = {};
+    galleries.forEach(gallery => {
+      const layout = galleryLayouts[gallery.name];
+      const maxTracks = layout?.maxTracks || 1;
+      const trackHasMilestones = new Array(maxTracks).fill(false);
+      filteredExhibitions.forEach(ex => {
+        if (ex.gallery !== gallery.name) return;
+        if ((ex.milestones || []).length === 0) return;
+        const ti = layout?.tracks[ex.id];
+        if (ti === undefined) return;
+        // calculateTracks reserves prePhases.length + 1 consecutive tracks per project;
+        // the milestone band sits below the LAST allocated track (where the main bar lives),
+        // not the owner (topmost) track.
+        const prePhasesCount = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
+        const lastTrackIdx = Math.min(ti + prePhasesCount, maxTracks - 1);
+        trackHasMilestones[lastTrackIdx] = true;
+      });
+      const trackTops: number[] = [];
+      let acc = 0;
+      for (let i = 0; i < maxTracks; i++) {
+        trackTops.push(acc);
+        acc += trackHasMilestones[i] ? TRACK_HEIGHT + PROJECT_MILESTONE_ROW_HEIGHT : TRACK_HEIGHT;
+      }
+      out[gallery.name] = { trackTops, total: acc, trackHasMilestones };
+    });
+    return out;
+  }, [galleries, galleryLayouts, filteredExhibitions, phaseTypes]);
+
   const galleryLaneHeights = useMemo(() => {
     return galleries.reduce((acc, gallery) => {
       if (collapsedGalleryIds.has(gallery.id)) {
         acc[gallery.name] = COLLAPSED_LANE_HEIGHT;
         return acc;
       }
-      const tracksCount = galleryLayouts[gallery.name]?.maxTracks || 1;
+      const tracksTotal = galleryTrackLayouts[gallery.name]?.total || TRACK_HEIGHT;
       const milestoneRow = galleryHasMilestones.has(gallery.name) ? MILESTONE_ROW_HEIGHT : EMPTY_MILESTONE_ROW_HEIGHT;
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
-        milestoneRow + LANE_TOP_PADDING + tracksCount * TRACK_HEIGHT + LANE_BOTTOM_PADDING
+        milestoneRow + LANE_TOP_PADDING + tracksTotal + LANE_BOTTOM_PADDING
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [galleries, galleryLayouts, collapsedGalleryIds, galleryHasMilestones]);
+  }, [galleries, galleryTrackLayouts, collapsedGalleryIds, galleryHasMilestones]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -868,7 +901,8 @@ export default function MasterScheduler() {
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined) return null;
-                          const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + (trackIndex * TRACK_HEIGHT);
+                          const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                          const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + trackTop;
                           const titleMaxHeight = Math.max(0, TRACK_HEIGHT - 4);
                           return (
                             <div
@@ -888,8 +922,9 @@ export default function MasterScheduler() {
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined || trackIndex === 0) return null;
+                          const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
                           return (
-                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-200 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackIndex * TRACK_HEIGHT }} />
+                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-200 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackTop }} />
                           );
                         })}
                       </div>
@@ -1260,8 +1295,9 @@ export default function MasterScheduler() {
                               {galleryProjects.map(ex => {
                                 const trackIndex = galleryLayouts[g]!.tracks[ex.id];
                                 if (trackIndex === undefined || trackIndex === 0) return null;
+                                const trackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
                                 return (
-                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackIndex * TRACK_HEIGHT }} />
+                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackTop }} />
                                 );
                               })}
 
@@ -1279,7 +1315,8 @@ export default function MasterScheduler() {
                                   const endPos = getPositionFromDate(effEndDate, monthWidth, viewMonths);
                                   const width = Math.max(endPos - startPos, 40);
                                   
-                                  const trackTop = mhFor(g) + LANE_TOP_PADDING + (trackIndex * TRACK_HEIGHT);
+                                  const perTrackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                                  const trackTop = mhFor(g) + LANE_TOP_PADDING + perTrackTop;
 
                                   // When resizing a phase belonging to this project, swap in the temp duration
                                   // so the live layout reflects the in-progress drag.
@@ -1520,60 +1557,117 @@ export default function MasterScheduler() {
                                         </div>
                                       )}
 
-                                      {/* Per-project milestones — render inline on the project's track. */}
-                                      {(ex.milestones || []).map((pm) => {
-                                        const xPos = getPositionFromDate(pm.date, monthWidth, viewMonths);
-                                        const c = pm.color || '#dc2626';
-                                        const icon = pm.icon || 'diamond';
+                                      {/* Per-project milestones — rendered in the reserved band beneath the project track.
+                                          Pills stagger top/bottom relative to the icon to avoid horizontal collisions. */}
+                                      {(ex.milestones || []).length > 0 && (() => {
+                                        // Project occupies prePhasesRaw.length + 1 consecutive tracks
+                                        // (one per pre-phase + one for the main bar). The reserved milestone
+                                        // band sits immediately below the last allocated track.
+                                        const bandTop = trackTop + (prePhasesRaw.length + 1) * TRACK_HEIGHT;
+                                        const bandCenter = bandTop + PROJECT_MILESTONE_ROW_HEIGHT / 2;
+
+                                        const projectMilestones = (ex.milestones || [])
+                                          .map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
+                                          .sort((a, b) => a.xPos - b.xPos);
+
+                                        // Estimate label width: title chars × 5.8px + separator + date pill + padding/border.
+                                        const estimateLabelWidth = (title: string) => {
+                                          const titleW = (title || '').length * 5.8;
+                                          return Math.max(60, titleW + 82);
+                                        };
+
+                                        const labelPositions = new Array(projectMilestones.length).fill('top');
+                                        let topRightEdge = -Infinity;
+                                        let bottomRightEdge = -Infinity;
+                                        const LABEL_GAP = 8;
+
+                                        for (let i = 0; i < projectMilestones.length; i++) {
+                                          const curr = projectMilestones[i];
+                                          const w = estimateLabelWidth(curr.title);
+                                          const left = curr.xPos - w / 2;
+                                          const right = curr.xPos + w / 2;
+                                          if (left - LABEL_GAP >= topRightEdge) {
+                                            labelPositions[i] = 'top';
+                                            topRightEdge = right;
+                                          } else if (left - LABEL_GAP >= bottomRightEdge) {
+                                            labelPositions[i] = 'bottom';
+                                            bottomRightEdge = right;
+                                          } else {
+                                            if (topRightEdge <= bottomRightEdge) {
+                                              labelPositions[i] = 'top';
+                                              topRightEdge = right;
+                                            } else {
+                                              labelPositions[i] = 'bottom';
+                                              bottomRightEdge = right;
+                                            }
+                                          }
+                                        }
+
                                         return (
-                                          <div
-                                            key={`pm-${pm.id}`}
-                                            className="absolute pointer-events-auto flex flex-col items-center group"
-                                            style={{
-                                              left: `${xPos}px`,
-                                              top: `${mainBarY + STANDARD_BAR_HEIGHT + 2}px`,
-                                              transform: 'translateX(-50%)',
-                                              zIndex: 28,
-                                            }}
-                                            onClick={(e) => { e.stopPropagation(); setSelectedProjectId(ex.id); }}
-                                            title={`${pm.title} — ${formatBarDate(pm.date)}`}
-                                          >
-                                            <div className="flex items-center justify-center cursor-pointer">
-                                              {(() => {
-                                                switch (icon) {
-                                                  case 'flag':
-                                                    return <Flag size={12} fill={c} stroke="black" strokeWidth={2} className="drop-shadow-[1px_1px_0_rgba(0,0,0,1)]" />;
-                                                  case 'team':
-                                                    return (
-                                                      <div className="w-3 h-3 flex items-center justify-center rounded-full border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)]" style={{ backgroundColor: c }}>
-                                                        <Users size={8} stroke="white" strokeWidth={2.5} />
-                                                      </div>
-                                                    );
-                                                  case 'approval':
-                                                    return <BadgeCheck size={12} fill={c} stroke="black" strokeWidth={2} style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }} />;
-                                                  case 'delivery':
-                                                    return (
-                                                      <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)]" style={{ backgroundColor: c }}>
-                                                        <Truck size={8} stroke="white" strokeWidth={2.5} />
-                                                      </div>
-                                                    );
-                                                  case 'event':
-                                                    return <Star size={12} fill={c} stroke="black" strokeWidth={2} style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }} />;
-                                                  default:
-                                                    return (
-                                                      <div className="w-3 h-3 bg-white border-[1.5px] border-slate-300 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center">
-                                                        <div className="w-[3px] h-[3px]" style={{ backgroundColor: c }} />
-                                                      </div>
-                                                    );
-                                                }
-                                              })()}
-                                            </div>
-                                            <div className="mt-0.5 bg-white border border-slate-300 px-1 py-[1px] leading-none shadow-sm whitespace-nowrap text-[8px] font-bold uppercase tracking-[0.06em] text-slate-800 opacity-90 group-hover:opacity-100 transition-opacity">
-                                              {pm.title}
-                                            </div>
-                                          </div>
+                                          <React.Fragment>
+                                            {/* Faint dashed guideline that ties milestones to their project's date range. */}
+                                            <div
+                                              className="absolute pointer-events-none border-t border-dashed border-slate-300/70 print:border-slate-400"
+                                              style={{ left: `${startPos}px`, width: `${width}px`, top: `${bandCenter}px`, zIndex: 22 }}
+                                            />
+                                            {projectMilestones.map((pm, idx) => {
+                                              const labelPos = labelPositions[idx];
+                                              const c = pm.color || '#dc2626';
+                                              const icon = pm.icon || 'diamond';
+                                              return (
+                                                <div
+                                                  key={`pm-${pm.id}`}
+                                                  className="absolute pointer-events-auto flex items-center justify-center"
+                                                  style={{
+                                                    left: `${pm.xPos}px`,
+                                                    top: `${bandCenter}px`,
+                                                    transform: 'translate(-50%, -50%)',
+                                                    zIndex: 28,
+                                                  }}
+                                                  onClick={(e) => { e.stopPropagation(); setSelectedProjectId(ex.id); }}
+                                                  title={`${pm.title} — ${formatBarDate(pm.date)}`}
+                                                >
+                                                  <div className="cursor-pointer relative z-10 flex items-center justify-center">
+                                                    {(() => {
+                                                      switch (icon) {
+                                                        case 'flag':
+                                                          return <Flag size={14} fill={c} stroke="black" strokeWidth={2} className="drop-shadow-[1px_1px_0_rgba(0,0,0,1)]" />;
+                                                        case 'team':
+                                                          return (
+                                                            <div className="w-3.5 h-3.5 flex items-center justify-center rounded-full border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)]" style={{ backgroundColor: c }}>
+                                                              <Users size={9} stroke="white" strokeWidth={2.5} />
+                                                            </div>
+                                                          );
+                                                        case 'approval':
+                                                          return <BadgeCheck size={14} fill={c} stroke="black" strokeWidth={2} style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }} />;
+                                                        case 'delivery':
+                                                          return (
+                                                            <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)]" style={{ backgroundColor: c }}>
+                                                              <Truck size={9} stroke="white" strokeWidth={2.5} />
+                                                            </div>
+                                                          );
+                                                        case 'event':
+                                                          return <Star size={14} fill={c} stroke="black" strokeWidth={2} style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }} />;
+                                                        default:
+                                                          return (
+                                                            <div className="w-3.5 h-3.5 bg-white border-[1.5px] border-slate-300 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center">
+                                                              <div className="w-[4px] h-[4px]" style={{ backgroundColor: c }} />
+                                                            </div>
+                                                          );
+                                                      }
+                                                    })()}
+                                                  </div>
+                                                  <div className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all whitespace-nowrap z-20 inline-flex items-center gap-1.5 ${labelPos === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
+                                                    <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800">{pm.title}</span>
+                                                    <span className="w-px h-2 bg-slate-300" />
+                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500">{formatBarDate(pm.date)}</span>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </React.Fragment>
                                         );
-                                      })}
+                                      })()}
                                     </React.Fragment>
                                   );
                                 })}
