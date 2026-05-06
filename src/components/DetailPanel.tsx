@@ -5,27 +5,27 @@ import { getDateWithMonthDuration, getDurationMonths } from '../lib/dateUtils';
 import { getStatusStyles, MILESTONE_COLORS } from '../constants';
 
 const MILESTONE_ICON_OPTIONS: { key: MilestoneIcon; label: string; preview: React.ReactNode }[] = [
-  { key: 'diamond', label: 'Diamond', preview: <div className="w-3 h-3 bg-white border border-slate-300 rotate-45" /> },
-  { key: 'flag', label: 'Flag', preview: <Flag size={14} fill="white" stroke="black" strokeWidth={2} /> },
-  { key: 'team', label: 'Team', preview: <Users size={14} stroke="black" strokeWidth={2} /> },
-  { key: 'approval', label: 'Approval', preview: <BadgeCheck size={14} stroke="black" strokeWidth={2} /> },
-  { key: 'delivery', label: 'Delivery', preview: <Truck size={14} stroke="black" strokeWidth={2} /> },
-  { key: 'event', label: 'Event', preview: <Star size={14} fill="white" stroke="black" strokeWidth={2} /> },
+  { key: 'diamond', label: 'Diamond', preview: <div className="w-2.5 h-2.5 bg-white border border-slate-300 rotate-45" /> },
+  { key: 'flag', label: 'Flag', preview: <Flag size={12} fill="white" stroke="black" strokeWidth={2} /> },
+  { key: 'team', label: 'Team', preview: <Users size={12} stroke="black" strokeWidth={2} /> },
+  { key: 'approval', label: 'Approval', preview: <BadgeCheck size={12} stroke="black" strokeWidth={2} /> },
+  { key: 'delivery', label: 'Delivery', preview: <Truck size={12} stroke="black" strokeWidth={2} /> },
+  { key: 'event', label: 'Event', preview: <Star size={12} fill="white" stroke="black" strokeWidth={2} /> },
 ];
 
-export const DetailPanel = ({ 
-  exhibition, 
-  onClose, 
-  onUpdate, 
-  onDelete, 
+export const DetailPanel = ({
+  exhibition,
+  onClose,
+  onUpdate,
+  onDelete,
   onDuplicate,
   galleries,
   phaseTypes
-}: { 
-  exhibition: Exhibition; 
-  onClose: () => void; 
-  onUpdate: (ex: Exhibition) => void; 
-  onDelete: (id: string) => void; 
+}: {
+  exhibition: Exhibition;
+  onClose: () => void;
+  onUpdate: (ex: Exhibition) => void;
+  onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
   galleries: Gallery[];
   phaseTypes: PhaseType[];
@@ -181,27 +181,27 @@ export const DetailPanel = ({
     const c = color || '#dc2626';
     switch (icon) {
       case 'flag':
-        return <Flag size={14} fill={c} stroke="black" strokeWidth={2} />;
+        return <Flag size={12} fill={c} stroke="black" strokeWidth={2} />;
       case 'team':
         return (
-          <div className="w-4 h-4 flex items-center justify-center rounded-full border-[1.5px] border-slate-900" style={{ backgroundColor: c }}>
-            <Users size={9} stroke="white" strokeWidth={2.5} />
+          <div className="w-3.5 h-3.5 flex items-center justify-center rounded-full border border-slate-900" style={{ backgroundColor: c }}>
+            <Users size={8} stroke="white" strokeWidth={2.5} />
           </div>
         );
       case 'approval':
-        return <BadgeCheck size={14} fill={c} stroke="black" strokeWidth={2} />;
+        return <BadgeCheck size={12} fill={c} stroke="black" strokeWidth={2} />;
       case 'delivery':
         return (
-          <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900" style={{ backgroundColor: c }}>
-            <Truck size={9} stroke="white" strokeWidth={2.5} />
+          <div className="px-0.5 py-0.5 flex items-center justify-center border border-slate-900" style={{ backgroundColor: c }}>
+            <Truck size={8} stroke="white" strokeWidth={2.5} />
           </div>
         );
       case 'event':
-        return <Star size={14} fill={c} stroke="black" strokeWidth={2} />;
+        return <Star size={12} fill={c} stroke="black" strokeWidth={2} />;
       default:
         return (
-          <div className="w-3.5 h-3.5 bg-white border-[1.5px] border-slate-300 rotate-45 flex items-center justify-center">
-            <div className="w-[4px] h-[4px]" style={{ backgroundColor: c }} />
+          <div className="w-3 h-3 bg-white border border-slate-300 rotate-45 flex items-center justify-center">
+            <div className="w-[3px] h-[3px]" style={{ backgroundColor: c }} />
           </div>
         );
     }
@@ -215,28 +215,33 @@ export const DetailPanel = ({
     handleFieldChange('endDate', getDateWithMonthDuration(editedEx.startDate, months));
   };
 
+  const inputCls = "w-full bg-white border border-slate-200 px-2 py-1.5 text-[12px] text-slate-900 outline-none focus:border-slate-400 transition-colors";
+  const labelCls = "text-[10px] font-medium uppercase tracking-tight text-slate-500";
+  const sectionCls = "border border-slate-200 bg-white p-3 space-y-3";
+  const sectionHeaderCls = "text-[11px] font-semibold uppercase tracking-tight text-slate-700";
+
   return (
     <aside
-      className="fixed inset-y-0 right-0 w-full sm:w-[520px] bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] border-l border-slate-200 z-[100] flex flex-col no-print shadow-[-20px_0_50px_rgba(0,0,0,0.1)] focus-within:ring-2 focus-within:ring-blue-500/20"
+      className="fixed inset-y-0 right-0 w-full sm:w-[440px] bg-white border-l border-slate-200 z-[100] flex flex-col no-print shadow-[-8px_0_24px_rgba(15,23,42,0.06)]"
     >
-      <div className="p-5 border-b border-slate-200 flex justify-between items-center bg-white/90 backdrop-blur-sm">
-        <div className="flex-1 mr-4">
+      <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-start gap-3 bg-white">
+        <div className="flex-1 min-w-0">
           {isEditing ? (
-            <div className="flex flex-col">
-              <label htmlFor="ex-title" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">Project Title</label>
-              <input 
+            <div className="space-y-1">
+              <label htmlFor="ex-title" className={labelCls}>Project Title</label>
+              <input
                 id="ex-title"
-                className="text-lg font-medium text-slate-900 w-full bg-slate-50 border border-slate-300 p-2 outline-none focus:bg-white focus:ring-2 focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm transition-all duration-200" 
-                value={editedEx.title} 
-                onChange={(e) => handleFieldChange('title', e.target.value.toUpperCase())} 
+                className="w-full text-[14px] font-semibold text-slate-900 bg-white border border-slate-200 px-2 py-1.5 outline-none focus:border-slate-400 transition-colors uppercase tracking-tight"
+                value={editedEx.title}
+                onChange={(e) => handleFieldChange('title', e.target.value.toUpperCase())}
               />
             </div>
           ) : (
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 leading-none uppercase tracking-tight">{exhibition.title}</h2>
-              <div className="flex flex-wrap items-center gap-2 mt-3">
+              <h2 className="text-[14px] font-semibold text-slate-900 leading-tight uppercase tracking-tight truncate" title={exhibition.title}>{exhibition.title}</h2>
+              <div className="flex flex-wrap items-center gap-1 mt-2">
                 <span
-                  className="font-semibold text-[12px] uppercase tracking-tight px-3 py-1 border inline-flex items-center shadow-sm"
+                  className="font-medium text-[10px] uppercase tracking-tight px-1.5 py-0.5 border inline-flex items-center leading-none"
                   style={{
                     backgroundColor: getStatusStyles(exhibition.status).bg,
                     borderColor: getStatusStyles(exhibition.status).border,
@@ -245,102 +250,98 @@ export const DetailPanel = ({
                 >
                   {getStatusStyles(exhibition.status).label}
                 </span>
-                <span className="px-3 py-1 border border-slate-200 bg-white text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-700">{exhibition.gallery}</span>
+                <span className="px-1.5 py-0.5 border border-slate-200 bg-white text-[10px] font-medium uppercase tracking-tight text-slate-600 leading-none">{exhibition.gallery}</span>
                 {exhibition.isMilestone ? (
-                  <span className="px-3 py-1 border border-slate-300 bg-slate-900 text-[12px] font-semibold uppercase tracking-[0.14em] text-white">Completion Milestone</span>
+                  <span className="px-1.5 py-0.5 bg-slate-900 text-[10px] font-medium uppercase tracking-tight text-white leading-none">Milestone</span>
                 ) : (
-                  <span className="px-3 py-1 border border-slate-200 bg-white text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-700">{totalProjectDuration} Months</span>
+                  <span className="px-1.5 py-0.5 border border-slate-200 bg-white text-[10px] font-medium uppercase tracking-tight text-slate-600 leading-none">{totalProjectDuration} mo</span>
                 )}
               </div>
             </div>
           )}
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-1 shrink-0">
           {isEditing ? (
-            <button 
+            <button
               aria-label="Save all changes"
-              onClick={handleSaveAll} 
-              className="w-10 h-10 bg-slate-900 text-white border border-slate-300 flex items-center justify-center hover:bg-white hover:text-slate-900 transition-all duration-200 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500/50"
+              onClick={handleSaveAll}
+              className="p-1.5 bg-slate-900 text-white hover:bg-slate-800 transition-colors"
             >
-              <Check size={20} />
+              <Check size={14} />
             </button>
           ) : (
-            <button 
+            <button
               aria-label="Edit project"
-              onClick={() => setIsEditing(true)} 
-              className="w-10 h-10 bg-white border border-slate-300 text-slate-900 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all duration-200 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500/50"
+              onClick={() => setIsEditing(true)}
+              className="p-1.5 text-slate-500 hover:bg-slate-50 transition-colors"
             >
-              <Edit2 size={18} />
+              <Edit2 size={14} />
             </button>
           )}
-          <button 
+          <button
             aria-label="Close panel"
-            onClick={onClose} 
-            className="w-10 h-10 bg-white border border-slate-300 text-slate-900 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all duration-200 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500/50"
+            onClick={onClose}
+            className="p-1.5 text-slate-500 hover:bg-slate-50 transition-colors"
           >
-            <X size={22} />
+            <X size={14} />
           </button>
         </div>
       </div>
 
-      <div
-        className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar"
-      >
-        <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-1 border border-slate-200 bg-white px-4 py-4 shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
-            <span id="label-status" className="text-[11px] font-semibold uppercase text-slate-600 tracking-[0.18em]">PROJECT STATUS</span>
-            {isEditing ? (
-              <select 
-                id="ex-status"
-                className="w-full font-medium border border-slate-300 p-2 outline-none text-sm bg-white text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm" 
-                value={editedEx.status} 
-                onChange={(e) => handleFieldChange('status', e.target.value)}
-              >
-                {['Proposed', 'In Development', 'Open to Public', 'Closed'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-              </select>
-            ) : (
-              <div>
-                <p 
-                  className="font-semibold text-[12px] uppercase tracking-tight px-3 py-1 border inline-flex items-center shadow-sm" 
-                  style={{ 
-                    backgroundColor: getStatusStyles(exhibition.status).bg,
-                    borderColor: getStatusStyles(exhibition.status).border,
-                    color: getStatusStyles(exhibition.status).text
-                  }}
-                >
-                  {getStatusStyles(exhibition.status).label}
-                </p>
-              </div>
-            )}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50">
+        {/* Status */}
+        <div className={sectionCls}>
+          <div className="flex items-center justify-between">
+            <span className={sectionHeaderCls}>Status</span>
           </div>
+          {isEditing ? (
+            <select
+              id="ex-status"
+              className={inputCls}
+              value={editedEx.status}
+              onChange={(e) => handleFieldChange('status', e.target.value)}
+            >
+              {['Proposed', 'In Development', 'Open to Public', 'Closed'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+            </select>
+          ) : (
+            <span
+              className="font-medium text-[11px] uppercase tracking-tight px-1.5 py-0.5 border inline-flex items-center leading-none"
+              style={{
+                backgroundColor: getStatusStyles(exhibition.status).bg,
+                borderColor: getStatusStyles(exhibition.status).border,
+                color: getStatusStyles(exhibition.status).text
+              }}
+            >
+              {getStatusStyles(exhibition.status).label}
+            </span>
+          )}
         </div>
 
-        <div className="p-5 border border-slate-200 space-y-4 bg-white shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-[14px] font-semibold uppercase tracking-[0.16em] text-slate-700">Scheduling Core</h3>
-            </div>
-          </div>
+        {/* Scheduling Core */}
+        <div className={sectionCls}>
+          <span className={sectionHeaderCls}>Scheduling</span>
+
           <div className="space-y-1">
-            <label htmlFor="ex-id" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">EXHIBITION ID</label>
+            <label htmlFor="ex-id" className={labelCls}>Exhibition ID</label>
             {isEditing ? (
-              <input 
+              <input
                 id="ex-id"
-                className="w-full font-medium border border-slate-300 p-2 text-sm bg-white text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/50 focus:shadow-sm" 
-                value={editedEx.exhibitionId || ''} 
+                className={inputCls}
+                value={editedEx.exhibitionId || ''}
                 placeholder="EX-0000-000"
-                onChange={(e) => handleFieldChange('exhibitionId', e.target.value.toUpperCase())} 
+                onChange={(e) => handleFieldChange('exhibitionId', e.target.value.toUpperCase())}
               />
             ) : (
-              <p className="font-medium text-sm uppercase text-blue-600 tracking-tight">{exhibition.exhibitionId || 'UNASSIGNED'}</p>
+              <p className="text-[12px] font-mono text-slate-700">{exhibition.exhibitionId || '—'}</p>
             )}
           </div>
+
           <div className="space-y-1">
-            <label htmlFor="ex-gallery" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">GALLERY LANE</label>
+            <label htmlFor="ex-gallery" className={labelCls}>Gallery</label>
             {isEditing ? (
               <select
                 id="ex-gallery"
-                className="w-full font-medium border border-slate-300 p-2 outline-none text-sm bg-white text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                className={inputCls}
                 value={editedEx.gallery}
                 onChange={(e) => {
                   const nextGalleryName = e.target.value;
@@ -361,242 +362,232 @@ export const DetailPanel = ({
                 ))}
               </select>
             ) : (
-              <p className="font-medium text-sm uppercase">{exhibition.gallery}</p>
+              <p className="text-[12px] font-medium text-slate-700 uppercase tracking-tight">{exhibition.gallery}</p>
             )}
           </div>
-          <div className="pt-2 pb-2 border-t border-slate-200">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                <span className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight block">Track as Completion Milestone</span>
-                <span className="text-[10px] text-slate-500 uppercase tracking-tight block mt-1">
-                  Use a single date instead of a run with start/end dates. Recommended for permanent installations.
-                </span>
-              </div>
-              {isEditing ? (
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={!!editedEx.isMilestone}
-                  aria-label="Toggle milestone mode"
-                  onClick={() => {
-                    const next = !editedEx.isMilestone;
-                    setEditedEx(prev => ({
-                      ...prev,
-                      isMilestone: next,
-                      endDate: next
-                        ? prev.startDate
-                        : (prev.endDate <= prev.startDate
-                            ? getDateWithMonthDuration(prev.startDate, 3)
-                            : prev.endDate)
-                    }));
-                  }}
-                  className={`relative shrink-0 inline-flex items-center w-12 h-7 rounded-full border border-slate-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${editedEx.isMilestone ? 'bg-slate-900' : 'bg-slate-200'}`}
-                >
-                  <span
-                    className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-5 h-5 bg-white border border-slate-300 rounded-full shadow-sm transition-transform duration-200 ${editedEx.isMilestone ? 'translate-x-[20px]' : 'translate-x-0'}`}
-                  />
-                </button>
-              ) : (
-                <span className={`shrink-0 px-2 py-0.5 border text-[10px] font-semibold uppercase tracking-[0.14em] ${exhibition.isMilestone ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-300'}`}>
-                  {exhibition.isMilestone ? 'ON' : 'OFF'}
-                </span>
-              )}
+
+          <div className="flex items-start justify-between gap-2 pt-2 border-t border-slate-100">
+            <div className="flex-1 min-w-0">
+              <span className={labelCls}>Track as completion milestone</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Single date instead of date range. For permanent installs.</span>
             </div>
+            {isEditing ? (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!editedEx.isMilestone}
+                aria-label="Toggle milestone mode"
+                onClick={() => {
+                  const next = !editedEx.isMilestone;
+                  setEditedEx(prev => ({
+                    ...prev,
+                    isMilestone: next,
+                    endDate: next
+                      ? prev.startDate
+                      : (prev.endDate <= prev.startDate
+                          ? getDateWithMonthDuration(prev.startDate, 3)
+                          : prev.endDate)
+                  }));
+                }}
+                className={`relative shrink-0 inline-flex items-center w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-slate-400 ${editedEx.isMilestone ? 'bg-slate-900' : 'bg-slate-300'}`}
+              >
+                <span
+                  className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${editedEx.isMilestone ? 'translate-x-[16px]' : 'translate-x-0'}`}
+                />
+              </button>
+            ) : (
+              <span className={`shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-tight leading-none ${exhibition.isMilestone ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-500'}`}>
+                {exhibition.isMilestone ? 'On' : 'Off'}
+              </span>
+            )}
           </div>
+
           {editedEx.isMilestone ? (
             <div className="space-y-1">
-              <label htmlFor="ex-start-date" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">COMPLETION DATE</label>
+              <label htmlFor="ex-start-date" className={labelCls}>Completion Date</label>
               {isEditing ? (
                 <input
                   id="ex-start-date"
                   type="date"
-                  className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                  className={inputCls}
                   value={editedEx.startDate}
                   onChange={(e) => handleFieldChange('startDate', e.target.value)}
                 />
               ) : (
-                <p className="text-sm font-medium">{exhibition.startDate}</p>
+                <p className="text-[12px] font-medium text-slate-700">{exhibition.startDate}</p>
               )}
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label htmlFor="ex-start-date" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">START DATE</label>
+                  <label htmlFor="ex-start-date" className={labelCls}>Start</label>
                   {isEditing ? (
                     <input
                       id="ex-start-date"
                       type="date"
-                      className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                      className={inputCls}
                       value={editedEx.startDate}
                       onChange={(e) => handleStartDateChange(e.target.value)}
                     />
                   ) : (
-                    <p className="text-sm font-medium">{exhibition.startDate}</p>
+                    <p className="text-[12px] font-medium text-slate-700">{exhibition.startDate}</p>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="ex-end-date" className="text-[11px] font-semibold uppercase text-slate-600 tracking-tight">END DATE</label>
+                  <label htmlFor="ex-end-date" className={labelCls}>End</label>
                   {isEditing ? (
                     <input
                       id="ex-end-date"
                       type="date"
                       min={editedEx.startDate}
-                      className="w-full border border-slate-300 p-2 text-xs font-medium tracking-tight bg-white text-slate-900 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                      className={inputCls}
                       value={editedEx.endDate}
                       onChange={(e) => handleEndDateChange(e.target.value)}
                     />
                   ) : (
-                    <p className="text-sm font-medium">{exhibition.endDate}</p>
+                    <p className="text-[12px] font-medium text-slate-700">{exhibition.endDate}</p>
                   )}
                 </div>
               </div>
-              <div className="pt-2 border-t border-slate-200">
-                <label htmlFor="ex-duration" className="text-[11px] font-semibold uppercase text-slate-600 block tracking-tight">TOTAL PROJECT DURATION</label>
+              <div className="pt-2 border-t border-slate-100">
+                <label htmlFor="ex-duration" className={labelCls}>Total duration</label>
                 {isEditing ? (
-                  <div className="flex items-center space-x-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1">
                     <input
                       id="ex-duration"
                       type="number"
                       min="0.1"
                       step="0.1"
-                      className="w-24 border border-slate-300 bg-white text-slate-900 font-semibold p-2 outline-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
+                      className="w-20 bg-white border border-slate-200 px-2 py-1.5 text-[12px] font-medium text-slate-900 outline-none focus:border-slate-400 transition-colors"
                       value={totalProjectDuration}
                       onChange={(e) => {
                         const val = parseFloat(e.target.value);
                         if (!isNaN(val)) handleDurationChange(val);
                       }}
                     />
-                    <span className="text-xs font-semibold uppercase tracking-tight">MONTHS</span>
+                    <span className="text-[10px] font-medium uppercase tracking-tight text-slate-500">months</span>
                   </div>
                 ) : (
-                  <p className="text-sm font-semibold text-slate-900 mt-1 uppercase tracking-tight">{totalProjectDuration} MONTHS</p>
+                  <p className="text-[12px] font-medium text-slate-700 mt-1">{totalProjectDuration} months</p>
                 )}
               </div>
             </>
           )}
         </div>
 
+        {/* Internal Phasing (edit-only) */}
         {isEditing && (
-          <div className="space-y-4 border border-slate-200 bg-white p-5 shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="text-[12px] font-semibold uppercase tracking-tight">INTERNAL PHASING</h3>
-              <button 
+          <div className={sectionCls}>
+            <div className="flex items-center justify-between">
+              <span className={sectionHeaderCls}>Phases</span>
+              <button
                 aria-label="Add new phase"
-                onClick={handleAddPhase} 
-                className="bg-slate-900 text-white px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight hover:bg-slate-700 focus:ring-2 focus:ring-blue-500/50"
+                onClick={handleAddPhase}
+                className="px-2 py-1 bg-slate-900 text-white text-[10px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none"
               >
-                + ADD PHASE
+                <Plus size={10} strokeWidth={2.5} /> Add
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {editedEx.phases.map((phase, idx) => {
                 const isPhaseEditing = editingPhaseId === phase.id;
-                
                 return (
-                  <div key={phase.id} className={`border border-slate-200 p-3 flex items-start justify-between bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isPhaseEditing ? 'bg-yellow-50/30' : ''}`}>
-                    <div className="flex items-start space-x-3 w-full">
-                      <div className="w-6 h-6 bg-slate-900 text-white flex items-center justify-center text-[10px] font-medium shrink-0 mt-1">{idx + 1}</div>
-                      <div className="flex flex-col flex-1 min-w-0">
-                        {isPhaseEditing ? (
-                          <div className="flex flex-col space-y-3">
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">LABEL</label>
-                              <input 
-                                autoFocus
-                                aria-label={`Phase ${idx + 1} Label`}
-                                className="font-medium text-xs uppercase border border-slate-300 outline-none bg-white text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm w-full p-2"
-                                value={localPhaseDraft?.label || ''}
-                                onChange={(e) => setLocalPhaseDraft(prev => prev ? { ...prev, label: e.target.value.toUpperCase() } : null)}
-                              />
-                            </div>
-                            <div className="flex items-center space-x-4">
-                              <div className="space-y-1">
-                                <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">DURATION (MO)</label>
-                                <input 
-                                  type="number"
-                                  min="0"
-                                  step="0.1"
-                                  aria-label={`Phase ${idx + 1} Duration`}
-                                  className="font-semibold text-xs uppercase border border-slate-300 bg-white text-slate-900 outline-none w-20 p-2 text-center focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
-                                  value={localPhaseDraft?.durationMonths || 0}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    setLocalPhaseDraft(prev => prev ? { ...prev, durationMonths: isNaN(val) ? 0 : val } : null);
-                                  }}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">TYPE</label>
-                                <select 
-                                  className="font-semibold text-[11px] uppercase border border-slate-300 bg-white text-slate-900 outline-none p-1.5 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
-                                  value={localPhaseDraft?.typeId || ''}
-                                  onChange={(e) => setLocalPhaseDraft(prev => prev ? { ...prev, typeId: e.target.value } : null)}
-                                >
-                                  {phaseTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.label}</option>)}
-                                </select>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2 pt-1">
-                               <button 
-                                onClick={handleSavePhaseLocal}
-                                className="bg-slate-900 text-white px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight flex items-center hover:bg-slate-700 transition-all duration-200 shadow-sm active:scale-95"
-                              >
-                                <Check size={14} className="mr-1.5" /> CONFIRM
-                              </button>
-                              <button 
-                                onClick={handleCancelPhaseLocal}
-                                className="bg-white border border-slate-300 text-slate-900 px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight flex items-center hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-95"
-                              >
-                                <X size={14} className="mr-1.5" /> CANCEL
-                              </button>
-                            </div>
+                  <div key={phase.id} className={`border border-slate-200 p-2 bg-white transition-colors ${isPhaseEditing ? 'bg-slate-50' : ''}`}>
+                    {isPhaseEditing ? (
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <label className={labelCls}>Label</label>
+                          <input
+                            autoFocus
+                            aria-label={`Phase ${idx + 1} Label`}
+                            className={inputCls + ' uppercase'}
+                            value={localPhaseDraft?.label || ''}
+                            onChange={(e) => setLocalPhaseDraft(prev => prev ? { ...prev, label: e.target.value.toUpperCase() } : null)}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className={labelCls}>Duration (mo)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              aria-label={`Phase ${idx + 1} Duration`}
+                              className={inputCls}
+                              value={localPhaseDraft?.durationMonths || 0}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                setLocalPhaseDraft(prev => prev ? { ...prev, durationMonths: isNaN(val) ? 0 : val } : null);
+                              }}
+                            />
                           </div>
-                        ) : (
-                          <>
-                            <div className="flex items-center space-x-2">
-                               <span className="font-medium text-xs uppercase tracking-tight truncate text-slate-900">{phase.label}</span>
-                               <div className="w-2 h-2 border border-slate-200" style={{ backgroundColor: phaseTypes.find(t => t.id === phase.typeId)?.color }} />
-                            </div>
-                            <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-tight">{phase.durationMonths} MO</span>
-                          </>
-                        )}
+                          <div className="space-y-1">
+                            <label className={labelCls}>Type</label>
+                            <select
+                              className={inputCls}
+                              value={localPhaseDraft?.typeId || ''}
+                              onChange={(e) => setLocalPhaseDraft(prev => prev ? { ...prev, typeId: e.target.value } : null)}
+                            >
+                              {phaseTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.label}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 pt-1">
+                          <button
+                            onClick={handleSavePhaseLocal}
+                            className="px-2 py-1 bg-slate-900 text-white text-[10px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none"
+                          >
+                            <Check size={10} strokeWidth={2.5} /> Confirm
+                          </button>
+                          <button
+                            onClick={handleCancelPhaseLocal}
+                            className="px-2 py-1 border border-slate-200 bg-white text-slate-700 text-[10px] font-medium uppercase tracking-tight hover:bg-slate-50 transition-colors leading-none"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    {!isPhaseEditing && (
-                      <div className="flex items-center space-x-1 shrink-0 ml-2 mt-1">
-                        <div className="flex flex-col">
-                          <button 
+                    ) : (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-4 h-4 bg-slate-900 text-white flex items-center justify-center text-[9px] font-medium shrink-0 leading-none">{idx + 1}</div>
+                          <div className="w-1.5 h-1.5 shrink-0" style={{ backgroundColor: phaseTypes.find(t => t.id === phase.typeId)?.color }} />
+                          <span className="text-[11px] font-medium uppercase tracking-tight text-slate-900 truncate">{phase.label}</span>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0">{phase.durationMonths}mo</span>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button
                             aria-label={`Move phase ${idx + 1} up`}
                             disabled={idx === 0}
                             onClick={() => handleMovePhase(idx, 'up')}
-                            className={`p-0.5 hover:bg-slate-900 hover:text-white transition-all duration-200 border border-transparent hover:border-slate-300 ${idx === 0 ? 'opacity-20 cursor-not-allowed' : ''}`}
+                            className={`p-1 text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors ${idx === 0 ? 'opacity-20 cursor-not-allowed' : ''}`}
                           >
-                            <ChevronUp size={14} />
+                            <ChevronUp size={11} />
                           </button>
-                          <button 
+                          <button
                             aria-label={`Move phase ${idx + 1} down`}
                             disabled={idx === editedEx.phases.length - 1}
                             onClick={() => handleMovePhase(idx, 'down')}
-                            className={`p-0.5 hover:bg-slate-900 hover:text-white transition-all duration-200 border border-transparent hover:border-slate-300 ${idx === editedEx.phases.length - 1 ? 'opacity-20 cursor-not-allowed' : ''}`}
+                            className={`p-1 text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors ${idx === editedEx.phases.length - 1 ? 'opacity-20 cursor-not-allowed' : ''}`}
                           >
-                            <ChevronDown size={14} />
+                            <ChevronDown size={11} />
+                          </button>
+                          <button
+                            aria-label={`Edit phase ${idx + 1}`}
+                            onClick={() => handleStartEditPhase(phase)}
+                            className="p-1 text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                          >
+                            <Edit2 size={11} />
+                          </button>
+                          <button
+                            aria-label={`Remove phase ${idx + 1}`}
+                            onClick={() => handleRemovePhase(phase.id)}
+                            className="p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 size={11} />
                           </button>
                         </div>
-                        <button 
-                          aria-label={`Edit phase ${idx + 1}`}
-                          onClick={() => handleStartEditPhase(phase)} 
-                          className="p-1 text-slate-900 hover:text-blue-600 transition-all duration-200 border border-transparent hover:border-slate-300"
-                        >
-                          <Edit2 size={16}/>
-                        </button>
-                        <button 
-                          aria-label={`Remove phase ${idx + 1}`}
-                          onClick={() => handleRemovePhase(phase.id)} 
-                          className="p-1 text-slate-900 hover:text-red-600 transition-all duration-200 border border-transparent hover:border-slate-300"
-                        >
-                          <Trash2 size={16}/>
-                        </button>
                       </div>
                     )}
                   </div>
@@ -606,186 +597,195 @@ export const DetailPanel = ({
           </div>
         )}
 
-        <div className="space-y-4 border border-slate-200 bg-white p-5 shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-            <div>
-              <h3 className="text-[12px] font-semibold uppercase tracking-tight">PROJECT MILESTONES</h3>
-              <p className="text-[10px] text-slate-500 uppercase tracking-tight mt-1">Inline beats on this project's track — distinct from gallery-wide milestones.</p>
+        {/* Project Milestones */}
+        <div className={sectionCls}>
+          <div className="flex items-center justify-between">
+            <div className="min-w-0">
+              <span className={sectionHeaderCls}>Milestones</span>
+              <p className="text-[10px] text-slate-400 mt-0.5">Inline beats on this project's track.</p>
             </div>
             {isEditing && (
               <button
                 aria-label="Add milestone"
                 onClick={handleAddMilestone}
-                className="bg-slate-900 text-white px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight hover:bg-slate-700 focus:ring-2 focus:ring-blue-500/50 flex items-center"
+                className="px-2 py-1 bg-slate-900 text-white text-[10px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none shrink-0"
               >
-                <Plus size={12} className="mr-1" strokeWidth={3} /> ADD MILESTONE
+                <Plus size={10} strokeWidth={2.5} /> Add
               </button>
             )}
           </div>
           {((isEditing ? editedEx.milestones : exhibition.milestones) || []).length === 0 && (
-            <p className="text-[11px] uppercase tracking-tight text-slate-500 italic">
-              {isEditing ? "No milestones yet. Add one to mark a key date on this project's track." : "No milestones on this project. Click the edit button above to add one."}
+            <p className="text-[10px] text-slate-400 italic">
+              {isEditing ? "No milestones yet." : "No milestones. Click edit to add one."}
             </p>
           )}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {((isEditing ? editedEx.milestones : exhibition.milestones) || []).map((m, idx) => {
-                const isMsEditing = editingMilestoneId === m.id;
-                return (
-                  <div key={m.id} className={`border border-slate-200 p-3 bg-white shadow-sm hover:shadow-md transition-all duration-200 ${isMsEditing ? 'bg-yellow-50/30' : ''}`}>
-                    {isMsEditing && localMilestoneDraft ? (
-                      <div className="space-y-3">
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">TITLE</label>
-                          <input
-                            autoFocus
-                            aria-label={`Milestone ${idx + 1} title`}
-                            className="font-medium text-xs uppercase border border-slate-300 outline-none bg-white text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm w-full p-2"
-                            value={localMilestoneDraft.title}
-                            onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, title: e.target.value.toUpperCase() } : null)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">DATE</label>
-                          <input
-                            type="date"
-                            aria-label={`Milestone ${idx + 1} date`}
-                            className="font-medium text-xs uppercase border border-slate-300 bg-white text-slate-900 outline-none p-2 focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm"
-                            value={localMilestoneDraft.date}
-                            onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, date: e.target.value } : null)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">ICON</label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {MILESTONE_ICON_OPTIONS.map(opt => {
-                              const currentIcon = localMilestoneDraft.icon || 'diamond';
-                              const isActive = currentIcon === opt.key;
-                              return (
-                                <button
-                                  key={opt.key}
-                                  type="button"
-                                  onClick={() => setLocalMilestoneDraft(prev => prev ? { ...prev, icon: opt.key } : null)}
-                                  className={`flex items-center space-x-2 px-2 py-1.5 border-2 transition-colors ${isActive ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}
-                                >
-                                  {opt.preview}
-                                  <span className="text-[10px] font-medium uppercase">{opt.label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-tight">COLOR</label>
-                          <div className="flex flex-wrap gap-2">
-                            {MILESTONE_COLORS.map(c => {
-                              const currentColor = localMilestoneDraft.color || '#dc2626';
-                              const isActive = currentColor === c.value;
-                              return (
-                                <button
-                                  key={c.value}
-                                  type="button"
-                                  onClick={() => setLocalMilestoneDraft(prev => prev ? { ...prev, color: c.value } : null)}
-                                  className={`flex items-center space-x-2 px-2 py-1 border-2 hover:bg-slate-50 transition-colors ${isActive ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200'}`}
-                                >
-                                  <div className="w-3 h-3 border border-slate-300" style={{ backgroundColor: c.value }} />
-                                  <span className="text-[9px] font-medium tracking-widest uppercase">{c.label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2 pt-1">
-                          <button
-                            onClick={handleSaveMilestoneLocal}
-                            className="bg-slate-900 text-white px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight flex items-center hover:bg-slate-700 transition-all duration-200 shadow-sm active:scale-95"
-                          >
-                            <Check size={14} className="mr-1.5" /> CONFIRM
-                          </button>
-                          <button
-                            onClick={handleCancelMilestoneLocal}
-                            className="bg-white border border-slate-300 text-slate-900 px-3 py-1.5 text-[12px] font-medium uppercase tracking-tight flex items-center hover:bg-slate-50 transition-all duration-200 shadow-sm active:scale-95"
-                          >
-                            <X size={14} className="mr-1.5" /> CANCEL
-                          </button>
+              const isMsEditing = editingMilestoneId === m.id;
+              return (
+                <div key={m.id} className={`border border-slate-200 p-2 bg-white transition-colors ${isMsEditing ? 'bg-slate-50' : ''}`}>
+                  {isMsEditing && localMilestoneDraft ? (
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <label className={labelCls}>Title</label>
+                        <input
+                          autoFocus
+                          aria-label={`Milestone ${idx + 1} title`}
+                          className={inputCls + ' uppercase'}
+                          value={localMilestoneDraft.title}
+                          onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, title: e.target.value.toUpperCase() } : null)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className={labelCls}>Date</label>
+                        <input
+                          type="date"
+                          aria-label={`Milestone ${idx + 1} date`}
+                          className={inputCls}
+                          value={localMilestoneDraft.date}
+                          onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, date: e.target.value } : null)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className={labelCls}>Icon</label>
+                        <div className="grid grid-cols-3 gap-1">
+                          {MILESTONE_ICON_OPTIONS.map(opt => {
+                            const currentIcon = localMilestoneDraft.icon || 'diamond';
+                            const isActive = currentIcon === opt.key;
+                            return (
+                              <button
+                                key={opt.key}
+                                type="button"
+                                onClick={() => setLocalMilestoneDraft(prev => prev ? { ...prev, icon: opt.key } : null)}
+                                className={`flex items-center gap-1.5 px-1.5 py-1 border transition-colors ${isActive ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                              >
+                                {opt.preview}
+                                <span className="text-[9px] font-medium uppercase tracking-tight">{opt.label}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3 min-w-0">
-                          <div className="shrink-0 w-5 flex items-center justify-center">
-                            {renderMilestoneIcon(m.icon, m.color)}
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-medium text-xs uppercase tracking-tight truncate text-slate-900">{m.title}</span>
-                            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight">{m.date}</span>
-                          </div>
+                      <div className="space-y-1">
+                        <label className={labelCls}>Color</label>
+                        <div className="flex flex-wrap gap-1">
+                          {MILESTONE_COLORS.map(c => {
+                            const currentColor = localMilestoneDraft.color || '#dc2626';
+                            const isActive = currentColor === c.value;
+                            return (
+                              <button
+                                key={c.value}
+                                type="button"
+                                onClick={() => setLocalMilestoneDraft(prev => prev ? { ...prev, color: c.value } : null)}
+                                title={c.label}
+                                className={`flex items-center gap-1.5 px-1.5 py-1 border transition-colors ${isActive ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                              >
+                                <div className="w-2.5 h-2.5 border border-slate-300" style={{ backgroundColor: c.value }} />
+                                <span className="text-[9px] font-medium uppercase tracking-tight">{c.label}</span>
+                              </button>
+                            );
+                          })}
                         </div>
-                        {isEditing && (
-                          <div className="flex items-center space-x-1 shrink-0 ml-2">
-                            <button
-                              aria-label={`Edit milestone ${idx + 1}`}
-                              onClick={() => handleStartEditMilestone(m)}
-                              className="p-1 text-slate-900 hover:text-blue-600 transition-all duration-200 border border-transparent hover:border-slate-300"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              aria-label={`Remove milestone ${idx + 1}`}
-                              onClick={() => handleRemoveMilestone(m.id)}
-                              className="p-1 text-slate-900 hover:text-red-600 transition-all duration-200 border border-transparent hover:border-slate-300"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      <div className="flex items-center gap-1 pt-1">
+                        <button
+                          onClick={handleSaveMilestoneLocal}
+                          className="px-2 py-1 bg-slate-900 text-white text-[10px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none"
+                        >
+                          <Check size={10} strokeWidth={2.5} /> Confirm
+                        </button>
+                        <button
+                          onClick={handleCancelMilestoneLocal}
+                          className="px-2 py-1 border border-slate-200 bg-white text-slate-700 text-[10px] font-medium uppercase tracking-tight hover:bg-slate-50 transition-colors leading-none"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="shrink-0 w-4 flex items-center justify-center">
+                          {renderMilestoneIcon(m.icon, m.color)}
+                        </div>
+                        <span className="text-[11px] font-medium uppercase tracking-tight text-slate-900 truncate">{m.title}</span>
+                        <span className="text-[10px] font-mono text-slate-400 shrink-0">{m.date}</span>
+                      </div>
+                      {isEditing && (
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button
+                            aria-label={`Edit milestone ${idx + 1}`}
+                            onClick={() => handleStartEditMilestone(m)}
+                            className="p-1 text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                          >
+                            <Edit2 size={11} />
+                          </button>
+                          <button
+                            aria-label={`Remove milestone ${idx + 1}`}
+                            onClick={() => handleRemoveMilestone(m.id)}
+                            className="p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
+        </div>
 
-        <div className="space-y-2 border border-slate-200 bg-white p-5 shadow-[0_8px_16px_rgba(15,23,42,0.06)]">
-          <label htmlFor="ex-description" className="text-[12px] font-semibold uppercase tracking-[0.16em] border-b border-slate-200 pb-2 block text-slate-700">NOTES</label>
-          <div className="p-4 border border-slate-200 bg-slate-50/35 min-h-[120px] shadow-sm">
-            {isEditing ? (
-              <textarea 
-                id="ex-description"
-                className="w-full text-[13px] font-medium bg-transparent text-slate-900 border-none outline-none h-28 uppercase resize-none focus:bg-white focus:border-blue-500 focus:ring-blue-500/50 focus:shadow-sm" 
-                value={editedEx.description} 
-                onChange={(e) => handleFieldChange('description', e.target.value.toUpperCase())} 
-              />
-            ) : (
-              <p className="text-[13px] font-medium uppercase leading-relaxed text-slate-700">
-                {exhibition.description || "NO NOTES YET."}
-              </p>
-            )}
-          </div>
+        {/* Notes */}
+        <div className={sectionCls}>
+          <label htmlFor="ex-description" className={sectionHeaderCls}>Notes</label>
+          {isEditing ? (
+            <textarea
+              id="ex-description"
+              className="w-full bg-white border border-slate-200 px-2 py-1.5 text-[12px] text-slate-900 outline-none focus:border-slate-400 transition-colors h-24 resize-none uppercase tracking-tight"
+              value={editedEx.description}
+              onChange={(e) => handleFieldChange('description', e.target.value.toUpperCase())}
+            />
+          ) : (
+            <p className="text-[12px] text-slate-700 uppercase tracking-tight leading-relaxed whitespace-pre-wrap">
+              {exhibition.description || <span className="text-slate-400 italic normal-case">No notes yet.</span>}
+            </p>
+          )}
         </div>
       </div>
 
-          <div className="p-5 border-t border-slate-200 flex gap-3 bg-white/90 backdrop-blur-sm shrink-0">
+      <div className="px-4 py-3 border-t border-slate-200 flex gap-2 bg-white shrink-0">
         {isEditing ? (
           <>
-            <button onClick={() => setIsEditing(false)} className="flex-1 py-2.5 bg-white border border-slate-300 font-semibold uppercase tracking-tight text-[12px] hover:bg-slate-100 focus:ring-2 focus:ring-blue-500/50">DISCARD</button>
-            <button onClick={handleSaveAll} className="flex-1 py-2.5 bg-slate-900 text-white border border-slate-300 font-semibold uppercase tracking-tight text-[12px] hover:bg-slate-700 focus:ring-2 focus:ring-blue-500/50 shadow-sm">SAVE ALL</button>
+            <button
+              onClick={() => setIsEditing(false)}
+              className="flex-1 py-1.5 border border-slate-200 bg-white text-slate-700 text-[11px] font-medium uppercase tracking-tight hover:bg-slate-50 transition-colors"
+            >
+              Discard
+            </button>
+            <button
+              onClick={handleSaveAll}
+              className="flex-1 py-1.5 bg-slate-900 text-white text-[11px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors"
+            >
+              Save All
+            </button>
           </>
         ) : (
           <>
-            <button 
+            <button
               aria-label="Duplicate this project"
-              onClick={() => onDuplicate(exhibition.id)} 
-              className="flex-1 py-2.5 bg-white border border-slate-300 font-semibold uppercase tracking-tight text-[12px] flex items-center justify-center hover:bg-slate-100 focus:ring-2 focus:ring-blue-500/50 transition-all duration-200"
+              onClick={() => onDuplicate(exhibition.id)}
+              className="flex-1 py-1.5 border border-slate-200 bg-white text-slate-700 text-[11px] font-medium uppercase tracking-tight hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5"
             >
-              <Copy size={13} className="mr-2" /> DUPLICATE
+              <Copy size={11} /> Duplicate
             </button>
-            <button 
+            <button
               aria-label="Delete this project"
-              onClick={() => onDelete(exhibition.id)} 
-              className="flex-1 py-2.5 bg-white border border-slate-300 font-semibold uppercase tracking-tight text-[12px] flex items-center justify-center hover:bg-red-500 hover:text-white focus:ring-2 focus:ring-red-500 transition-all duration-200"
+              onClick={() => onDelete(exhibition.id)}
+              className="flex-1 py-1.5 border border-slate-200 bg-white text-slate-700 text-[11px] font-medium uppercase tracking-tight hover:bg-red-50 hover:border-red-200 hover:text-red-700 transition-colors flex items-center justify-center gap-1.5"
             >
-              <Trash2 size={13} className="mr-2" /> REMOVE
+              <Trash2 size={11} /> Remove
             </button>
           </>
         )}

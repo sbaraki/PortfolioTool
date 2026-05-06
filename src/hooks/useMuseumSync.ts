@@ -68,15 +68,24 @@ const normalizeExhibitions = (raw: unknown): Exhibition[] => {
   }));
 };
 
+// Saved colors that should be reset to the current default rather than honored.
+// Used after a corrective palette change — e.g. orange (#fba84a) was incorrectly
+// shipped for IMPLEMENTATION + DEINSTALL and must be replaced with the museum's
+// canonical yellow + red. Add hex values here when the default palette shifts.
+const STALE_PHASE_COLORS = new Set(['#fba84a']);
+
 const normalizePhaseTypes = (phaseTypes: PhaseType[] = []): PhaseType[] => {
   const normalizedDefaults = DEFAULT_PHASE_TYPES.map((defaultType) => {
     const matched = phaseTypes.find((phaseType) => (
       phaseType.id === defaultType.id || phaseType.label === defaultType.label
     ));
     if (!matched) return defaultType;
+    const savedColor = (matched.color || '').toLowerCase();
+    const color = STALE_PHASE_COLORS.has(savedColor) ? defaultType.color : matched.color;
     return {
       ...defaultType,
       ...matched,
+      color,
       id: defaultType.id,
       isPost: defaultType.isPost,
       isActive: defaultType.isActive
