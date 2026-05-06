@@ -117,6 +117,10 @@ export const WEEKLY_GRID_THRESHOLD = 100;
 export const EDGE_HIT_ZONE = 6;
 // Thin divider height (px) used when a gallery has no LocationMilestones — replaces the full 80px row.
 export const EMPTY_MILESTONE_ROW_HEIGHT = 8;
+// Reserved band (px) added to a track when the project on it carries milestones.
+// Sized for an icon (~14) + 2px gap + a pill row (~14). Tracks without milestones
+// keep the standard TRACK_HEIGHT.
+export const PROJECT_MILESTONE_ROW_HEIGHT = 30;
 
 // Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
 // the rest of the app palette — phase fills, milestone colours, status pill
