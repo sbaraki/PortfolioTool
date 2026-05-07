@@ -1766,10 +1766,18 @@ export default function MasterScheduler() {
 
                                           return (
                                             <React.Fragment key={phase.id}>
-                                              {phase.width >= 24 && (
+                                              {phase.isPost ? (
                                                 <div
                                                   className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
-                                                  style={{ left: `${phase.startX + 8}px`, top: `${phase.y - 14}px`, width: `${Math.max(phase.width - 10, 0)}px` }}
+                                                  style={{ left: `${phase.endX + 5}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px' }}
+                                                  title={phase.label}
+                                                >
+                                                  {phase.label}
+                                                </div>
+                                              ) : (
+                                                <div
+                                                  className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate text-right print:text-slate-900"
+                                                  style={{ left: `${phase.startX - 115}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px' }}
                                                   title={phase.label}
                                                 >
                                                   {phase.label}
