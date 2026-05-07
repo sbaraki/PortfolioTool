@@ -1,11 +1,11 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, EMPTY_MILESTONE_ROW_HEIGHT, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './src/constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './src/constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './src/lib/dateUtils';
 import { calculateTracks, packMilestoneLabels } from './src/lib/layoutEngine';
 import { calculatePrintScale } from './src/lib/printLayout';
-import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectMilestone, ProjectPhase, ExhibitionStatus, PrintSettings, PrintProfileId } from './src/types';
+import { Exhibition, Gallery, GalleryKind, PhaseType, ProjectMilestone, ProjectPhase, ExhibitionStatus, PrintSettings, PrintProfileId } from './src/types';
 import { DetailPanel } from './src/components/DetailPanel';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -58,6 +58,60 @@ import { GithubAuthModal } from './src/components/GithubAuthModal';
 // --- Main App ---
 
 const ALL_STATUSES: ExhibitionStatus[] = ['Proposed', 'In Development', 'Open to Public', 'Closed'];
+
+const MilestoneLabel = ({
+  title,
+  date,
+  labelFontSize,
+  dateFontSize,
+  isTwoLine,
+}: {
+  title: string;
+  date: string;
+  labelFontSize: number;
+  dateFontSize: number;
+  isTwoLine: boolean;
+}) => {
+  const formattedDate = formatBarDate(date);
+
+  if (isTwoLine) {
+    return (
+      <div className="flex h-full min-w-0 flex-col items-center justify-center gap-[2px] text-center leading-none">
+        <span
+          className="font-semibold uppercase tracking-[0.04em] text-slate-800 whitespace-nowrap"
+          style={{ fontSize: `${labelFontSize}px` }}
+        >
+          {title}
+        </span>
+        <span
+          className="font-medium uppercase tracking-[0.04em] text-slate-500 whitespace-nowrap"
+          style={{ fontSize: `${dateFontSize}px` }}
+        >
+          {formattedDate}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <span
+        className="font-semibold uppercase tracking-[0.06em] text-slate-800 min-w-0 whitespace-nowrap"
+        style={{ fontSize: `${labelFontSize}px` }}
+      >
+        {title}
+      </span>
+      <span className="w-px h-2 bg-slate-300 shrink-0" />
+      <span
+        className="font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0 whitespace-nowrap"
+        style={{ fontSize: `${dateFontSize}px` }}
+      >
+        {formattedDate}
+      </span>
+    </>
+  );
+};
+
 
 const PRINT_PROFILES: Record<Exclude<PrintProfileId, 'custom'>, PrintSettings> = {
   executive: {
@@ -116,7 +170,6 @@ export default function MasterScheduler() {
     galleries, setGalleries,
     phaseTypes, setPhaseTypes,
     exhibitions, setExhibitions,
-    locationMilestones, setLocationMilestones,
     monthWidth, setMonthWidth,
     timelineStartDate, setTimelineStartDate,
     timelineEndDate, setTimelineEndDate,
@@ -161,7 +214,15 @@ export default function MasterScheduler() {
   const dragDurationDaysRef = useRef(0);
   const [dragTempStartDate, setDragTempStartDate] = useState<string | null>(null);
   const [dragTempEndDate, setDragTempEndDate] = useState<string | null>(null);
+  const [draggingMilestone, setDraggingMilestone] = useState<{
+    projectId: string;
+    milestoneId: string;
+    initialMouseX: number;
+    initialDate: string;
+    tempDate: string;
+  } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
+  const suppressMilestoneClickRef = useRef(false);
 
   // Edge-drag resize state — separate from long-press move so resize starts instantly.
   const [resizingEdge, setResizingEdge] = useState<{ id: string; edge: 'left' | 'right' } | null>(null);
@@ -252,7 +313,6 @@ export default function MasterScheduler() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const sidebarListRef = useRef<HTMLDivElement>(null);
 
-  const [editMilestoneDraft, setEditMilestoneDraft] = useState<LocationMilestone | null>(null);
 
   const applyPreset = (years: number) => {
     if (isNaN(years)) return;
@@ -303,7 +363,6 @@ export default function MasterScheduler() {
   const printVisibleLaneCount = portfolioGalleries.length;
   const printCollapsedLaneCount = portfolioGalleries.filter(g => effectiveCollapsedGalleryIds.has(g.id)).length;
   const printProjectMilestoneCount = filteredExhibitions.reduce((sum, ex) => sum + (ex.milestones?.length || 0), 0);
-  const printLocationMilestoneCount = locationMilestones.filter(m => portfolioGalleries.some(g => g.name === m.gallery)).length;
 
   const handleStartPrint = () => {
     flushSync(() => {
@@ -491,14 +550,13 @@ export default function MasterScheduler() {
         return acc;
       }
       const tracksTotal = galleryTrackLayouts[gallery.name]?.total || TRACK_HEIGHT;
-      const milestoneRow = mhFor(gallery.name);
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
-        milestoneRow + LANE_TOP_PADDING + tracksTotal + LANE_BOTTOM_PADDING
+        LANE_TOP_PADDING + tracksTotal + LANE_BOTTOM_PADDING
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, galleryMilestoneRowHeights]);
+  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -525,6 +583,13 @@ export default function MasterScheduler() {
   }, [timelineStartDate, timelineEndDate, monthWidth, viewMonths]);
 
   const showWeeklyGrid = monthWidth >= WEEKLY_GRID_THRESHOLD;
+
+  const activeMilestoneDragFeedback = draggingMilestone
+    ? {
+        date: draggingMilestone.tempDate,
+        x: getPositionFromDate(draggingMilestone.tempDate, monthWidth, viewMonths),
+      }
+    : null;
 
   const activeDragFeedback = (draggingBarId || resizingEdge) && dragTempStartDate && dragTempEndDate
     ? {
@@ -583,6 +648,22 @@ export default function MasterScheduler() {
     setPhaseResizeTempDuration(phase.durationMonths);
   };
 
+  const onMilestoneMouseDown = (e: React.MouseEvent, projectId: string, milestone: ProjectMilestone) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    clearLongPress();
+    setIsDraggingScroll(false);
+    suppressMilestoneClickRef.current = false;
+    setDraggingMilestone({
+      projectId,
+      milestoneId: milestone.id,
+      initialMouseX: e.clientX,
+      initialDate: milestone.date,
+      tempDate: milestone.date,
+    });
+  };
+
   const commitResize = () => {
     if (resizingEdge && dragTempStartDate && dragTempEndDate) {
       const ex = exhibitions.find(p => p.id === resizingEdge.id);
@@ -614,9 +695,23 @@ export default function MasterScheduler() {
     setPhaseResizeTempDuration(null);
   };
 
+  const commitMilestoneDrag = () => {
+    if (draggingMilestone) {
+      const ex = exhibitions.find(p => p.id === draggingMilestone.projectId);
+      if (ex) {
+        const updatedMilestones = ex.milestones.map(m => m.id === draggingMilestone.milestoneId
+          ? { ...m, date: draggingMilestone.tempDate }
+          : m
+        );
+        handleUpdateExhibition({ ...ex, milestones: updatedMilestones });
+      }
+    }
+    setDraggingMilestone(null);
+  };
+
   return (
     <div
-      className={`min-h-screen bg-slate-100 print:bg-none print:bg-white text-slate-900 flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId ? 'cursor-grabbing' : ''}`}
+      className={`min-h-screen bg-slate-100 print:bg-none print:bg-white text-slate-900 flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId || draggingMilestone ? 'cursor-grabbing' : ''}`}
       style={{ fontFeatureSettings: "'cv11','ss01','ss03'" }}
     >
       {showGithubAuth && <div className="no-print"><GithubAuthModal onClose={() => setShowGithubAuth(false)} /></div>}
@@ -870,106 +965,6 @@ export default function MasterScheduler() {
         }
       `}</style>
       
-      {editMilestoneDraft && (
-        <div className="fixed inset-0 bg-slate-900/40 z-[100] backdrop-blur-sm flex items-center justify-center p-4 no-print" onClick={() => setEditMilestoneDraft(null)}>
-          <div className="bg-white border border-black/10 w-full max-w-sm shadow-xl rounded-xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="bg-slate-900 text-white px-4 py-3 font-semibold tracking-widest flex justify-between items-center text-[12px]">
-              <span>EDIT MILESTONE</span>
-              <button aria-label="Close" onClick={() => setEditMilestoneDraft(null)} className="hover:text-red-400 transition-colors">
-                <X size={14} strokeWidth={3} />
-              </button>
-            </div>
-            <div className="p-6 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-700">Milestone Title</label>
-                <input 
-                  type="text" 
-                  className="w-full border border-slate-300 p-3 font-semibold uppercase text-sm outline-none focus:bg-slate-50 transition-colors" 
-                  value={editMilestoneDraft.title} 
-                  onChange={(e) => setEditMilestoneDraft({ ...editMilestoneDraft, title: e.target.value.toUpperCase() })} 
-                  autoFocus 
-                  placeholder="E.G. BOARD MEETING"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-700">Date</label>
-                <input 
-                  type="date" 
-                  className="w-full border border-slate-300 p-3 font-medium uppercase text-sm outline-none focus:bg-slate-50 transition-colors" 
-                  value={editMilestoneDraft.date} 
-                  onChange={(e) => setEditMilestoneDraft({ ...editMilestoneDraft, date: e.target.value })} 
-                />
-              </div>
-              
-              <div className="space-y-4">
-                <label className="text-[11px] font-semibold uppercase tracking-widest text-slate-700">Milestone Icon & Color</label>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  {([
-                    { key: 'diamond', label: 'Diamond', preview: <div className="w-3 h-3 bg-white border border-slate-300 rotate-45" /> },
-                    { key: 'flag', label: 'Flag', preview: <Flag size={14} fill="white" stroke="black" strokeWidth={2} /> },
-                    { key: 'team', label: 'Team', preview: <Users size={14} stroke="black" strokeWidth={2} /> },
-                    { key: 'approval', label: 'Approval', preview: <BadgeCheck size={14} stroke="black" strokeWidth={2} /> },
-                    { key: 'delivery', label: 'Delivery', preview: <Truck size={14} stroke="black" strokeWidth={2} /> },
-                    { key: 'event', label: 'Event', preview: <Star size={14} fill="white" stroke="black" strokeWidth={2} /> },
-                  ] as const).map(opt => {
-                    const currentIcon = editMilestoneDraft.icon || 'diamond';
-                    const isActive = currentIcon === opt.key;
-                    return (
-                      <button
-                        key={opt.key}
-                        onClick={() => setEditMilestoneDraft({ ...editMilestoneDraft, icon: opt.key })}
-                        className={`flex items-center space-x-2 px-3 py-2 border-2 transition-colors ${isActive ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}
-                      >
-                        {opt.preview}
-                        <span className="text-[11px] font-medium uppercase">{opt.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {MILESTONE_COLORS.map(c => (
-                    <button 
-                      key={c.value}
-                      onClick={() => setEditMilestoneDraft({ ...editMilestoneDraft, color: c.value })}
-                      className={`flex items-center space-x-2 px-3 py-1.5 border-2 hover:bg-slate-50 transition-colors ${editMilestoneDraft.color === c.value || (!editMilestoneDraft.color && c.value === '#dc2626') ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200'}`}
-                    >
-                      <div className="w-3 h-3 border border-slate-300" style={{ backgroundColor: c.value }} />
-                      <span className="text-[10px] font-medium tracking-widest uppercase">{c.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center pt-4 border-t border-slate-200/10 mt-6">
-                <button
-                  onClick={() => {
-                    const idToRemove = editMilestoneDraft.id;
-                    setLocationMilestones(prev => prev.filter(m => m.id !== idToRemove));
-                    setEditMilestoneDraft(null);
-                  }}
-                  className="text-red-600 font-semibold text-[12px] uppercase tracking-widest hover:underline flex items-center"
-                >
-                  <Trash2 size={12} className="mr-1.5" strokeWidth={3} /> DELETE
-                </button>
-                <button
-                  onClick={() => {
-                    if (editMilestoneDraft.title.trim() === '') {
-                      const idToRemove = editMilestoneDraft.id;
-                      setLocationMilestones(prev => prev.filter(m => m.id !== idToRemove));
-                    } else {
-                      setLocationMilestones(prev => prev.map(m => m.id === editMilestoneDraft.id ? editMilestoneDraft : m));
-                    }
-                    setEditMilestoneDraft(null);
-                  }}
-                  className="bg-slate-900 text-white px-6 py-2.5 border border-slate-300 font-medium uppercase text-[12px] tracking-widest hover:bg-slate-800 transition-colors shadow-sm active:scale-95"
-                >
-                  SAVE OVERRIDE
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {(() => {
         const selectedExhibition = selectedProjectId
@@ -1201,7 +1196,6 @@ export default function MasterScheduler() {
                         {status}: {filteredExhibitions.filter(ex => ex.status === status).length}
                       </span>
                     ))}
-                    <span>Location milestones: {printLocationMilestoneCount}</span>
                     <span>Project milestones: {printProjectMilestoneCount}</span>
                   </div>
                 )}
@@ -1247,7 +1241,7 @@ export default function MasterScheduler() {
                     const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
                     const isPermanent = gallery.kind === 'permanent';
                     const isCollapsed = effectiveCollapsedGalleryIds.has(gallery.id);
-                    const headerHeight = mhFor(gallery.name);
+                    const headerHeight = LANE_TOP_PADDING;
                     if (isCollapsed) {
                       return (
                         <div
@@ -1306,7 +1300,7 @@ export default function MasterScheduler() {
                           // with the bar a viewer's eye lands on, mirroring the timeline layout.
                           const lastTrackIdx = getProjectLastAllocatedTrackIndex(ex, trackIndex, Math.max(1, trackTops.length));
                           const lastTrackTop = trackTops[lastTrackIdx] ?? trackTop;
-                          const topPos = headerHeight + LANE_TOP_PADDING + lastTrackTop;
+                          const topPos = LANE_TOP_PADDING + lastTrackTop;
                           return (
                             <div
                               key={`title-${ex.id}`}
@@ -1327,7 +1321,7 @@ export default function MasterScheduler() {
                           if (trackIndex === undefined || trackIndex === 0) return null;
                           const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
                           return (
-                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-100 left-0" style={{ top: headerHeight + LANE_TOP_PADDING + trackTop }} />
+                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-100 left-0" style={{ top: LANE_TOP_PADDING + trackTop }} />
                           );
                         })}
                       </div>
@@ -1341,7 +1335,7 @@ export default function MasterScheduler() {
                 <div 
                   tabIndex={0}
                   data-print-timeline
-                  className={`flex-1 overflow-auto relative bg-white custom-scrollbar timeline-container cursor-grab active:cursor-grabbing ${isDraggingScroll ? '!cursor-grabbing' : ''}`} 
+                  className={`flex-1 overflow-auto relative bg-white custom-scrollbar timeline-container cursor-grab active:cursor-grabbing ${isDraggingScroll || draggingMilestone ? '!cursor-grabbing' : ''}`} 
                   ref={timelineRef} 
                   onScroll={(e) => {
                     if (sidebarListRef.current && sidebarListRef.current.scrollTop !== e.currentTarget.scrollTop) {
@@ -1349,7 +1343,7 @@ export default function MasterScheduler() {
                     }
                   }}
                   onMouseDown={(e) => {
-                  if (e.button === 0 && !longPressTimerRef.current && !draggingBarId) {
+                  if (e.button === 0 && !longPressTimerRef.current && !draggingBarId && !draggingMilestone) {
                     setIsDraggingScroll(true);
                     startXRef.current = e.pageX - timelineRef.current!.offsetLeft;
                     scrollLeftRef.current = timelineRef.current!.scrollLeft;
@@ -1369,6 +1363,7 @@ export default function MasterScheduler() {
                   }
                   if (resizingEdge) commitResize();
                   if (resizingPhase) commitPhaseResize();
+                  if (draggingMilestone) commitMilestoneDrag();
                   setDraggingBarId(null);
                   setDragTempStartDate(null);
                   setDragTempEndDate(null);
@@ -1388,6 +1383,7 @@ export default function MasterScheduler() {
                   }
                   if (resizingEdge) commitResize();
                   if (resizingPhase) commitPhaseResize();
+                  if (draggingMilestone) commitMilestoneDrag();
                   setDraggingBarId(null);
                   setDragTempStartDate(null);
                   setDragTempEndDate(null);
@@ -1395,6 +1391,16 @@ export default function MasterScheduler() {
                 }}
                 onMouseMove={(e) => {
                   clearLongPress();
+
+                  if (draggingMilestone) {
+                    const deltaX = e.clientX - draggingMilestone.initialMouseX;
+                    if (Math.abs(deltaX) > 2) suppressMilestoneClickRef.current = true;
+                    const initialX = getPositionFromDate(draggingMilestone.initialDate, monthWidth, viewMonths);
+                    let newDate = getDateFromPosition(initialX + deltaX, monthWidth, viewMonths);
+                    if (showWeeklyGrid && !e.altKey) newDate = snapDate(newDate, 'week');
+                    setDraggingMilestone(prev => prev ? { ...prev, tempDate: newDate } : prev);
+                    return;
+                  }
 
                   if (resizingEdge) {
                     const deltaX = e.clientX - resizeInitialMouseXRef.current;
@@ -1464,6 +1470,19 @@ export default function MasterScheduler() {
                   <div className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-[70] pointer-events-none" style={{ left: `${todayPos}px` }}>
                     <div className="sticky top-[6px] bg-red-600 text-white font-semibold text-[10px] px-1.5 py-0.5 uppercase transform -translate-x-1/2 shadow-sm w-max whitespace-nowrap">TODAY</div>
                   </div>
+
+                  {activeMilestoneDragFeedback && (
+                    <div className="absolute top-0 bottom-0 z-[76] pointer-events-none no-print" style={{ width: `${totalTimelineWidth}px` }}>
+                      <div
+                        className="absolute top-0 bottom-0 w-[2px] bg-amber-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_0_16px_rgba(245,158,11,0.38)]"
+                        style={{ left: `${activeMilestoneDragFeedback.x}px` }}
+                      >
+                        <div className="sticky top-[70px] -translate-x-1/2 rounded-sm border border-amber-700 bg-amber-500 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-lg whitespace-nowrap">
+                          Milestone {formatBarDate(activeMilestoneDragFeedback.date)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {activeDragFeedback && (
                     <div className="absolute top-0 bottom-0 z-[75] pointer-events-none no-print" style={{ width: `${totalTimelineWidth}px` }}>
@@ -1596,33 +1615,6 @@ export default function MasterScheduler() {
 
                          return (
 	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
-                             <div
-                               style={{ height: `${mhFor(g)}px` }}
-                               className="absolute top-0 left-0 w-full bg-slate-200/80 border-b-2 border-slate-400 z-20 group relative cursor-crosshair overflow-visible shadow-sm print:bg-slate-200"
-                               onDoubleClick={async (e) => {
-                                 const rect = e.currentTarget.getBoundingClientRect();
-                                 const x = Math.max(0, e.clientX - rect.left + timelineRef.current!.scrollLeft);
-                                 const date = getDateFromPosition(x, monthWidth, viewMonths);
-                                 const id = Math.random().toString(36).slice(2, 11);
-                                 const newMilestone: LocationMilestone = {
-                                   id,
-                                   gallery: g,
-                                   title: 'MILESTONE',
-                                   date,
-                                   icon: 'diamond'
-                                 };
-                                 setLocationMilestones([...locationMilestones, newMilestone]);
-                                 setEditMilestoneDraft(newMilestone);
-                                 // Auto-save handled by useMuseumSync.
-                               }}
-                             >
-                                <div className="absolute left-4 h-full flex items-center" />
-                                {(() => {
-                                  const { items: gMilestones } = packMilestoneLabels<LocationMilestone & { xPos: number }>(
-                                    locationMilestones
-                                      .filter(m => m.gallery === g)
-                                      .map(m => ({ ...m, xPos: getPositionFromDate(m.date, monthWidth, viewMonths) }))
-                                  );
 
                                   return gMilestones.map((m) => {
                                     return (
@@ -1682,10 +1674,17 @@ export default function MasterScheduler() {
                                             }
                                           })()}
                                         </div>
-                                        <div className="absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 z-30 pointer-events-none inline-flex items-center gap-1.5 min-w-0" style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (m.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${m.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}>
-                                          <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{m.title}</span>
-                                          <span className="w-px h-2 bg-slate-300" />
-                                          <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500">{formatBarDate(m.date)}</span>
+                                        <div
+                                          className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 z-30 pointer-events-none min-w-0 ${m.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
+                                          style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (m.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${m.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
+                                        >
+                                          <MilestoneLabel
+                                            title={m.title}
+                                            date={m.date}
+                                            labelFontSize={m.labelFontSize}
+                                            dateFontSize={m.dateFontSize}
+                                            isTwoLine={m.isTwoLine}
+                                          />
                                         </div>
                                       </div>
                                   );
@@ -1698,7 +1697,7 @@ export default function MasterScheduler() {
                                 if (trackIndex === undefined || trackIndex === 0) return null;
                                 const trackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
                                 return (
-                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackTop }} />
+                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: LANE_TOP_PADDING + trackTop }} />
                                 );
                               })}
 
@@ -1726,6 +1725,8 @@ export default function MasterScheduler() {
                                     const fallback = ownerTrackTop + (rowOffset * TRACK_HEIGHT);
                                     return mhFor(g) + LANE_TOP_PADDING + (trackTops[absoluteTrackIndex] ?? fallback);
                                   };
+                                  const perTrackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                                  const trackTop = LANE_TOP_PADDING + perTrackTop;
 
                                   // When resizing a phase belonging to this project, swap in the temp duration
                                   // so the live layout reflects the in-progress drag.
@@ -1995,6 +1996,11 @@ export default function MasterScheduler() {
                                               style={{ left: `${guidelineStart}px`, width: `${guidelineWidth}px`, top: `${iconCenterY}px`, zIndex: 22 }}
                                             />
                                             {projectMilestones.map((pm) => {
+                                              const isDraggingMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.milestoneId === pm.id;
+                                              const effectiveMilestoneDate = isDraggingMilestone ? draggingMilestone.tempDate : pm.date;
+                                              const effectiveMilestoneX = isDraggingMilestone
+                                                ? getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths)
+                                                : pm.xPos;
                                               const c = pm.color || '#dc2626';
                                               const icon = pm.icon || 'diamond';
                                               return (
@@ -2002,13 +2008,21 @@ export default function MasterScheduler() {
                                                   key={`pm-${pm.id}`}
                                                   className="absolute pointer-events-auto flex items-center justify-center"
                                                   style={{
-                                                    left: `${pm.xPos}px`,
+                                                    left: `${effectiveMilestoneX}px`,
                                                     top: `${iconCenterY}px`,
                                                     transform: 'translate(-50%, -50%)',
                                                     zIndex: 28,
                                                   }}
-                                                  onClick={(e) => { e.stopPropagation(); setSelectedProjectId(ex.id); }}
-                                                  title={`${pm.title} — ${formatBarDate(pm.date)}`}
+                                                  onMouseDown={(e) => onMilestoneMouseDown(e, ex.id, pm)}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (suppressMilestoneClickRef.current) {
+                                                      suppressMilestoneClickRef.current = false;
+                                                      return;
+                                                    }
+                                                    setSelectedProjectId(ex.id);
+                                                  }}
+                                                  title={`${pm.title} — ${formatBarDate(effectiveMilestoneDate)}`}
                                                 >
                                                   <div className="cursor-pointer relative z-10 flex items-center justify-center">
                                                     {(() => {
@@ -2046,6 +2060,19 @@ export default function MasterScheduler() {
                                                   >
                                                     <span className="w-full text-center text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
                                                     <span className="text-[8px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(pm.date)}</span>
+                                                    className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 min-w-0 ${pm.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
+                                                    style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (pm.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${pm.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
+                                                  >
+                                                    <MilestoneLabel
+                                                      title={pm.title}
+                                                      date={pm.date}
+                                                      labelFontSize={pm.labelFontSize}
+                                                      dateFontSize={pm.dateFontSize}
+                                                      isTwoLine={pm.isTwoLine}
+                                                    />
+                                                    <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
+                                                    <span className="w-px h-2 bg-slate-300" />
+                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(effectiveMilestoneDate)}</span>
                                                   </div>
                                                 </div>
                                               );
@@ -2229,8 +2256,6 @@ export default function MasterScheduler() {
             <span><span className="font-mono text-slate-600">{filteredExhibitions.length}</span> projects</span>
             <span className="text-slate-300">·</span>
             <span><span className="font-mono text-slate-600">{galleries.length}</span> galleries</span>
-            <span className="text-slate-300">·</span>
-            <span><span className="font-mono text-slate-600">{locationMilestones.length}</span> milestones</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="hidden md:inline">Long-press a bar to drag</span>
