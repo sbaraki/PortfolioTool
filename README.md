@@ -17,15 +17,10 @@ and print-share long-range project portfolios across multiple galleries.
   Content → Design → Implementation) flowing into the active window, with an
   optional post-phase (e.g. Deinstall). Phase labels sit above their bars and
   dependency arrows trace the handoffs between them.
-- **Location milestones.** Double-click any gallery's milestone row to drop
-  a diamond or flag marker (e.g. board reviews, openings, holidays). Labels
-  auto-stagger above and below to avoid collisions. Galleries with no
-  location milestones automatically collapse the row to a thin divider so
-  empty rows don't take vertical space.
 - **Per-project milestones.** Each project carries its own milestone list,
   rendered inline beneath the project bar on its own track (icon + label).
-  Edit them in the Detail panel's **Project Milestones** section using the
-  same six-icon, seven-color palette as gallery milestones.
+  Edit them in the Detail panel's **Project Milestones** section using a
+  six-icon, seven-color palette.
 - **Search + status filter.** Filter projects by title/ID/description and
   by status (Proposed / In Development / Open to Public / Closed).
 - **Direct manipulation.**

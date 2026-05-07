@@ -4,8 +4,7 @@ import { Exhibition, Gallery, GalleryKind } from '../types';
 export const useMuseumActions = () => {
   const {
     exhibitions, setExhibitions,
-    galleries, setGalleries,
-    locationMilestones, setLocationMilestones
+    galleries, setGalleries
   } = useStore();
 
   const createId = () => Math.random().toString(36).slice(2, 11);
@@ -19,8 +18,8 @@ export const useMuseumActions = () => {
     setExhibitions(prev => prev.filter(ex => ex.id !== id));
   };
 
-  // Rename a gallery by ID. Cascades the new name to exhibitions and milestones,
-  // which still store the gallery NAME (kept as string for back-compat).
+  // Rename a gallery by ID. Cascades the new name to exhibitions, which still
+  // store the gallery NAME (kept as string for back-compat).
   const handleRenameGallery = (id: string, newName: string) => {
     const trimmed = newName.trim().toUpperCase();
     if (!trimmed) return;
@@ -31,7 +30,6 @@ export const useMuseumActions = () => {
     const oldName = target.name;
     setGalleries(prev => prev.map(g => g.id === id ? { ...g, name: trimmed } : g));
     setExhibitions(prev => prev.map(ex => ex.gallery === oldName ? { ...ex, gallery: trimmed } : ex));
-    setLocationMilestones(prev => prev.map(m => m.gallery === oldName ? { ...m, gallery: trimmed } : m));
   };
 
   const handleSetGalleryKind = (id: string, kind: GalleryKind) => {
@@ -57,7 +55,6 @@ export const useMuseumActions = () => {
     const fallbackName = remaining[0].name;
     setGalleries(remaining);
     setExhibitions(prev => prev.map(ex => ex.gallery === target.name ? { ...ex, gallery: fallbackName } : ex));
-    setLocationMilestones(prev => prev.map(m => m.gallery === target.name ? { ...m, gallery: fallbackName } : m));
   };
 
   const handleDuplicateProject = (id: string) => {
