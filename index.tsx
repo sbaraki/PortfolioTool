@@ -1119,7 +1119,7 @@ export default function MasterScheduler() {
             <div data-print-shell className="flex-1 flex flex-col overflow-hidden">
               <div data-print-header className="hidden print:flex flex-col gap-1 px-3 py-2 border-b border-slate-300 bg-white shrink-0">
                 <div className="flex justify-between items-baseline gap-4">
-                  <h1 className="text-base font-bold uppercase tracking-[0.18em] text-slate-900">{museumName} — Portfolio Plan</h1>
+                  <h1 className="text-base font-bold uppercase tracking-[0.18em] text-slate-900">{museumName} — Exhibition Plan</h1>
                   <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-700">
                     {timelineStartDate} to {timelineEndDate} · Printed {formatPrintDateTime(printGeneratedAt)}
                   </span>
@@ -1249,22 +1249,21 @@ export default function MasterScheduler() {
                           // would shift the title up when the ID is rendered).
                           const titleBandTop = topPos + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
                           return (
-                            <React.Fragment key={`title-${ex.id}`}>
-                              <div
-                                className="absolute flex items-center overflow-hidden"
-                                style={{ top: titleBandTop, height: `${STANDARD_BAR_HEIGHT}px`, left: '12px', right: '10px' }}
-                              >
-                                <span className="text-[12px] font-medium text-slate-900 truncate leading-tight" title={ex.title}>{ex.title}</span>
-                              </div>
+                            <div
+                              key={`title-${ex.id}`}
+                              className="absolute flex items-center gap-1.5 overflow-hidden"
+                              style={{ top: titleBandTop, height: `${STANDARD_BAR_HEIGHT}px`, left: '12px', right: '10px' }}
+                            >
+                              <span className="text-[12px] font-medium text-slate-900 truncate leading-tight min-w-0" title={ex.title}>{ex.title}</span>
                               {ex.exhibitionId && (
-                                <div
-                                  className="absolute text-[10px] font-mono text-slate-400 truncate leading-none"
-                                  style={{ top: titleBandTop + STANDARD_BAR_HEIGHT + 2, left: '12px', right: '10px' }}
+                                <span
+                                  className="shrink-0 text-[9px] font-mono text-slate-400 leading-none whitespace-nowrap"
+                                  title={ex.exhibitionId}
                                 >
                                   {ex.exhibitionId}
-                                </div>
+                                </span>
                               )}
-                            </React.Fragment>
+                            </div>
                           );
                         })}
                         {galleryProjects.map(ex => {
