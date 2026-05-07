@@ -1,6 +1,6 @@
 import { Exhibition, PhaseType } from '../types';
 import { getPositionFromDate } from './dateUtils';
-import { PHASE_GAP } from '../constants';
+import { MILESTONE_LABEL_MAX_WIDTH, PHASE_GAP } from '../constants';
 
 /**
  * Calculates collision-free independent tracks for exhibitions sharing the same gallery lane.
@@ -61,4 +61,45 @@ export const calculateTracks = (
   });
 
   return { tracks, maxTracks: trackAvailability.length || 1 };
+};
+
+export type PackedMilestoneLabel<T> = T & {
+  xPos: number;
+  labelWidth: number;
+  labelRow: number;
+};
+
+export const estimateMilestoneLabelWidth = (title: string) => {
+  const titleW = (title || '').length * 5.8;
+  return Math.min(MILESTONE_LABEL_MAX_WIDTH, Math.max(60, titleW + 82));
+};
+
+/**
+ * Greedily packs dated milestone labels into as many rows as needed. Unlike the old
+ * two-row alternation, this returns a deterministic row index and row count so lanes
+ * can reserve enough vertical space before labels render.
+ */
+export const packMilestoneLabels = <T extends { title: string; xPos: number }>(
+  milestones: T[],
+  gap = 8
+): { items: PackedMilestoneLabel<T>[]; rowCount: number } => {
+  const sorted = [...milestones]
+    .map(item => ({ ...item, labelWidth: estimateMilestoneLabelWidth(item.title), labelRow: 0 }))
+    .sort((a, b) => a.xPos - b.xPos);
+
+  const rowRightEdges: number[] = [];
+
+  const items = sorted.map(item => {
+    const left = item.xPos - item.labelWidth / 2;
+    const right = item.xPos + item.labelWidth / 2;
+    let row = rowRightEdges.findIndex(edge => left - gap >= edge);
+    if (row === -1) {
+      row = rowRightEdges.length;
+      rowRightEdges.push(Number.NEGATIVE_INFINITY);
+    }
+    rowRightEdges[row] = right;
+    return { ...item, labelRow: row };
+  });
+
+  return { items, rowCount: Math.max(1, rowRightEdges.length) };
 };
