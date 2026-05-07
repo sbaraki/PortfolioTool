@@ -161,7 +161,15 @@ export default function MasterScheduler() {
   const dragDurationDaysRef = useRef(0);
   const [dragTempStartDate, setDragTempStartDate] = useState<string | null>(null);
   const [dragTempEndDate, setDragTempEndDate] = useState<string | null>(null);
+  const [draggingMilestone, setDraggingMilestone] = useState<{
+    projectId: string;
+    milestoneId: string;
+    initialMouseX: number;
+    initialDate: string;
+    tempDate: string;
+  } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
+  const suppressMilestoneClickRef = useRef(false);
 
   // Edge-drag resize state — separate from long-press move so resize starts instantly.
   const [resizingEdge, setResizingEdge] = useState<{ id: string; edge: 'left' | 'right' } | null>(null);
@@ -513,6 +521,13 @@ export default function MasterScheduler() {
 
   const showWeeklyGrid = monthWidth >= WEEKLY_GRID_THRESHOLD;
 
+  const activeMilestoneDragFeedback = draggingMilestone
+    ? {
+        date: draggingMilestone.tempDate,
+        x: getPositionFromDate(draggingMilestone.tempDate, monthWidth, viewMonths),
+      }
+    : null;
+
   const activeDragFeedback = (draggingBarId || resizingEdge) && dragTempStartDate && dragTempEndDate
     ? {
         startDate: dragTempStartDate,
@@ -570,6 +585,22 @@ export default function MasterScheduler() {
     setPhaseResizeTempDuration(phase.durationMonths);
   };
 
+  const onMilestoneMouseDown = (e: React.MouseEvent, projectId: string, milestone: ProjectMilestone) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    clearLongPress();
+    setIsDraggingScroll(false);
+    suppressMilestoneClickRef.current = false;
+    setDraggingMilestone({
+      projectId,
+      milestoneId: milestone.id,
+      initialMouseX: e.clientX,
+      initialDate: milestone.date,
+      tempDate: milestone.date,
+    });
+  };
+
   const commitResize = () => {
     if (resizingEdge && dragTempStartDate && dragTempEndDate) {
       const ex = exhibitions.find(p => p.id === resizingEdge.id);
@@ -601,9 +632,23 @@ export default function MasterScheduler() {
     setPhaseResizeTempDuration(null);
   };
 
+  const commitMilestoneDrag = () => {
+    if (draggingMilestone) {
+      const ex = exhibitions.find(p => p.id === draggingMilestone.projectId);
+      if (ex) {
+        const updatedMilestones = ex.milestones.map(m => m.id === draggingMilestone.milestoneId
+          ? { ...m, date: draggingMilestone.tempDate }
+          : m
+        );
+        handleUpdateExhibition({ ...ex, milestones: updatedMilestones });
+      }
+    }
+    setDraggingMilestone(null);
+  };
+
   return (
     <div
-      className={`min-h-screen bg-slate-100 print:bg-none print:bg-white text-slate-900 flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId ? 'cursor-grabbing' : ''}`}
+      className={`min-h-screen bg-slate-100 print:bg-none print:bg-white text-slate-900 flex flex-col font-sans overflow-hidden select-none antialiased ${draggingBarId || draggingMilestone ? 'cursor-grabbing' : ''}`}
       style={{ fontFeatureSettings: "'cv11','ss01','ss03'" }}
     >
       {showGithubAuth && <div className="no-print"><GithubAuthModal onClose={() => setShowGithubAuth(false)} /></div>}
@@ -1329,7 +1374,7 @@ export default function MasterScheduler() {
                 <div 
                   tabIndex={0}
                   data-print-timeline
-                  className={`flex-1 overflow-auto relative bg-white custom-scrollbar timeline-container cursor-grab active:cursor-grabbing ${isDraggingScroll ? '!cursor-grabbing' : ''}`} 
+                  className={`flex-1 overflow-auto relative bg-white custom-scrollbar timeline-container cursor-grab active:cursor-grabbing ${isDraggingScroll || draggingMilestone ? '!cursor-grabbing' : ''}`} 
                   ref={timelineRef} 
                   onScroll={(e) => {
                     if (sidebarListRef.current && sidebarListRef.current.scrollTop !== e.currentTarget.scrollTop) {
@@ -1337,7 +1382,7 @@ export default function MasterScheduler() {
                     }
                   }}
                   onMouseDown={(e) => {
-                  if (e.button === 0 && !longPressTimerRef.current && !draggingBarId) {
+                  if (e.button === 0 && !longPressTimerRef.current && !draggingBarId && !draggingMilestone) {
                     setIsDraggingScroll(true);
                     startXRef.current = e.pageX - timelineRef.current!.offsetLeft;
                     scrollLeftRef.current = timelineRef.current!.scrollLeft;
@@ -1357,6 +1402,7 @@ export default function MasterScheduler() {
                   }
                   if (resizingEdge) commitResize();
                   if (resizingPhase) commitPhaseResize();
+                  if (draggingMilestone) commitMilestoneDrag();
                   setDraggingBarId(null);
                   setDragTempStartDate(null);
                   setDragTempEndDate(null);
@@ -1376,6 +1422,7 @@ export default function MasterScheduler() {
                   }
                   if (resizingEdge) commitResize();
                   if (resizingPhase) commitPhaseResize();
+                  if (draggingMilestone) commitMilestoneDrag();
                   setDraggingBarId(null);
                   setDragTempStartDate(null);
                   setDragTempEndDate(null);
@@ -1383,6 +1430,16 @@ export default function MasterScheduler() {
                 }}
                 onMouseMove={(e) => {
                   clearLongPress();
+
+                  if (draggingMilestone) {
+                    const deltaX = e.clientX - draggingMilestone.initialMouseX;
+                    if (Math.abs(deltaX) > 2) suppressMilestoneClickRef.current = true;
+                    const initialX = getPositionFromDate(draggingMilestone.initialDate, monthWidth, viewMonths);
+                    let newDate = getDateFromPosition(initialX + deltaX, monthWidth, viewMonths);
+                    if (showWeeklyGrid && !e.altKey) newDate = snapDate(newDate, 'week');
+                    setDraggingMilestone(prev => prev ? { ...prev, tempDate: newDate } : prev);
+                    return;
+                  }
 
                   if (resizingEdge) {
                     const deltaX = e.clientX - resizeInitialMouseXRef.current;
@@ -1452,6 +1509,19 @@ export default function MasterScheduler() {
                   <div className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-[70] pointer-events-none" style={{ left: `${todayPos}px` }}>
                     <div className="sticky top-[6px] bg-red-600 text-white font-semibold text-[10px] px-1.5 py-0.5 uppercase transform -translate-x-1/2 shadow-sm w-max whitespace-nowrap">TODAY</div>
                   </div>
+
+                  {activeMilestoneDragFeedback && (
+                    <div className="absolute top-0 bottom-0 z-[76] pointer-events-none no-print" style={{ width: `${totalTimelineWidth}px` }}>
+                      <div
+                        className="absolute top-0 bottom-0 w-[2px] bg-amber-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_0_16px_rgba(245,158,11,0.38)]"
+                        style={{ left: `${activeMilestoneDragFeedback.x}px` }}
+                      >
+                        <div className="sticky top-[70px] -translate-x-1/2 rounded-sm border border-amber-700 bg-amber-500 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-lg whitespace-nowrap">
+                          Milestone {formatBarDate(activeMilestoneDragFeedback.date)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {activeDragFeedback && (
                     <div className="absolute top-0 bottom-0 z-[75] pointer-events-none no-print" style={{ width: `${totalTimelineWidth}px` }}>
@@ -1969,6 +2039,11 @@ export default function MasterScheduler() {
                                               style={{ left: `${startPos}px`, width: `${width}px`, top: `${iconCenterY}px`, zIndex: 22 }}
                                             />
                                             {projectMilestones.map((pm) => {
+                                              const isDraggingMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.milestoneId === pm.id;
+                                              const effectiveMilestoneDate = isDraggingMilestone ? draggingMilestone.tempDate : pm.date;
+                                              const effectiveMilestoneX = isDraggingMilestone
+                                                ? getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths)
+                                                : pm.xPos;
                                               const c = pm.color || '#dc2626';
                                               const icon = pm.icon || 'diamond';
                                               return (
@@ -1976,13 +2051,21 @@ export default function MasterScheduler() {
                                                   key={`pm-${pm.id}`}
                                                   className="absolute pointer-events-auto flex items-center justify-center"
                                                   style={{
-                                                    left: `${pm.xPos}px`,
+                                                    left: `${effectiveMilestoneX}px`,
                                                     top: `${iconCenterY}px`,
                                                     transform: 'translate(-50%, -50%)',
                                                     zIndex: 28,
                                                   }}
-                                                  onClick={(e) => { e.stopPropagation(); setSelectedProjectId(ex.id); }}
-                                                  title={`${pm.title} — ${formatBarDate(pm.date)}`}
+                                                  onMouseDown={(e) => onMilestoneMouseDown(e, ex.id, pm)}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (suppressMilestoneClickRef.current) {
+                                                      suppressMilestoneClickRef.current = false;
+                                                      return;
+                                                    }
+                                                    setSelectedProjectId(ex.id);
+                                                  }}
+                                                  title={`${pm.title} — ${formatBarDate(effectiveMilestoneDate)}`}
                                                 >
                                                   <div className="cursor-pointer relative z-10 flex items-center justify-center">
                                                     {(() => {
@@ -2020,7 +2103,7 @@ export default function MasterScheduler() {
                                                   >
                                                     <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
                                                     <span className="w-px h-2 bg-slate-300" />
-                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(pm.date)}</span>
+                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(effectiveMilestoneDate)}</span>
                                                   </div>
                                                 </div>
                                               );
