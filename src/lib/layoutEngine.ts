@@ -86,11 +86,7 @@ const estimateTextWidth = (text: string, fontSize: number, weight: 'medium' | 's
   return (text || '').length * fontSize * weightMultiplier;
 };
 
-export const estimateMilestoneLabelWidth = (title: string) => {
-  // Labels render as compact two-line pills (title over date), so width is driven
-  // by the longer title/date line instead of the previous inline title + date sum.
-  const titleW = (title || '').length * 5.4;
-  return Math.min(MILESTONE_LABEL_MAX_WIDTH, Math.max(72, titleW + 20));
+
 /**
  * Estimates the milestone label width from both title and formatted date, returning
  * the sizing metadata used by the renderer. Labels stay single-line when the

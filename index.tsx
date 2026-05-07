@@ -5,7 +5,7 @@ import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './src/lib/dateUtils';
 import { calculateTracks, packMilestoneLabels } from './src/lib/layoutEngine';
 import { calculatePrintScale } from './src/lib/printLayout';
-import { Exhibition, Gallery, GalleryKind, PhaseType, ProjectMilestone, ProjectPhase, ExhibitionStatus, PrintSettings, PrintProfileId } from './src/types';
+import { Exhibition, Gallery, GalleryKind, PhaseType, ProjectMilestone, ProjectPhase, ExhibitionStatus, PrintSettings, PrintProfileId, LocationMilestone } from './src/types';
 import { DetailPanel } from './src/components/DetailPanel';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -173,6 +173,7 @@ export default function MasterScheduler() {
     monthWidth, setMonthWidth,
     timelineStartDate, setTimelineStartDate,
     timelineEndDate, setTimelineEndDate,
+    locationMilestones,
   } = useStore();
   const { handleUpdateExhibition, handleRemoveExhibition, handleRenameGallery, handleSetGalleryKind, handleAddGallery, handleRemoveGallery, handleDuplicateProject } = useMuseumActions();
 
@@ -1615,7 +1616,12 @@ export default function MasterScheduler() {
 
                          return (
 	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
-
+                                {(() => {
+                                  const { items: gMilestones } = packMilestoneLabels<LocationMilestone & { xPos: number }>(
+                                    locationMilestones
+                                      .filter(m => m.gallery === g)
+                                      .map(m => ({ ...m, xPos: getPositionFromDate(m.date, monthWidth, viewMonths) }))
+                                  );
                                   return gMilestones.map((m) => {
                                     return (
                                       <div 
@@ -1690,7 +1696,6 @@ export default function MasterScheduler() {
                                   );
                                 });
                               })()}
-                             </div>
 
                               {galleryProjects.map(ex => {
                                 const trackIndex = galleryLayouts[g]!.tracks[ex.id];
@@ -1725,8 +1730,6 @@ export default function MasterScheduler() {
                                     const fallback = ownerTrackTop + (rowOffset * TRACK_HEIGHT);
                                     return mhFor(g) + LANE_TOP_PADDING + (trackTops[absoluteTrackIndex] ?? fallback);
                                   };
-                                  const perTrackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
-                                  const trackTop = LANE_TOP_PADDING + perTrackTop;
 
                                   // When resizing a phase belonging to this project, swap in the temp duration
                                   // so the live layout reflects the in-progress drag.
@@ -2060,19 +2063,6 @@ export default function MasterScheduler() {
                                                   >
                                                     <span className="w-full text-center text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
                                                     <span className="text-[8px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(pm.date)}</span>
-                                                    className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 min-w-0 ${pm.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
-                                                    style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (pm.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${pm.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
-                                                  >
-                                                    <MilestoneLabel
-                                                      title={pm.title}
-                                                      date={pm.date}
-                                                      labelFontSize={pm.labelFontSize}
-                                                      dateFontSize={pm.dateFontSize}
-                                                      isTwoLine={pm.isTwoLine}
-                                                    />
-                                                    <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
-                                                    <span className="w-px h-2 bg-slate-300" />
-                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(effectiveMilestoneDate)}</span>
                                                   </div>
                                                 </div>
                                               );
