@@ -1,11 +1,11 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './src/constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH, MILESTONE_ROW_HEIGHT, EMPTY_MILESTONE_ROW_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './src/constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './src/lib/dateUtils';
 import { calculateTracks, packMilestoneLabels } from './src/lib/layoutEngine';
 import { calculatePrintScale } from './src/lib/printLayout';
-import { Exhibition, Gallery, GalleryKind, PhaseType, ProjectMilestone, ProjectPhase, ExhibitionStatus, PrintSettings, PrintProfileId } from './src/types';
+import { Exhibition, Gallery, GalleryKind, PhaseType, ProjectMilestone, ProjectPhase, ExhibitionStatus, LocationMilestone, PrintSettings, PrintProfileId } from './src/types';
 import { DetailPanel } from './src/components/DetailPanel';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -165,15 +165,17 @@ const formatPrintDateTime = (date: Date | null) => {
 export default function MasterScheduler() {
   const SIDEBAR_WIDTH = 220;
   const { currentUser, syncStatus } = useMuseumSync();
-  const { 
+  const {
     museumName, setMuseumName,
     galleries, setGalleries,
     phaseTypes, setPhaseTypes,
     exhibitions, setExhibitions,
+    locationMilestones,
     monthWidth, setMonthWidth,
     timelineStartDate, setTimelineStartDate,
     timelineEndDate, setTimelineEndDate,
   } = useStore();
+  const [, setEditMilestoneDraft] = useState<LocationMilestone | null>(null);
   const { handleUpdateExhibition, handleRemoveExhibition, handleRenameGallery, handleSetGalleryKind, handleAddGallery, handleRemoveGallery, handleDuplicateProject } = useMuseumActions();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
