@@ -46,18 +46,29 @@ and print-share long-range project portfolios across multiple galleries.
 
 ## Print
 
-Designed for **11×17 landscape** ledger paper (`@page { size: 17in 11in }`).
+Designed around **11×17 landscape** ledger paper by default, with a print
+options dialog for audience-specific output.
 
-- The portfolio shell is auto-scaled in the `beforeprint` handler so the full
-  timeline fits on one page when possible.
-- A **minimum scale of 0.75** prevents the smallest UI text from shrinking
-  below readability. If the portfolio is too tall to fit at that floor, it
-  spills to a second page rather than becoming illegible.
+- The toolbar print button opens profile-based print options instead of
+  immediately invoking the browser dialog. Built-in profiles cover executive
+  summary, project-team detail, and gallery-operations handoff views.
+- Print profiles can choose ledger or letter sizing, landscape or portrait
+  orientation, included statuses, lane behavior (current collapsed state,
+  expand all, or selected lanes only), and whether to include summary/legend
+  aids.
+- The portfolio shell is auto-scaled in the `beforeprint` handler using a
+  shared print layout utility so the full timeline fits on one page when
+  possible.
+- A **preferred readable scale of 0.75** is disclosed in the UI, while a hard
+  **minimum scale of 0.4** allows one-page exports when explicitly requested.
+  If the output drops below the preferred threshold, the print header includes
+  a readable-scale warning.
 - Print color is forced on (`print-color-adjust: exact`) so phase fills,
   status colors, and gallery accents render in hard copy.
 - A print-only header strip appears above the timeline showing the
-  organisation name, print date, project count, and how many lanes (if
-  any) are collapsed in the current view.
+  organisation name, selected profile, generated timestamp, date range,
+  project count, visible/collapsed lanes, status filters, paper profile,
+  optional summary counts, and optional phase/status legends.
 
 ## Settings
 

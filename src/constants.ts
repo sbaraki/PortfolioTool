@@ -96,6 +96,19 @@ export const getAlbertaHolidays = (startYear: number, endYear: number) => {
   return holidays;
 };
 
+
+export const PRINT_DPI = 96;
+export const PRINT_PAGE_SIZES_IN = {
+  ledger: { width: 17, height: 11 },
+  letter: { width: 11, height: 8.5 },
+} as const;
+export const PRINT_MARGIN_IN = 0.15;
+export const MIN_PRINT_SCALE = 0.4;
+export const MIN_READABLE_PRINT_SCALE = 0.75;
+export const PRINT_SHELL_PADDING_X = 24;
+export const PRINT_SHELL_PADDING_Y = 20;
+export const PRINT_COLUMN_GAP = 12;
+
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const FY_QUARTERS = ['Q4', 'Q1', 'Q2', 'Q3'];
 export const MILESTONE_ROW_HEIGHT = 26;
