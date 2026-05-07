@@ -513,6 +513,16 @@ export default function MasterScheduler() {
 
   const showWeeklyGrid = monthWidth >= WEEKLY_GRID_THRESHOLD;
 
+  const activeDragFeedback = (draggingBarId || resizingEdge) && dragTempStartDate && dragTempEndDate
+    ? {
+        startDate: dragTempStartDate,
+        endDate: dragTempEndDate,
+        startX: getPositionFromDate(dragTempStartDate, monthWidth, viewMonths),
+        endX: getPositionFromDate(dragTempEndDate, monthWidth, viewMonths),
+        mode: draggingBarId ? 'move' : resizingEdge?.edge === 'left' ? 'start resize' : 'end resize'
+      }
+    : null;
+
   const onBarMouseDown = (e: React.MouseEvent, project: Exhibition) => {
     if (e.button !== 0) return;
     const projectX = getPositionFromDate(project.startDate, monthWidth, viewMonths);
@@ -523,6 +533,8 @@ export default function MasterScheduler() {
       dragStartMouseXRef.current = mouseX;
       dragStartProjectXRef.current = projectX;
       dragDurationDaysRef.current = durationDays;
+      setDragTempStartDate(project.startDate);
+      setDragTempEndDate(project.endDate);
       setDraggingBarId(project.id);
     }, 400);
   };
@@ -1440,6 +1452,42 @@ export default function MasterScheduler() {
                   <div className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-[70] pointer-events-none" style={{ left: `${todayPos}px` }}>
                     <div className="sticky top-[6px] bg-red-600 text-white font-semibold text-[10px] px-1.5 py-0.5 uppercase transform -translate-x-1/2 shadow-sm w-max whitespace-nowrap">TODAY</div>
                   </div>
+
+                  {activeDragFeedback && (
+                    <div className="absolute top-0 bottom-0 z-[75] pointer-events-none no-print" style={{ width: `${totalTimelineWidth}px` }}>
+                      <div
+                        className="absolute top-0 bottom-0 w-[2px] bg-blue-600 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_0_18px_rgba(37,99,235,0.38)]"
+                        style={{ left: `${activeDragFeedback.startX}px` }}
+                      >
+                        <div className="sticky top-[70px] -translate-x-1/2 rounded-sm border border-blue-700 bg-blue-600 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-lg whitespace-nowrap">
+                          {activeDragFeedback.mode === 'end resize' ? 'Start stays' : 'Start'} {formatBarDate(activeDragFeedback.startDate)}
+                        </div>
+                      </div>
+                      <div
+                        className="absolute top-0 bottom-0 w-[2px] bg-blue-600/80 border-l border-dashed border-white/80 shadow-[0_0_14px_rgba(37,99,235,0.25)]"
+                        style={{ left: `${activeDragFeedback.endX}px` }}
+                      >
+                        <div className="sticky top-[102px] -translate-x-1/2 rounded-sm border border-slate-800 bg-slate-900 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-lg whitespace-nowrap">
+                          {activeDragFeedback.mode === 'start resize' ? 'End stays' : 'End'} {formatBarDate(activeDragFeedback.endDate)}
+                        </div>
+                      </div>
+                      <div
+                        className="absolute top-[62px] h-[calc(100%-62px)] border-x-2 border-blue-500/45 bg-blue-500/10"
+                        style={{
+                          left: `${Math.min(activeDragFeedback.startX, activeDragFeedback.endX)}px`,
+                          width: `${Math.max(8, Math.abs(activeDragFeedback.endX - activeDragFeedback.startX))}px`
+                        }}
+                      />
+                      <div
+                        className="sticky top-[6px] inline-flex items-center gap-2 rounded-sm border border-blue-200 bg-white/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-900 shadow-lg backdrop-blur"
+                        style={{ marginLeft: `${Math.max(8, Math.min(activeDragFeedback.startX, totalTimelineWidth - 260))}px` }}
+                      >
+                        <span className="h-2 w-2 rounded-full bg-blue-600" />
+                        {activeDragFeedback.mode}: {formatBarDate(activeDragFeedback.startDate)}–{formatBarDate(activeDragFeedback.endDate)}
+                        <span className="text-slate-400">Alt = unsnapped</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Header */}
                   <div className="sticky top-0 z-[60] border-b border-slate-200 flex flex-col overflow-hidden bg-white" style={{ height: `${HEADER_HEIGHT}px` }}>
