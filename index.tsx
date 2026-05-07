@@ -1845,9 +1845,9 @@ export default function MasterScheduler() {
                                           onMouseDown={(e) => onBarMouseDown(e, ex)}
                                           onClick={() => { if (!draggingBarId) setSelectedProjectId(ex.id); }}
                                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
-                                          className={`absolute pointer-events-auto cursor-pointer flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
+                                          className={`absolute pointer-events-auto cursor-pointer flex items-center focus:outline-none focus:ring-1 focus:ring-blue-500/50 ${isDraggingThis ? 'project-bar-dragging ring-1 ring-blue-500' : ''}`}
                                           style={{
-                                            left: `${startPos - 10}px`,
+                                            left: `${startPos - 7}px`,
                                             top: `${mainBarY + STANDARD_BAR_HEIGHT / 2}px`,
                                             transform: 'translateY(-50%)',
                                             zIndex: 25
@@ -1855,18 +1855,16 @@ export default function MasterScheduler() {
                                           title={`${ex.title} — ${formatBarDate(effStartDate)}`}
                                         >
                                           <div
-                                            className="w-5 h-5 border-[2px] border-slate-900 rotate-45 shadow-[2px_2px_0_0_rgba(0,0,0,0.6)] flex items-center justify-center print:shadow-none"
-                                            style={{
-                                              backgroundColor: '#dc2626',
-                                            }}
+                                            className="w-3.5 h-3.5 border-[1.5px] border-slate-900 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center print:shadow-none"
+                                            style={{ backgroundColor: statusStyle.barBg }}
                                           >
-                                            <div className="w-[5px] h-[5px] bg-white" />
+                                            <div className="w-[4px] h-[4px] bg-white" />
                                           </div>
-                                          <span
-                                            className="ml-3 font-bold text-[10px] uppercase tracking-[0.14em] whitespace-nowrap px-2 py-0.5 bg-white border border-slate-300 shadow-sm text-slate-900 print:bg-transparent print:border-none print:shadow-none"
-                                          >
-                                            {ex.title} • {formatBarDate(effStartDate)}
-                                          </span>
+                                          <div className="ml-2 inline-flex items-center gap-1.5 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm print:bg-transparent print:border-none print:shadow-none">
+                                            <span className="text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-800 whitespace-nowrap">{ex.title}</span>
+                                            <span className="w-px h-2 bg-slate-300" />
+                                            <span className="text-[9px] font-medium uppercase tracking-[0.04em] text-slate-500 whitespace-nowrap">{formatBarDate(effStartDate)}</span>
+                                          </div>
                                         </div>
                                       ) : (
                                       <div
