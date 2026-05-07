@@ -137,8 +137,8 @@ export const EMPTY_MILESTONE_ROW_HEIGHT = 26;
 // keep the standard TRACK_HEIGHT.
 export const PROJECT_MILESTONE_ROW_HEIGHT = 22;
 export const MILESTONE_ICON_BAND_HEIGHT = 18;
-export const MILESTONE_LABEL_ROW_HEIGHT = 15;
-export const MILESTONE_LABEL_MAX_WIDTH = 132;
+export const MILESTONE_LABEL_ROW_HEIGHT = 22;
+export const MILESTONE_LABEL_MAX_WIDTH = 180;
 
 // Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
 // the rest of the app palette — phase fills, milestone colours, status pill

@@ -59,6 +59,60 @@ import { GithubAuthModal } from './src/components/GithubAuthModal';
 
 const ALL_STATUSES: ExhibitionStatus[] = ['Proposed', 'In Development', 'Open to Public', 'Closed'];
 
+const MilestoneLabel = ({
+  title,
+  date,
+  labelFontSize,
+  dateFontSize,
+  isTwoLine,
+}: {
+  title: string;
+  date: string;
+  labelFontSize: number;
+  dateFontSize: number;
+  isTwoLine: boolean;
+}) => {
+  const formattedDate = formatBarDate(date);
+
+  if (isTwoLine) {
+    return (
+      <div className="flex h-full min-w-0 flex-col items-center justify-center gap-[2px] text-center leading-none">
+        <span
+          className="font-semibold uppercase tracking-[0.04em] text-slate-800 whitespace-nowrap"
+          style={{ fontSize: `${labelFontSize}px` }}
+        >
+          {title}
+        </span>
+        <span
+          className="font-medium uppercase tracking-[0.04em] text-slate-500 whitespace-nowrap"
+          style={{ fontSize: `${dateFontSize}px` }}
+        >
+          {formattedDate}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <span
+        className="font-semibold uppercase tracking-[0.06em] text-slate-800 min-w-0 whitespace-nowrap"
+        style={{ fontSize: `${labelFontSize}px` }}
+      >
+        {title}
+      </span>
+      <span className="w-px h-2 bg-slate-300 shrink-0" />
+      <span
+        className="font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0 whitespace-nowrap"
+        style={{ fontSize: `${dateFontSize}px` }}
+      >
+        {formattedDate}
+      </span>
+    </>
+  );
+};
+
+
 const PRINT_PROFILES: Record<Exclude<PrintProfileId, 'custom'>, PrintSettings> = {
   executive: {
     profileId: 'executive',
@@ -1670,10 +1724,17 @@ export default function MasterScheduler() {
                                             }
                                           })()}
                                         </div>
-                                        <div className="absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 z-30 pointer-events-none inline-flex items-center gap-1.5 min-w-0" style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (m.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${m.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}>
-                                          <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{m.title}</span>
-                                          <span className="w-px h-2 bg-slate-300" />
-                                          <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500">{formatBarDate(m.date)}</span>
+                                        <div
+                                          className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 z-30 pointer-events-none min-w-0 ${m.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
+                                          style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (m.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${m.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
+                                        >
+                                          <MilestoneLabel
+                                            title={m.title}
+                                            date={m.date}
+                                            labelFontSize={m.labelFontSize}
+                                            dateFontSize={m.dateFontSize}
+                                            isTwoLine={m.isTwoLine}
+                                          />
                                         </div>
                                       </div>
                                   );
@@ -2015,12 +2076,16 @@ export default function MasterScheduler() {
                                                     })()}
                                                   </div>
                                                   <div
-                                                    className="absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 inline-flex items-center gap-1.5 min-w-0"
+                                                    className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 min-w-0 ${pm.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
                                                     style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (pm.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${pm.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
                                                   >
-                                                    <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
-                                                    <span className="w-px h-2 bg-slate-300" />
-                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(pm.date)}</span>
+                                                    <MilestoneLabel
+                                                      title={pm.title}
+                                                      date={pm.date}
+                                                      labelFontSize={pm.labelFontSize}
+                                                      dateFontSize={pm.dateFontSize}
+                                                      isTwoLine={pm.isTwoLine}
+                                                    />
                                                   </div>
                                                 </div>
                                               );
