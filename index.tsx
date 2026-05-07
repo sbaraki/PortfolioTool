@@ -1093,10 +1093,10 @@ export default function MasterScheduler() {
                     <button
                       onClick={() => setShowGithubAuth(true)}
                       className="flex items-center gap-1.5 px-1.5 py-1 text-slate-500 hover:bg-slate-50 leading-none transition-colors"
-                      title="Sign in to sync via GitHub"
+                      title="Set up GitHub sync"
                     >
                       <CloudOff size={12} />
-                      <span className="text-[11px]">Sign in</span>
+                      <span className="text-[11px]">Sync</span>
                     </button>
                   )}
 
