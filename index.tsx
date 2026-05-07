@@ -1,7 +1,7 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH, MILESTONE_ROW_HEIGHT, EMPTY_MILESTONE_ROW_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './src/constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH, MILESTONE_ROW_HEIGHT, EMPTY_MILESTONE_ROW_HEIGHT, GALLERY_HEADER_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './src/constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './src/lib/dateUtils';
 import { calculateTracks, packMilestoneLabels } from './src/lib/layoutEngine';
 import { calculatePrintScale } from './src/lib/printLayout';
@@ -484,9 +484,15 @@ export default function MasterScheduler() {
     return heights;
   }, [portfolioGalleries, locationMilestones, monthWidth, viewMonths]);
 
-  // Auto-collapse empty gallery milestone rows, but expand populated rows based on
-  // the number of packed label rows needed at the current zoom level.
-  const mhFor = (galleryName: string) => galleryMilestoneRowHeights[galleryName] ?? EMPTY_MILESTONE_ROW_HEIGHT;
+  // Top-strip height for a gallery lane. Both the sidebar (gallery-name header) and
+  // the timeline (location-milestone strip) reserve this much vertical room before
+  // project tracks start so the two columns stay vertically aligned. Always at least
+  // GALLERY_HEADER_HEIGHT so gallery names are never clipped, even when the lane has
+  // no milestones.
+  const mhFor = (galleryName: string) => Math.max(
+    galleryMilestoneRowHeights[galleryName] ?? EMPTY_MILESTONE_ROW_HEIGHT,
+    GALLERY_HEADER_HEIGHT
+  );
 
 
   const getProjectPhaseRows = (project: Exhibition) => {
@@ -552,13 +558,14 @@ export default function MasterScheduler() {
         return acc;
       }
       const tracksTotal = galleryTrackLayouts[gallery.name]?.total || TRACK_HEIGHT;
+      const topStrip = mhFor(gallery.name);
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
-        LANE_TOP_PADDING + tracksTotal + LANE_BOTTOM_PADDING
+        topStrip + LANE_TOP_PADDING + tracksTotal + LANE_BOTTOM_PADDING
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds]);
+  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, galleryMilestoneRowHeights]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -1243,7 +1250,10 @@ export default function MasterScheduler() {
                     const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
                     const isPermanent = gallery.kind === 'permanent';
                     const isCollapsed = effectiveCollapsedGalleryIds.has(gallery.id);
-                    const headerHeight = LANE_TOP_PADDING;
+                    // Match the timeline's location-milestone strip height so the
+                    // gallery name has the same vertical space as the milestones it
+                    // labels, and project tracks below it line up across both columns.
+                    const headerHeight = mhFor(gallery.name);
                     if (isCollapsed) {
                       return (
                         <div
@@ -1302,7 +1312,10 @@ export default function MasterScheduler() {
                           // with the bar a viewer's eye lands on, mirroring the timeline layout.
                           const lastTrackIdx = getProjectLastAllocatedTrackIndex(ex, trackIndex, Math.max(1, trackTops.length));
                           const lastTrackTop = trackTops[lastTrackIdx] ?? trackTop;
-                          const topPos = LANE_TOP_PADDING + lastTrackTop;
+                          // Mirror the timeline's project-bar Y offset: top strip +
+                          // lane padding + track top. Without mhFor() the sidebar title
+                          // floats above the timeline bar by ~28-48px.
+                          const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + lastTrackTop;
                           return (
                             <div
                               key={`title-${ex.id}`}
@@ -1323,7 +1336,7 @@ export default function MasterScheduler() {
                           if (trackIndex === undefined || trackIndex === 0) return null;
                           const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
                           return (
-                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-100 left-0" style={{ top: LANE_TOP_PADDING + trackTop }} />
+                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-100 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackTop }} />
                           );
                         })}
                       </div>
