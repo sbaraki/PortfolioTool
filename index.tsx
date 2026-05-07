@@ -59,6 +59,60 @@ import { GithubAuthModal } from './src/components/GithubAuthModal';
 
 const ALL_STATUSES: ExhibitionStatus[] = ['Proposed', 'In Development', 'Open to Public', 'Closed'];
 
+const MilestoneLabel = ({
+  title,
+  date,
+  labelFontSize,
+  dateFontSize,
+  isTwoLine,
+}: {
+  title: string;
+  date: string;
+  labelFontSize: number;
+  dateFontSize: number;
+  isTwoLine: boolean;
+}) => {
+  const formattedDate = formatBarDate(date);
+
+  if (isTwoLine) {
+    return (
+      <div className="flex h-full min-w-0 flex-col items-center justify-center gap-[2px] text-center leading-none">
+        <span
+          className="font-semibold uppercase tracking-[0.04em] text-slate-800 whitespace-nowrap"
+          style={{ fontSize: `${labelFontSize}px` }}
+        >
+          {title}
+        </span>
+        <span
+          className="font-medium uppercase tracking-[0.04em] text-slate-500 whitespace-nowrap"
+          style={{ fontSize: `${dateFontSize}px` }}
+        >
+          {formattedDate}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <span
+        className="font-semibold uppercase tracking-[0.06em] text-slate-800 min-w-0 whitespace-nowrap"
+        style={{ fontSize: `${labelFontSize}px` }}
+      >
+        {title}
+      </span>
+      <span className="w-px h-2 bg-slate-300 shrink-0" />
+      <span
+        className="font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0 whitespace-nowrap"
+        style={{ fontSize: `${dateFontSize}px` }}
+      >
+        {formattedDate}
+      </span>
+    </>
+  );
+};
+
+
 const PRINT_PROFILES: Record<Exclude<PrintProfileId, 'custom'>, PrintSettings> = {
   executive: {
     profileId: 'executive',
@@ -1531,6 +1585,81 @@ export default function MasterScheduler() {
                          return (
 	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
 
+                                  return gMilestones.map((m) => {
+                                    return (
+                                      <div 
+                                        key={m.id} 
+                                        className="absolute flex items-center justify-center pointer-events-auto"
+                                        style={{ left: `${m.xPos}px`, top: `${MILESTONE_ICON_BAND_HEIGHT / 2}px`, transform: 'translate(-50%, -50%)' }}
+                                      >
+                                        <div
+                                          className="transform hover:scale-125 transition-transform cursor-pointer flex items-center justify-center relative z-20"
+                                          title={m.date}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditMilestoneDraft(m);
+                                          }}
+                                          onDoubleClick={(e) => e.stopPropagation()}
+                                        >
+                                          {(() => {
+                                            const c = m.color || '#dc2626';
+                                            switch (m.icon) {
+                                              case 'flag':
+                                                return (
+                                                  <div className="relative flex items-center justify-center pointer-events-none mt-1">
+                                                    <Flag size={16} fill={c} stroke="black" strokeWidth={2} className="drop-shadow-[1px_1px_0_rgba(0,0,0,1)]" />
+                                                  </div>
+                                                );
+                                              case 'team':
+                                                return (
+                                                  <div className="w-4 h-4 flex items-center justify-center rounded-full border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] pointer-events-none" style={{ backgroundColor: c }}>
+                                                    <Users size={10} stroke="white" strokeWidth={2.5} />
+                                                  </div>
+                                                );
+                                              case 'approval':
+                                                return (
+                                                  <div className="w-4 h-4 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }}>
+                                                    <BadgeCheck size={16} fill={c} stroke="black" strokeWidth={2} />
+                                                  </div>
+                                                );
+                                              case 'delivery':
+                                                return (
+                                                  <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] pointer-events-none" style={{ backgroundColor: c }}>
+                                                    <Truck size={10} stroke="white" strokeWidth={2.5} />
+                                                  </div>
+                                                );
+                                              case 'event':
+                                                return (
+                                                  <div className="flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }}>
+                                                    <Star size={16} fill={c} stroke="black" strokeWidth={2} />
+                                                  </div>
+                                                );
+                                              default:
+                                                return (
+                                                  <div className="w-3.5 h-3.5 bg-white border-[1.5px] border-slate-300 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center pointer-events-none">
+                                                    <div className="w-[4px] h-[4px]" style={{ backgroundColor: c }} />
+                                                  </div>
+                                                );
+                                            }
+                                          })()}
+                                        </div>
+                                        <div
+                                          className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 z-30 pointer-events-none min-w-0 ${m.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
+                                          style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (m.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${m.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
+                                        >
+                                          <MilestoneLabel
+                                            title={m.title}
+                                            date={m.date}
+                                            labelFontSize={m.labelFontSize}
+                                            dateFontSize={m.dateFontSize}
+                                            isTwoLine={m.isTwoLine}
+                                          />
+                                        </div>
+                                      </div>
+                                  );
+                                });
+                              })()}
+                             </div>
 
                               {galleryProjects.map(ex => {
                                 const trackIndex = galleryLayouts[g]!.tracks[ex.id];
@@ -1879,9 +2008,16 @@ export default function MasterScheduler() {
                                                     })()}
                                                   </div>
                                                   <div
-                                                    className="absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 inline-flex items-center gap-1.5 min-w-0"
+                                                    className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 min-w-0 ${pm.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
                                                     style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (pm.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${pm.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
                                                   >
+                                                    <MilestoneLabel
+                                                      title={pm.title}
+                                                      date={pm.date}
+                                                      labelFontSize={pm.labelFontSize}
+                                                      dateFontSize={pm.dateFontSize}
+                                                      isTwoLine={pm.isTwoLine}
+                                                    />
                                                     <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
                                                     <span className="w-px h-2 bg-slate-300" />
                                                     <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(effectiveMilestoneDate)}</span>
