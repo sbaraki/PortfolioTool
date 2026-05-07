@@ -1,13 +1,15 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, EMPTY_MILESTONE_ROW_HEIGHT, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH } from './src/constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, EMPTY_MILESTONE_ROW_HEIGHT, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './src/constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './src/lib/dateUtils';
 import { calculateTracks, packMilestoneLabels } from './src/lib/layoutEngine';
-import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectMilestone, ProjectPhase, ExhibitionStatus } from './src/types';
+import { calculatePrintScale } from './src/lib/printLayout';
+import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectMilestone, ProjectPhase, ExhibitionStatus, PrintSettings, PrintProfileId } from './src/types';
 import { DetailPanel } from './src/components/DetailPanel';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { 
   Plus, 
   X,
@@ -47,12 +49,64 @@ import {
   LogIn,
   Cloud,
   CloudOff,
-  History
+  History,
+  FileText
 } from 'lucide-react';
 
 import { GithubAuthModal } from './src/components/GithubAuthModal';
 
 // --- Main App ---
+
+const ALL_STATUSES: ExhibitionStatus[] = ['Proposed', 'In Development', 'Open to Public', 'Closed'];
+
+const PRINT_PROFILES: Record<Exclude<PrintProfileId, 'custom'>, PrintSettings> = {
+  executive: {
+    profileId: 'executive',
+    profileLabel: 'Executive summary',
+    paperSize: 'ledger',
+    orientation: 'landscape',
+    statuses: ['Proposed', 'In Development', 'Open to Public'],
+    selectedGalleryIds: [],
+    laneBehavior: 'expand-all',
+    includeLegends: true,
+    includeSummary: true,
+  },
+  'project-team': {
+    profileId: 'project-team',
+    profileLabel: 'Project team detail',
+    paperSize: 'ledger',
+    orientation: 'landscape',
+    statuses: ALL_STATUSES,
+    selectedGalleryIds: [],
+    laneBehavior: 'current',
+    includeLegends: true,
+    includeSummary: true,
+  },
+  'gallery-ops': {
+    profileId: 'gallery-ops',
+    profileLabel: 'Gallery operations',
+    paperSize: 'ledger',
+    orientation: 'landscape',
+    statuses: ['In Development', 'Open to Public'],
+    selectedGalleryIds: [],
+    laneBehavior: 'selected-only',
+    includeLegends: false,
+    includeSummary: true,
+  },
+};
+
+const DEFAULT_PRINT_SETTINGS = PRINT_PROFILES['project-team'];
+
+const formatPrintDateTime = (date: Date | null) => {
+  if (!date) return 'Preparing print';
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+};
 
 export default function MasterScheduler() {
   const SIDEBAR_WIDTH = 220;
@@ -71,7 +125,6 @@ export default function MasterScheduler() {
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'portfolio' | 'settings'>('portfolio');
-  const ALL_STATUSES: ExhibitionStatus[] = ['Proposed', 'In Development', 'Open to Public', 'Closed'];
   const [selectedStatuses, setSelectedStatuses] = useState<Set<ExhibitionStatus>>(new Set(ALL_STATUSES));
   const toggleStatus = (s: ExhibitionStatus) => {
     setSelectedStatuses(prev => {
@@ -81,6 +134,12 @@ export default function MasterScheduler() {
     });
   };
   const [showGithubAuth, setShowGithubAuth] = useState(false);
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [printSettings, setPrintSettings] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS);
+  const [isPrintMode, setIsPrintMode] = useState(false);
+  const [printGeneratedAt, setPrintGeneratedAt] = useState<Date | null>(null);
+  const [lastPrintScale, setLastPrintScale] = useState<number | null>(null);
+  const [lastPrintClamped, setLastPrintClamped] = useState(false);
   const [collapsedGalleryIds, setCollapsedGalleryIds] = useState<Set<string>>(new Set());
   const toggleGalleryCollapsed = (id: string) => {
     setCollapsedGalleryIds(prev => {
@@ -125,56 +184,62 @@ export default function MasterScheduler() {
     };
   }, []);
 
-  // Scale the entire portfolio to fit on a single 11x17 landscape page when printing.
+  // Scale the portfolio shell for the selected paper profile when printing.
   // We measure the TRUE content extent (the inner row uses overflow:hidden and the
   // timeline scroller uses overflow:auto, so the shell's scrollWidth would only
   // report the clipped viewport size — wildly under-reporting actual content).
   useEffect(() => {
-    const PAGE_W_PX = 16.7 * 96; // 17in landscape minus 0.15in margins
-    const PAGE_H_PX = 10.7 * 96;
-    const MIN_PRINT_SCALE = 0.4; // hard floor; content shrinks aggressively to stay on one page
     const beforePrint = () => {
       const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
       if (!shell) return;
-      // Print-only header is `hidden print:flex`. Force-show it so its height is
-      // included in the measurement (and restored on cancel).
+
       const printHeader = shell.querySelector('[data-print-header]') as HTMLElement | null;
       const prevDisplay = printHeader?.style.display;
       if (printHeader) printHeader.style.display = 'flex';
 
-      // Measure the deepest content directly — bypasses the overflow:hidden /
-      // overflow:auto chain that would otherwise clip scrollWidth.
-      const aside = shell.querySelector('aside') as HTMLElement | null;
-      const timelineScroll = shell.querySelector('.timeline-container') as HTMLElement | null;
-      const sidebarW = aside?.offsetWidth ?? 240;
-      const sidebarH = aside?.scrollHeight ?? 0;
-      const timelineW = timelineScroll?.scrollWidth ?? 0;
-      const timelineH = timelineScroll?.scrollHeight ?? 0;
-      const headerH = printHeader?.offsetHeight ?? 0;
+      const printSidebar = shell.querySelector('[data-print-sidebar]') as HTMLElement | null;
+      const timelineScroll = shell.querySelector('[data-print-timeline]') as HTMLElement | null;
+      const paper = PRINT_PAGE_SIZES_IN[printSettings.paperSize];
+      const pageWidthIn = printSettings.orientation === 'landscape' ? paper.width : paper.height;
+      const pageHeightIn = printSettings.orientation === 'landscape' ? paper.height : paper.width;
+      const pageWidthPx = (pageWidthIn - (PRINT_MARGIN_IN * 2)) * PRINT_DPI;
+      const pageHeightPx = (pageHeightIn - (PRINT_MARGIN_IN * 2)) * PRINT_DPI;
 
-      // Account for shell padding (px-3 pt-2 pb-3) and inter-column gap (gap-3).
-      const SHELL_PAD_X = 24;
-      const SHELL_PAD_Y = 20;
-      const COL_GAP = 12;
-      const w = sidebarW + COL_GAP + timelineW + SHELL_PAD_X;
-      const h = headerH + Math.max(sidebarH, timelineH) + SHELL_PAD_Y;
+      const result = calculatePrintScale({
+        pageWidthPx,
+        pageHeightPx,
+        sidebarWidthPx: printSidebar?.offsetWidth ?? SIDEBAR_WIDTH,
+        sidebarHeightPx: printSidebar?.scrollHeight ?? 0,
+        timelineWidthPx: timelineScroll?.scrollWidth ?? 0,
+        timelineHeightPx: timelineScroll?.scrollHeight ?? 0,
+        headerHeightPx: printHeader?.offsetHeight ?? 0,
+        paddingX: PRINT_SHELL_PADDING_X,
+        paddingY: PRINT_SHELL_PADDING_Y,
+        columnGap: PRINT_COLUMN_GAP,
+        minScale: MIN_PRINT_SCALE,
+      });
 
       if (printHeader) printHeader.style.display = prevDisplay || '';
-      if (!w || !h) return;
-      const fitScale = Math.min(1, PAGE_W_PX / w, PAGE_H_PX / h);
-      const scale = Math.max(MIN_PRINT_SCALE, fitScale);
-      // Apply zoom inline directly on the shell. Edge has a quirk where
-      // `zoom: var(--print-scale)` resolves the variable too late in the print
-      // pipeline and the scale is silently ignored — setting it as an inline
-      // style bypasses variable resolution entirely and works in both Chrome
-      // and Edge.
-      shell.style.zoom = String(scale);
-      document.documentElement.style.setProperty('--print-scale', String(scale));
+      if (!result.contentWidthPx || !result.contentHeightPx) return;
+
+      shell.style.zoom = String(result.scale);
+      shell.dataset.printScale = result.scale.toFixed(2);
+      document.documentElement.style.setProperty('--print-scale', String(result.scale));
+      document.documentElement.style.setProperty('--print-page-width', `${pageWidthIn}in`);
+      document.documentElement.style.setProperty('--print-page-height', `${pageHeightIn}in`);
+      setLastPrintScale(result.scale);
+      setLastPrintClamped(result.isClamped || result.scale < MIN_READABLE_PRINT_SCALE);
     };
     const afterPrint = () => {
       const shell = document.querySelector('[data-print-shell]') as HTMLElement | null;
-      if (shell) shell.style.zoom = '';
+      if (shell) {
+        shell.style.zoom = '';
+        delete shell.dataset.printScale;
+      }
       document.documentElement.style.removeProperty('--print-scale');
+      document.documentElement.style.removeProperty('--print-page-width');
+      document.documentElement.style.removeProperty('--print-page-height');
+      setIsPrintMode(false);
     };
     window.addEventListener('beforeprint', beforePrint);
     window.addEventListener('afterprint', afterPrint);
@@ -182,7 +247,7 @@ export default function MasterScheduler() {
       window.removeEventListener('beforeprint', beforePrint);
       window.removeEventListener('afterprint', afterPrint);
     };
-  }, []);
+  }, [SIDEBAR_WIDTH, printSettings.paperSize, printSettings.orientation]);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const sidebarListRef = useRef<HTMLDivElement>(null);
@@ -205,9 +270,51 @@ export default function MasterScheduler() {
     setMonthWidth(presetWidths[years] || 56);
   };
 
+  const printGalleryIds = useMemo(() => {
+    const ids = printSettings.selectedGalleryIds.length > 0
+      ? printSettings.selectedGalleryIds
+      : galleries.map(g => g.id);
+    return new Set(ids);
+  }, [galleries, printSettings.selectedGalleryIds]);
+
+  const portfolioGalleries = useMemo(() => {
+    if (!isPrintMode || printSettings.laneBehavior !== 'selected-only') return galleries;
+    return galleries.filter(g => printGalleryIds.has(g.id));
+  }, [galleries, isPrintMode, printGalleryIds, printSettings.laneBehavior]);
+
+  const effectiveCollapsedGalleryIds = useMemo(() => {
+    if (!isPrintMode) return collapsedGalleryIds;
+    if (printSettings.laneBehavior === 'current') return collapsedGalleryIds;
+    return new Set<string>();
+  }, [collapsedGalleryIds, isPrintMode, printSettings.laneBehavior]);
+
+  const effectiveStatuses = useMemo(() => (
+    isPrintMode ? new Set(printSettings.statuses) : selectedStatuses
+  ), [isPrintMode, printSettings.statuses, selectedStatuses]);
+
   const filteredExhibitions = useMemo(() => {
-    return exhibitions.filter(ex => selectedStatuses.has(ex.status));
-  }, [exhibitions, selectedStatuses]);
+    const visibleGalleryNames = new Set(portfolioGalleries.map(g => g.name));
+    return exhibitions.filter(ex => effectiveStatuses.has(ex.status) && visibleGalleryNames.has(ex.gallery));
+  }, [exhibitions, effectiveStatuses, portfolioGalleries]);
+
+  const printStatusSummary = ALL_STATUSES
+    .filter(status => printSettings.statuses.includes(status))
+    .join(', ');
+  const printVisibleLaneCount = portfolioGalleries.length;
+  const printCollapsedLaneCount = portfolioGalleries.filter(g => effectiveCollapsedGalleryIds.has(g.id)).length;
+  const printProjectMilestoneCount = filteredExhibitions.reduce((sum, ex) => sum + (ex.milestones?.length || 0), 0);
+  const printLocationMilestoneCount = locationMilestones.filter(m => portfolioGalleries.some(g => g.name === m.gallery)).length;
+
+  const handleStartPrint = () => {
+    flushSync(() => {
+      setPrintGeneratedAt(new Date());
+      setIsPrintMode(true);
+      setShowPrintOptions(false);
+      setLastPrintScale(null);
+      setLastPrintClamped(false);
+    });
+    requestAnimationFrame(() => window.print());
+  };
 
   const viewMonths = useMemo(() => {
     let start = new Date(timelineStartDate + 'T12:00:00');
@@ -293,17 +400,17 @@ export default function MasterScheduler() {
 
   const galleryLayouts = useMemo(() => {
     const layouts: { [galleryName: string]: { tracks: { [id: string]: number }, maxTracks: number } } = {};
-    galleries.forEach(gallery => {
+    portfolioGalleries.forEach(gallery => {
       const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
       const layoutInfo = calculateTracks(galleryProjects, monthWidth, viewMonths, phaseTypes);
       layouts[gallery.name] = { tracks: layoutInfo.tracks, maxTracks: layoutInfo.maxTracks };
     });
     return layouts;
-  }, [filteredExhibitions, galleries, monthWidth, viewMonths, phaseTypes]);
+  }, [filteredExhibitions, portfolioGalleries, monthWidth, viewMonths, phaseTypes]);
 
   const galleryMilestoneRowHeights = useMemo(() => {
     const heights: Record<string, number> = {};
-    galleries.forEach(gallery => {
+    portfolioGalleries.forEach(gallery => {
       const packed = packMilestoneLabels<LocationMilestone & { xPos: number }>(
         locationMilestones
           .filter(m => m.gallery === gallery.name)
@@ -314,7 +421,7 @@ export default function MasterScheduler() {
         : EMPTY_MILESTONE_ROW_HEIGHT;
     });
     return heights;
-  }, [galleries, locationMilestones, monthWidth, viewMonths]);
+  }, [portfolioGalleries, locationMilestones, monthWidth, viewMonths]);
 
   // Auto-collapse empty gallery milestone rows, but expand populated rows based on
   // the number of packed label rows needed at the current zoom level.
@@ -326,7 +433,7 @@ export default function MasterScheduler() {
   // project track or gallery.
   const galleryTrackLayouts = useMemo(() => {
     const out: Record<string, { trackTops: number[]; total: number; trackMilestoneRows: number[]; trackHeights: number[] }> = {};
-    galleries.forEach(gallery => {
+    portfolioGalleries.forEach(gallery => {
       const layout = galleryLayouts[gallery.name];
       const maxTracks = layout?.maxTracks || 1;
       const trackMilestoneRows = new Array(maxTracks).fill(0);
@@ -361,12 +468,12 @@ export default function MasterScheduler() {
       out[gallery.name] = { trackTops, total: acc, trackMilestoneRows, trackHeights };
     });
     return out;
-  }, [galleries, galleryLayouts, filteredExhibitions, phaseTypes, monthWidth, viewMonths]);
+  }, [portfolioGalleries, galleryLayouts, filteredExhibitions, phaseTypes, monthWidth, viewMonths]);
 
 
   const galleryLaneHeights = useMemo(() => {
-    return galleries.reduce((acc, gallery) => {
-      if (collapsedGalleryIds.has(gallery.id)) {
+    return portfolioGalleries.reduce((acc, gallery) => {
+      if (effectiveCollapsedGalleryIds.has(gallery.id)) {
         acc[gallery.name] = COLLAPSED_LANE_HEIGHT;
         return acc;
       }
@@ -378,7 +485,7 @@ export default function MasterScheduler() {
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [galleries, galleryTrackLayouts, collapsedGalleryIds, galleryMilestoneRowHeights]);
+  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, galleryMilestoneRowHeights]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -488,6 +595,197 @@ export default function MasterScheduler() {
       style={{ fontFeatureSettings: "'cv11','ss01','ss03'" }}
     >
       {showGithubAuth && <div className="no-print"><GithubAuthModal onClose={() => setShowGithubAuth(false)} /></div>}
+      {showPrintOptions && (
+        <div className="fixed inset-0 bg-slate-900/45 z-[110] backdrop-blur-sm flex items-center justify-center p-4 no-print" onClick={() => setShowPrintOptions(false)}>
+          <div className="bg-white border border-slate-200 w-full max-w-3xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={15} className="text-slate-700" />
+                <div>
+                  <h2 className="text-[13px] font-bold uppercase tracking-[0.16em] text-slate-900">Print options</h2>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Choose the audience, content, and explanatory detail for this printout.</p>
+                </div>
+              </div>
+              <button aria-label="Close print options" onClick={() => setShowPrintOptions(false)} className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-50">
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="p-4 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-4 max-h-[72vh] overflow-y-auto custom-scrollbar">
+              <section className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Audience profile</label>
+                  <div className="mt-2 grid gap-2">
+                    {(Object.keys(PRINT_PROFILES) as Exclude<PrintProfileId, 'custom'>[]).map((profileId) => {
+                      const profile = PRINT_PROFILES[profileId];
+                      const active = printSettings.profileId === profileId;
+                      return (
+                        <button
+                          key={profileId}
+                          type="button"
+                          onClick={() => setPrintSettings({ ...profile })}
+                          className={`text-left border p-3 transition-colors ${active ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                        >
+                          <div className="text-[12px] font-semibold text-slate-900">{profile.profileLabel}</div>
+                          <div className="mt-1 text-[10px] text-slate-500 leading-snug">
+                            {profile.laneBehavior === 'expand-all' && 'Expands every lane and includes summary aids.'}
+                            {profile.laneBehavior === 'current' && 'Uses the current lane focus for detailed team review.'}
+                            {profile.laneBehavior === 'selected-only' && 'Prints selected lanes for operational handoffs.'}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Paper</span>
+                    <select
+                      value={printSettings.paperSize}
+                      onChange={(e) => setPrintSettings(prev => ({ ...prev, profileId: 'custom', profileLabel: 'Custom print', paperSize: e.target.value as PrintSettings['paperSize'] }))}
+                      className="w-full border border-slate-200 px-2 py-2 text-[11px] bg-white"
+                    >
+                      <option value="ledger">Ledger 11×17</option>
+                      <option value="letter">Letter 8.5×11</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Orientation</span>
+                    <select
+                      value={printSettings.orientation}
+                      onChange={(e) => setPrintSettings(prev => ({ ...prev, profileId: 'custom', profileLabel: 'Custom print', orientation: e.target.value as PrintSettings['orientation'] }))}
+                      className="w-full border border-slate-200 px-2 py-2 text-[11px] bg-white"
+                    >
+                      <option value="landscape">Landscape</option>
+                      <option value="portrait">Portrait</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="space-y-1 block">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Lane behaviour</span>
+                  <select
+                    value={printSettings.laneBehavior}
+                    onChange={(e) => setPrintSettings(prev => ({ ...prev, profileId: 'custom', profileLabel: 'Custom print', laneBehavior: e.target.value as PrintSettings['laneBehavior'] }))}
+                    className="w-full border border-slate-200 px-2 py-2 text-[11px] bg-white"
+                  >
+                    <option value="current">Use current collapsed state</option>
+                    <option value="expand-all">Expand all lanes for print</option>
+                    <option value="selected-only">Print only selected lanes</option>
+                  </select>
+                </label>
+
+                <div className="border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-900 leading-snug">
+                  If the timeline needs to print below {Math.round(MIN_READABLE_PRINT_SCALE * 100)}% scale, the header will disclose a readable-scale warning. Shorten the range or choose fewer lanes for a larger print.
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Statuses</label>
+                    <button
+                      type="button"
+                      onClick={() => setPrintSettings(prev => ({ ...prev, profileId: 'custom', profileLabel: 'Custom print', statuses: prev.statuses.length === ALL_STATUSES.length ? [] : ALL_STATUSES }))}
+                      className="text-[10px] font-semibold text-slate-500 hover:text-slate-900"
+                    >
+                      {printSettings.statuses.length === ALL_STATUSES.length ? 'Clear all' : 'Select all'}
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {ALL_STATUSES.map(status => {
+                      const checked = printSettings.statuses.includes(status);
+                      return (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => setPrintSettings(prev => ({
+                            ...prev,
+                            profileId: 'custom',
+                            profileLabel: 'Custom print',
+                            statuses: checked ? prev.statuses.filter(s => s !== status) : [...prev.statuses, status],
+                          }))}
+                          className={`flex items-center gap-2 border px-2 py-2 text-[11px] ${checked ? 'border-slate-900 bg-slate-50 text-slate-900' : 'border-slate-200 text-slate-500'}`}
+                        >
+                          <span className="w-2 h-2" style={{ background: checked ? getStatusStyles(status).barBg : '#cbd5e1' }} />
+                          {status}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Selected lanes</label>
+                    <button
+                      type="button"
+                      onClick={() => setPrintSettings(prev => ({ ...prev, profileId: 'custom', profileLabel: 'Custom print', selectedGalleryIds: prev.selectedGalleryIds.length === galleries.length ? [] : galleries.map(g => g.id) }))}
+                      className="text-[10px] font-semibold text-slate-500 hover:text-slate-900"
+                    >
+                      {printSettings.selectedGalleryIds.length === galleries.length ? 'Use all' : 'Select all'}
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                    {galleries.map(gallery => {
+                      const checked = printSettings.selectedGalleryIds.length === 0 || printSettings.selectedGalleryIds.includes(gallery.id);
+                      return (
+                        <label key={gallery.id} className="flex items-center gap-2 border border-slate-200 px-2 py-1.5 text-[11px] text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setPrintSettings(prev => {
+                              const current = prev.selectedGalleryIds.length === 0 ? galleries.map(g => g.id) : prev.selectedGalleryIds;
+                              const selectedGalleryIds = current.includes(gallery.id)
+                                ? current.filter(id => id !== gallery.id)
+                                : [...current, gallery.id];
+                              return { ...prev, profileId: 'custom', profileLabel: 'Custom print', selectedGalleryIds };
+                            })}
+                          />
+                          <span className="truncate">{gallery.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1 text-[10px] text-slate-500">Lane selections apply when lane behaviour is “Print only selected lanes”.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex items-center gap-2 border border-slate-200 px-2 py-2 text-[11px] text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={printSettings.includeSummary}
+                      onChange={(e) => setPrintSettings(prev => ({ ...prev, profileId: 'custom', profileLabel: 'Custom print', includeSummary: e.target.checked }))}
+                    />
+                    Summary counts
+                  </label>
+                  <label className="flex items-center gap-2 border border-slate-200 px-2 py-2 text-[11px] text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={printSettings.includeLegends}
+                      onChange={(e) => setPrintSettings(prev => ({ ...prev, profileId: 'custom', profileLabel: 'Custom print', includeLegends: e.target.checked }))}
+                    />
+                    Legends
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+              <div className="text-[10px] text-slate-500">
+                Preview: {printSettings.profileLabel} · {printSettings.statuses.length} status filter{printSettings.statuses.length === 1 ? '' : 's'} · {printSettings.laneBehavior === 'selected-only' ? `${printGalleryIds.size} selected lane${printGalleryIds.size === 1 ? '' : 's'}` : printSettings.laneBehavior.replace('-', ' ')}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowPrintOptions(false)} className="px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-white border border-slate-200">Cancel</button>
+                <button onClick={handleStartPrint} className="px-3 py-2 text-[11px] font-semibold text-white bg-slate-900 hover:bg-slate-800 flex items-center gap-1.5">
+                  <Printer size={12} /> Print
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -802,9 +1100,9 @@ export default function MasterScheduler() {
                     {allCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
                   </button>
                   <button
-                    onClick={() => window.print()}
+                    onClick={() => setShowPrintOptions(true)}
                     className="p-1 text-slate-500 hover:bg-slate-50 transition-colors"
-                    title="Print"
+                    title="Print options"
                     aria-label="Print"
                   >
                     <Printer size={12} />
@@ -853,21 +1151,57 @@ export default function MasterScheduler() {
             </header>
 
             <div data-print-shell className="flex-1 flex flex-col overflow-hidden">
-              <div data-print-header className="hidden print:flex justify-between items-baseline px-3 py-2 border-b border-slate-300 bg-white shrink-0">
-                <h1 className="text-base font-bold uppercase tracking-[0.18em] text-slate-900">{museumName} — Portfolio Plan</h1>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-700">
-                  Printed {new Date().toLocaleDateString()} · {filteredExhibitions.length} project{filteredExhibitions.length === 1 ? '' : 's'}
-                  {collapsedGalleryIds.size > 0 && ` · ${collapsedGalleryIds.size} lane${collapsedGalleryIds.size === 1 ? '' : 's'} collapsed`}
-                </span>
+              <div data-print-header className="hidden print:flex flex-col gap-1 px-3 py-2 border-b border-slate-300 bg-white shrink-0">
+                <div className="flex justify-between items-baseline gap-4">
+                  <h1 className="text-base font-bold uppercase tracking-[0.18em] text-slate-900">{museumName} — Portfolio Plan</h1>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-700">
+                    {printSettings.profileLabel} · Printed {formatPrintDateTime(printGeneratedAt)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-600">
+                  <span>{timelineStartDate} to {timelineEndDate}</span>
+                  <span>{filteredExhibitions.length} project{filteredExhibitions.length === 1 ? '' : 's'}</span>
+                  <span>{printVisibleLaneCount} of {galleries.length} lane{galleries.length === 1 ? '' : 's'} shown</span>
+                  <span>{printCollapsedLaneCount} collapsed</span>
+                  <span>Status: {printStatusSummary || 'None'}</span>
+                  <span>{printSettings.paperSize.toUpperCase()} {printSettings.orientation}</span>
+                  {lastPrintScale && <span>Scale {Math.round(lastPrintScale * 100)}%</span>}
+                  {lastPrintClamped && <span className="text-amber-700">Readable-scale warning</span>}
+                </div>
+                {printSettings.includeSummary && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-slate-700">
+                    {ALL_STATUSES.map(status => (
+                      <span key={status} className="inline-flex items-center gap-1">
+                        <span className="w-1.5 h-1.5" style={{ background: getStatusStyles(status).barBg }} />
+                        {status}: {filteredExhibitions.filter(ex => ex.status === status).length}
+                      </span>
+                    ))}
+                    <span>Location milestones: {printLocationMilestoneCount}</span>
+                    <span>Project milestones: {printProjectMilestoneCount}</span>
+                  </div>
+                )}
+                {printSettings.includeLegends && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[8.5px] text-slate-600">
+                    <span className="font-semibold uppercase tracking-[0.08em] text-slate-700">Legend</span>
+                    {phaseTypes.map(type => (
+                      <span key={type.id} className="inline-flex items-center gap-1">
+                        <span className="w-3 h-1.5 border border-slate-400" style={{ background: type.color }} />
+                        {type.label}
+                      </span>
+                    ))}
+                    <span className="inline-flex items-center gap-1"><Star size={9} className="text-amber-700 fill-amber-700" /> Permanent gallery</span>
+                    <span className="inline-flex items-center gap-1"><Flag size={9} /> Milestone / event</span>
+                  </div>
+                )}
               </div>
               <div className="flex-1 flex overflow-hidden timeline-root no-print-bg px-3 pb-3 pt-2 gap-3 print:overflow-visible">
-              <aside className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
+              <aside data-print-sidebar className="bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" style={{ width: `${SIDEBAR_WIDTH}px` }}>
                 {/* 70px sidebar header — counts only. Status filter pills now live in the toolbar. */}
                 <div style={{ height: `${HEADER_HEIGHT}px` }} className="shrink-0 bg-slate-50/50 border-b border-slate-200 flex items-center justify-between px-3 print:bg-white">
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wide leading-none">Galleries</span>
                     <span className="text-[11px] font-semibold text-slate-700 leading-none mt-1">
-                      <span className="font-mono text-slate-500">{galleries.length}</span>
+                      <span className="font-mono text-slate-500">{portfolioGalleries.length}</span>
                       <span className="text-slate-300 mx-1">·</span>
                       <span className="font-mono text-slate-500">{filteredExhibitions.length}</span>
                       {' '}project{filteredExhibitions.length === 1 ? '' : 's'}
@@ -883,11 +1217,11 @@ export default function MasterScheduler() {
                     }
                   }}
                 >
-                  {galleries.map((gallery) => {
+                  {portfolioGalleries.map((gallery) => {
                     const laneHeight = galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT;
                     const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
                     const isPermanent = gallery.kind === 'permanent';
-                    const isCollapsed = collapsedGalleryIds.has(gallery.id);
+                    const isCollapsed = effectiveCollapsedGalleryIds.has(gallery.id);
                     const headerHeight = mhFor(gallery.name);
                     if (isCollapsed) {
                       return (
@@ -982,6 +1316,7 @@ export default function MasterScheduler() {
 
                 <div 
                   tabIndex={0}
+                  data-print-timeline
                   className={`flex-1 overflow-auto relative bg-white custom-scrollbar timeline-container cursor-grab active:cursor-grabbing ${isDraggingScroll ? '!cursor-grabbing' : ''}`} 
                   ref={timelineRef} 
                   onScroll={(e) => {
@@ -1183,11 +1518,11 @@ export default function MasterScheduler() {
                             </div>
 	                        </div>
 	                      )}
-	                      {galleries.map((gallery) => {
+	                      {portfolioGalleries.map((gallery) => {
 	                         const g = gallery.name;
 	                         const laneHeight = galleryLaneHeights[g] || BASE_LANE_HEIGHT;
 	                         const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === g);
-	                         const isCollapsed = collapsedGalleryIds.has(gallery.id);
+	                         const isCollapsed = effectiveCollapsedGalleryIds.has(gallery.id);
 
 	                         if (isCollapsed) {
 	                           return (
