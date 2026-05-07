@@ -70,8 +70,10 @@ export type PackedMilestoneLabel<T> = T & {
 };
 
 export const estimateMilestoneLabelWidth = (title: string) => {
-  const titleW = (title || '').length * 5.8;
-  return Math.min(MILESTONE_LABEL_MAX_WIDTH, Math.max(60, titleW + 82));
+  // Labels render as compact two-line pills (title over date), so width is driven
+  // by the longer title/date line instead of the previous inline title + date sum.
+  const titleW = (title || '').length * 5.4;
+  return Math.min(MILESTONE_LABEL_MAX_WIDTH, Math.max(72, titleW + 20));
 };
 
 /**

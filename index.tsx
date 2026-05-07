@@ -427,6 +427,22 @@ export default function MasterScheduler() {
   // the number of packed label rows needed at the current zoom level.
   const mhFor = (galleryName: string) => galleryMilestoneRowHeights[galleryName] ?? EMPTY_MILESTONE_ROW_HEIGHT;
 
+
+  const getProjectPhaseRows = (project: Exhibition) => {
+    const prePhasesCount = (project.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
+    return Math.max(1, prePhasesCount + 1);
+  };
+
+  const getProjectLastAllocatedTrackIndex = (project: Exhibition, startTrack: number, maxTracks: number) => (
+    Math.min(startTrack + getProjectPhaseRows(project) - 1, Math.max(0, maxTracks - 1))
+  );
+
+  const getProjectMilestoneBandHeight = (labelRows: number) => (
+    labelRows > 0
+      ? Math.max(PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT + (labelRows * MILESTONE_LABEL_ROW_HEIGHT) + 8)
+      : 0
+  );
+
   // For each gallery, compute per-track top offsets. Tracks whose project carries
   // ProjectMilestone entries get a dynamically sized band that expands with label
   // density at the current zoom level so milestone pills never bleed into the next
@@ -442,11 +458,10 @@ export default function MasterScheduler() {
         if ((ex.milestones || []).length === 0) return;
         const ti = layout?.tracks[ex.id];
         if (ti === undefined) return;
-        // calculateTracks reserves prePhases.length + 1 consecutive tracks per project;
-        // the milestone band sits below the LAST allocated track (where the main bar lives),
-        // not the owner (topmost) track.
-        const prePhasesCount = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
-        const lastTrackIdx = Math.min(ti + prePhasesCount, maxTracks - 1);
+        // calculateTracks reserves one row per pre-phase plus the main-bar row.
+        // Attach the milestone band to the project's actual last allocated row,
+        // independent of gallery-level milestone strips.
+        const lastTrackIdx = getProjectLastAllocatedTrackIndex(ex, ti, maxTracks);
         const packed = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
           (ex.milestones || []).map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
         );
@@ -458,9 +473,7 @@ export default function MasterScheduler() {
       for (let i = 0; i < maxTracks; i++) {
         trackTops.push(acc);
         const rows = trackMilestoneRows[i];
-        const milestoneBand = rows > 0
-          ? Math.max(PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT + (rows * MILESTONE_LABEL_ROW_HEIGHT) + 4)
-          : 0;
+        const milestoneBand = getProjectMilestoneBandHeight(rows);
         const h = TRACK_HEIGHT + milestoneBand;
         trackHeights.push(h);
         acc += h;
@@ -1291,8 +1304,7 @@ export default function MasterScheduler() {
                           // on the LAST allocated track (where the main bar lives), not the first
                           // (which holds the topmost pre-phase). This keeps the sidebar title aligned
                           // with the bar a viewer's eye lands on, mirroring the timeline layout.
-                          const prePhasesCount = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
-                          const lastTrackIdx = Math.min(trackIndex + prePhasesCount, Math.max(0, trackTops.length - 1));
+                          const lastTrackIdx = getProjectLastAllocatedTrackIndex(ex, trackIndex, Math.max(1, trackTops.length));
                           const lastTrackTop = trackTops[lastTrackIdx] ?? trackTop;
                           const topPos = headerHeight + LANE_TOP_PADDING + lastTrackTop;
                           return (
@@ -1704,8 +1716,16 @@ export default function MasterScheduler() {
                                   const endPos = getPositionFromDate(effEndDate, monthWidth, viewMonths);
                                   const width = Math.max(endPos - startPos, 40);
                                   
-                                  const perTrackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
-                                  const trackTop = mhFor(g) + LANE_TOP_PADDING + perTrackTop;
+                                  const trackLayout = galleryTrackLayouts[g];
+                                  const trackTops = trackLayout?.trackTops ?? [];
+                                  const maxTracks = Math.max(1, galleryLayouts[g]?.maxTracks || trackTops.length || 1);
+                                  const ownerTrackTop = trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                                  const trackTop = mhFor(g) + LANE_TOP_PADDING + ownerTrackTop;
+                                  const projectRowTop = (rowOffset: number) => {
+                                    const absoluteTrackIndex = Math.min(trackIndex + rowOffset, maxTracks - 1);
+                                    const fallback = ownerTrackTop + (rowOffset * TRACK_HEIGHT);
+                                    return mhFor(g) + LANE_TOP_PADDING + (trackTops[absoluteTrackIndex] ?? fallback);
+                                  };
 
                                   // When resizing a phase belonging to this project, swap in the temp duration
                                   // so the live layout reflects the in-progress drag.
@@ -1727,7 +1747,7 @@ export default function MasterScheduler() {
                                     const pWidth = phaseDurationFor(p) * monthWidth;
                                     const pStart = phaseStartPos + preOffset;
                                     const pEnd = pStart + pWidth;
-                                    const pY = trackTop + (i * TRACK_HEIGHT) + (TRACK_HEIGHT - PHASE_BAR_HEIGHT) / 2;
+                                    const pY = projectRowTop(i) + (TRACK_HEIGHT - PHASE_BAR_HEIGHT) / 2;
                                     preOffset += pWidth + PHASE_GAP;
                                     return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypes.find(t => t.id === p.typeId), i, isPost: false };
                                   });
@@ -1736,8 +1756,8 @@ export default function MasterScheduler() {
                                   // Align it with the last pre-phase row so the dependency arrow flows straight into it
                                   // instead of dropping down to a wasted row below the phases.
                                   const mainBarY = ex.isMilestone && prePhasesRaw.length > 0
-                                    ? trackTop + ((prePhasesRaw.length - 1) * TRACK_HEIGHT) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2
-                                    : trackTop + (prePhasesRaw.length * TRACK_HEIGHT) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
+                                    ? projectRowTop(prePhasesRaw.length - 1) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2
+                                    : projectRowTop(prePhasesRaw.length) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
 
                                   let postOffset = PHASE_GAP;
                                   const renderedPost = ex.isMilestone ? [] : postPhasesRaw.map((p, i) => {
@@ -1745,7 +1765,7 @@ export default function MasterScheduler() {
                                     const pStart = endPos + postOffset;
                                     const pEnd = pStart + pWidth;
                                     const targetYIndex = prePhasesRaw.length > 0 ? prePhasesRaw.length - 1 : 0;
-                                    const pY = trackTop + (targetYIndex * TRACK_HEIGHT) + (TRACK_HEIGHT - PHASE_BAR_HEIGHT) / 2;
+                                    const pY = projectRowTop(targetYIndex) + (TRACK_HEIGHT - PHASE_BAR_HEIGHT) / 2;
                                     postOffset += pWidth + PHASE_GAP;
                                     return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypes.find(t => t.id === p.typeId), i: i, isPost: true };
                                   });
@@ -1951,22 +1971,28 @@ export default function MasterScheduler() {
                                           band beneath the project track. Labels pack into as many rows as needed
                                           at the current zoom level instead of spilling into neighbouring tracks. */}
                                       {(ex.milestones || []).length > 0 && (() => {
-                                        // Project occupies prePhasesRaw.length + 1 consecutive tracks
-                                        // (one per pre-phase + one for the main bar). The reserved milestone
-                                        // band sits immediately below the last allocated track.
-                                        const bandTop = trackTop + (prePhasesRaw.length + 1) * TRACK_HEIGHT;
+                                        // Project occupies one track per pre-phase plus a main-bar track; post-phases
+                                        // render on those allocated rows. Resolve through galleryTrackLayouts so a
+                                        // milestone band always starts below the project's actual last allocated row.
+                                        const lastAllocatedTrackIndex = getProjectLastAllocatedTrackIndex(ex, trackIndex, maxTracks);
+                                        const lastAllocatedTrackTop = mhFor(g) + LANE_TOP_PADDING + (trackTops[lastAllocatedTrackIndex] ?? (ownerTrackTop + ((lastAllocatedTrackIndex - trackIndex) * TRACK_HEIGHT)));
+                                        const bandTop = lastAllocatedTrackTop + TRACK_HEIGHT;
                                         const iconCenterY = bandTop + MILESTONE_ICON_BAND_HEIGHT / 2;
 
                                         const { items: projectMilestones } = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
                                           (ex.milestones || []).map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
                                         );
+                                        const milestoneXs = projectMilestones.map(pm => pm.xPos);
+                                        const guidelineStart = Math.min(startPos, ...milestoneXs);
+                                        const guidelineEnd = Math.max(endPos, ...milestoneXs);
+                                        const guidelineWidth = Math.max(guidelineEnd - guidelineStart, 40);
 
                                         return (
                                           <React.Fragment>
                                             {/* Faint dashed guideline that ties milestones to their project's date range. */}
                                             <div
                                               className="absolute pointer-events-none border-t border-dashed border-slate-300/70 print:border-slate-400"
-                                              style={{ left: `${startPos}px`, width: `${width}px`, top: `${iconCenterY}px`, zIndex: 22 }}
+                                              style={{ left: `${guidelineStart}px`, width: `${guidelineWidth}px`, top: `${iconCenterY}px`, zIndex: 22 }}
                                             />
                                             {projectMilestones.map((pm) => {
                                               const c = pm.color || '#dc2626';
@@ -2015,12 +2041,11 @@ export default function MasterScheduler() {
                                                     })()}
                                                   </div>
                                                   <div
-                                                    className="absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 inline-flex items-center gap-1.5 min-w-0"
-                                                    style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (pm.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${pm.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
+                                                    className="absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 flex flex-col items-center gap-0.5 min-w-0"
+                                                    style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 2 + (pm.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${pm.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
                                                   >
-                                                    <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
-                                                    <span className="w-px h-2 bg-slate-300" />
-                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(pm.date)}</span>
+                                                    <span className="w-full text-center text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
+                                                    <span className="text-[8px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(pm.date)}</span>
                                                   </div>
                                                 </div>
                                               );
