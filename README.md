@@ -85,8 +85,27 @@ A second tab covers organisation-level configuration:
 ## Sync
 
 Optional cross-device persistence via **GitHub Gist** using a personal access
-token (PAT). Without sync, all data stays in the browser's `localStorage`
-under the keys defined in `src/constants.ts`.
+token (PAT). For the normal personal-use flow, paste a token with Gist access
+and the app creates a private sync Gist automatically; the existing-Gist field
+is hidden under advanced settings for connecting another machine. Without sync,
+all data stays in the browser's `localStorage` under the keys defined in
+`src/constants.ts`.
+
+### Safe transition from local-only data
+
+If one browser already has the timeline data you want to keep, set up sync on
+that machine first. For example, after deploying the simplified sync UI, open
+the app on the work PC that contains the current timeline, verify the local
+data is still visible, click **Sync**, paste a GitHub token with Gist access,
+leave **Advanced: use existing Gist** blank, and click **Start Syncing**. That
+creates a new private Gist from the data already in that browser before the app
+reloads.
+
+Only after the work PC shows **Synced** should you connect other machines. On
+each additional machine, open **Advanced: use existing Gist**, paste the Gist ID
+created by the work PC, and then start syncing. Do not create the first sync
+Gist from an empty or stale machine, because the app pulls Gist data on reload
+and treats the Gist as the shared source once sync is configured.
 
 ## Stack
 
@@ -118,7 +137,7 @@ src/
     githubGist.ts          Gist read/write
   components/
     DetailPanel.tsx        Right-side project editor (status, dates, phases)
-    GithubAuthModal.tsx    PAT entry + gist linking
+    GithubAuthModal.tsx    simplified PAT sync + advanced Gist linking
 ```
 
 ## Running locally
