@@ -1240,19 +1240,28 @@ export default function MasterScheduler() {
                           // lane padding + track top. Without mhFor() the sidebar title
                           // floats above the timeline bar by ~28-48px.
                           const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + lastTrackTop;
+                          // Anchor the title text to the bar's exact vertical band so its
+                          // visual centre matches the timeline bar's centre regardless of
+                          // whether the ID line is present (a flex-justify-center stack
+                          // would shift the title up when the ID is rendered).
+                          const titleBandTop = topPos + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
                           return (
-                            <div
-                              key={`title-${ex.id}`}
-                              className="absolute flex flex-col justify-center overflow-hidden"
-                              style={{ top: topPos, height: `${TRACK_HEIGHT}px`, left: '12px', right: '10px' }}
-                            >
-                              <div className="text-[12px] font-medium text-slate-900 truncate leading-tight" title={ex.title}>{ex.title}</div>
+                            <React.Fragment key={`title-${ex.id}`}>
+                              <div
+                                className="absolute flex items-center overflow-hidden"
+                                style={{ top: titleBandTop, height: `${STANDARD_BAR_HEIGHT}px`, left: '12px', right: '10px' }}
+                              >
+                                <span className="text-[12px] font-medium text-slate-900 truncate leading-tight" title={ex.title}>{ex.title}</span>
+                              </div>
                               {ex.exhibitionId && (
-                                <div className="text-[10px] font-mono text-slate-400 truncate leading-none mt-0.5">
+                                <div
+                                  className="absolute text-[10px] font-mono text-slate-400 truncate leading-none"
+                                  style={{ top: titleBandTop + STANDARD_BAR_HEIGHT + 2, left: '12px', right: '10px' }}
+                                >
                                   {ex.exhibitionId}
                                 </div>
                               )}
-                            </div>
+                            </React.Fragment>
                           );
                         })}
                         {galleryProjects.map(ex => {
