@@ -57,14 +57,11 @@ export interface Exhibition {
 }
 
 
-export type PrintProfileId = 'executive' | 'project-team' | 'gallery-ops' | 'custom';
 export type PrintPaperSize = 'ledger' | 'letter';
 export type PrintOrientation = 'landscape' | 'portrait';
 export type PrintLaneBehavior = 'current' | 'expand-all' | 'selected-only';
 
 export interface PrintSettings {
-  profileId: PrintProfileId;
-  profileLabel: string;
   paperSize: PrintPaperSize;
   orientation: PrintOrientation;
   statuses: ExhibitionStatus[];

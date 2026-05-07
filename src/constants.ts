@@ -165,7 +165,7 @@ export const getStatusStyles = (status: string) => {
       icon: 'ticket',
       iconBg: '#2dd4bf',
       iconText: '#ffffff',
-      barBg: '#0d9488'
+      barBg: '#dc2626'
     };
     case 'In Development': return {
       accent: '#d97706',
@@ -176,7 +176,7 @@ export const getStatusStyles = (status: string) => {
       icon: 'hammer',
       iconBg: '#fde047',
       iconText: '#1e293b',
-      barBg: '#b45309'
+      barBg: '#b91c1c'
     };
     case 'Proposed': return {
       accent: '#4b5563',
@@ -187,7 +187,7 @@ export const getStatusStyles = (status: string) => {
       icon: 'circle-dashed',
       iconBg: '#a78bfa',
       iconText: '#ffffff',
-      barBg: '#7c3aed'
+      barBg: '#f87171'
     };
     case 'Closed': return {
       accent: '#000000',
@@ -198,7 +198,7 @@ export const getStatusStyles = (status: string) => {
       icon: 'lock',
       iconBg: '#475569',
       iconText: '#ffffff',
-      barBg: '#475569'
+      barBg: '#7f1d1d'
     };
     default: return {
       accent: '#94a3b8',
