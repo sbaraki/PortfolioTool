@@ -132,6 +132,14 @@ export const EDGE_HIT_ZONE = 6;
 // gallery-header row and timeline milestone strip stay vertically aligned (project tracks
 // start at the same Y in both columns regardless of whether the gallery has milestones).
 export const EMPTY_MILESTONE_ROW_HEIGHT = 26;
+// Reserved band (px) added below a project's last allocated phase/main-bar track
+// when that project carries milestones. The project-first milestone layout uses a
+// compact icon strip plus two-line label pills, so each packed label row needs
+// enough vertical room for title + date without bleeding into the next track.
+export const PROJECT_MILESTONE_ROW_HEIGHT = 48;
+export const MILESTONE_ICON_BAND_HEIGHT = 20;
+export const MILESTONE_LABEL_ROW_HEIGHT = 24;
+export const MILESTONE_LABEL_MAX_WIDTH = 112;
 // Reserved band (px) added to a track when the project on it carries milestones.
 // Sized for an icon (~12) + a pill row (~10). Tracks without milestones
 // keep the standard TRACK_HEIGHT.
