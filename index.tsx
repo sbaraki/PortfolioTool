@@ -1649,7 +1649,7 @@ export default function MasterScheduler() {
                                 if (trackIndex === undefined || trackIndex === 0) return null;
                                 const trackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
                                 return (
-                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: LANE_TOP_PADDING + trackTop }} />
+                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackTop }} />
                                 );
                               })}
 
