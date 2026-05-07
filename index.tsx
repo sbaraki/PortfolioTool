@@ -790,11 +790,12 @@ export default function MasterScheduler() {
                       {printSettings.selectedGalleryIds.length === galleries.length ? 'Use all' : 'Select all'}
                     </button>
                   </div>
-                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                     {galleries.map(gallery => {
                       const checked = printSettings.selectedGalleryIds.length === 0 || printSettings.selectedGalleryIds.includes(gallery.id);
+                      const isPermanent = gallery.kind === 'permanent';
                       return (
-                        <label key={gallery.id} className="flex items-center gap-2 border border-slate-200 px-2 py-1.5 text-[11px] text-slate-700">
+                        <label key={gallery.id} className={`flex items-center gap-2 border px-2 py-1.5 text-[11px] ${checked ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
                           <input
                             type="checkbox"
                             checked={checked}
@@ -806,12 +807,14 @@ export default function MasterScheduler() {
                               return { ...prev, selectedGalleryIds };
                             })}
                           />
-                          <span className="truncate">{gallery.name}</span>
+                          <span className={`w-1 h-3 shrink-0 ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
+                          <span className="truncate flex-1" title={gallery.name}>{gallery.name}</span>
+                          {isPermanent && <Star size={9} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} />}
                         </label>
                       );
                     })}
                   </div>
-                  <p className="mt-1 text-[10px] text-slate-500">Lane selections apply when lane behaviour is “Print only selected lanes”.</p>
+                  <p className="mt-1 text-[10px] text-slate-500">Showing all {galleries.length} lane{galleries.length === 1 ? '' : 's'}. Selections apply when lane behaviour is “Print only selected lanes”.</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -1183,46 +1186,46 @@ export default function MasterScheduler() {
                         <div
                           key={gallery.id}
                           style={{ height: `${laneHeight}px` }}
-                          className={`relative border-b border-slate-200 overflow-hidden flex items-center px-2.5 gap-1.5 ${isPermanent ? 'bg-amber-50/40' : 'bg-white'} print:bg-white`}
+                          className={`relative border-b-2 border-slate-300 overflow-hidden flex items-center pl-4 pr-2.5 gap-1.5 ${isPermanent ? 'bg-amber-50/70' : 'bg-slate-50'} print:bg-white`}
                         >
-                          <div className={`absolute left-0 top-0 bottom-0 w-[2px] ${isPermanent ? 'bg-amber-600' : 'bg-slate-300'}`} />
+                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
                           <button
                             type="button"
                             aria-label={`Expand ${gallery.name}`}
                             onClick={() => toggleGalleryCollapsed(gallery.id)}
-                            className="shrink-0 w-3.5 h-3.5 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors no-print"
+                            className="shrink-0 w-3.5 h-3.5 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition-colors no-print"
                           >
                             <ChevronRight size={12} strokeWidth={2.25} />
                           </button>
-                          <span className="font-semibold text-[12px] text-slate-900 truncate flex-1" title={gallery.name}>{gallery.name}</span>
+                          <span className="font-bold text-[13px] text-slate-900 truncate flex-1 uppercase tracking-[0.04em]" title={gallery.name}>{gallery.name}</span>
                           {isPermanent && (
-                            <Star size={10} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
+                            <Star size={11} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
                           )}
-                          <span className="shrink-0 text-[10px] font-mono text-slate-400">{galleryProjects.length}</span>
+                          <span className="shrink-0 text-[10px] font-mono font-semibold text-slate-500 px-1.5 py-0.5 bg-white border border-slate-200">{galleryProjects.length}</span>
                         </div>
                       );
                     }
                     return (
-                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b border-slate-200 overflow-hidden ${isPermanent ? 'bg-amber-50/40' : 'bg-white'}`}>
-                        <div className={`absolute left-0 top-0 bottom-0 w-[2px] z-10 ${isPermanent ? 'bg-amber-600' : 'bg-slate-300'}`} />
+                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b-2 border-slate-300 overflow-hidden ${isPermanent ? 'bg-amber-50/40' : 'bg-white'}`}>
+                        <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-10 ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
                         <div
                           style={{ height: `${headerHeight}px` }}
-                          className="absolute top-0 left-0 w-full border-b border-slate-200 flex items-center gap-1.5 px-2.5 z-20 bg-white print:bg-white"
+                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex items-center gap-1.5 pl-4 pr-2.5 z-20 ${isPermanent ? 'bg-amber-50' : 'bg-slate-50'} print:bg-white`}
                           title={isPermanent ? 'Permanent gallery' : 'Temporary exhibition space'}
                         >
                           <button
                             type="button"
                             aria-label={`Collapse ${gallery.name}`}
                             onClick={() => toggleGalleryCollapsed(gallery.id)}
-                            className="shrink-0 w-3.5 h-3.5 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors no-print"
+                            className="shrink-0 w-3.5 h-3.5 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition-colors no-print"
                           >
                             <ChevronDown size={12} strokeWidth={2.25} />
                           </button>
-                          <span className="font-semibold text-[12px] text-slate-900 truncate flex-1" title={gallery.name}>{gallery.name}</span>
+                          <span className="font-bold text-[13px] text-slate-900 truncate flex-1 uppercase tracking-[0.04em]" title={gallery.name}>{gallery.name}</span>
                           {isPermanent && (
-                            <Star size={10} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
+                            <Star size={11} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
                           )}
-                          <span className="shrink-0 text-[10px] font-mono text-slate-400">{galleryProjects.length}</span>
+                          <span className="shrink-0 text-[10px] font-mono font-semibold text-slate-500 px-1.5 py-0.5 bg-white border border-slate-200">{galleryProjects.length}</span>
                         </div>
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
@@ -1551,18 +1554,28 @@ export default function MasterScheduler() {
 	                         const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === g);
 	                         const isCollapsed = effectiveCollapsedGalleryIds.has(gallery.id);
 
+	                         const isPermanent = gallery.kind === 'permanent';
+	                         const headerStripHeight = mhFor(g);
+
 	                         if (isCollapsed) {
 	                           return (
 	                             <div
 	                               key={gallery.id}
 	                               style={{ height: `${laneHeight}px` }}
-	                               className="border-b border-slate-300 relative overflow-hidden bg-slate-50/80 bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.06)_0px,rgba(148,163,184,0.06)_4px,transparent_4px,transparent_8px)] print:bg-slate-100 print:bg-none"
-	                             />
+	                               className="border-b-2 border-slate-300 relative overflow-hidden bg-slate-50/80 bg-[repeating-linear-gradient(45deg,rgba(148,163,184,0.06)_0px,rgba(148,163,184,0.06)_4px,transparent_4px,transparent_8px)] print:bg-slate-100 print:bg-none"
+	                             >
+	                               <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-10 ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
+	                             </div>
 	                           );
 	                         }
 
                          return (
-	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
+	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b-2 border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
+	                             <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-30 pointer-events-none ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
+	                             <div
+	                               className={`absolute top-0 left-0 right-0 border-b border-slate-300 pointer-events-none ${isPermanent ? 'bg-amber-50/60' : 'bg-slate-50/80'} print:bg-white`}
+	                               style={{ height: `${headerStripHeight}px`, zIndex: 5 }}
+	                             />
                               {(() => {
                                 const gMilestones = packMilestoneLabels<LocationMilestone & { xPos: number }>(
                                   locationMilestones
@@ -1781,17 +1794,15 @@ export default function MasterScheduler() {
                                               />
                                               {hasNext && (
                                                 <svg className="absolute overflow-visible pointer-events-none z-0" style={{ left: 0, top: 0, width: 1, height: 1 }}>
-                                                  <path 
-                                                    d={nextYCenter === yCenter 
-                                                      ? `M ${phase.endX} ${yCenter} L ${nextX - 2} ${nextYCenter}` 
-                                                      : `M ${phase.endX} ${yCenter} L ${phase.endX + 3} ${yCenter} L ${phase.endX + 3} ${nextYCenter} L ${nextX - 2} ${nextYCenter}`
-                                                    } 
-                                                    fill="none" 
-                                                    stroke="#475569" 
-                                                    strokeWidth="1.5" 
+                                                  <path
+                                                    d={nextYCenter === yCenter
+                                                      ? `M ${phase.endX} ${yCenter} L ${nextX} ${nextYCenter}`
+                                                      : `M ${phase.endX} ${yCenter} L ${phase.endX + 3} ${yCenter} L ${phase.endX + 3} ${nextYCenter} L ${nextX} ${nextYCenter}`
+                                                    }
+                                                    fill="none"
+                                                    stroke="#cbd5e1"
+                                                    strokeWidth="1"
                                                   />
-                                                  <circle cx={phase.endX} cy={yCenter} r="2" fill="#475569" />
-                                                  <polygon points={`${nextX},${nextYCenter} ${nextX-5},${nextYCenter-3} ${nextX-5},${nextYCenter+3}`} fill="#475569" />
                                                 </svg>
                                               )}
                                             </React.Fragment>
@@ -1804,17 +1815,15 @@ export default function MasterScheduler() {
                                           const curYCenter = mainBarY + STANDARD_BAR_HEIGHT / 2;
                                           return (
                                             <svg className="absolute overflow-visible pointer-events-none z-0" style={{ left: 0, top: 0, width: 1, height: 1 }}>
-                                              <path 
-                                                d={nYCenter === curYCenter 
-                                                  ? `M ${endPos} ${curYCenter} L ${nX - 2} ${nYCenter}`
-                                                  : `M ${endPos} ${curYCenter} L ${endPos + 3} ${curYCenter} L ${endPos + 3} ${nYCenter} L ${nX - 2} ${nYCenter}`
+                                              <path
+                                                d={nYCenter === curYCenter
+                                                  ? `M ${endPos} ${curYCenter} L ${nX} ${nYCenter}`
+                                                  : `M ${endPos} ${curYCenter} L ${endPos + 3} ${curYCenter} L ${endPos + 3} ${nYCenter} L ${nX} ${nYCenter}`
                                                 }
-                                                fill="none" 
-                                                stroke="#475569" 
-                                                strokeWidth="1.5" 
+                                                fill="none"
+                                                stroke="#cbd5e1"
+                                                strokeWidth="1"
                                               />
-                                              <circle cx={endPos} cy={curYCenter} r="2" fill="#475569" />
-                                              <polygon points={`${nX},${nYCenter} ${nX-5},${nYCenter-3} ${nX-5},${nYCenter+3}`} fill="#475569" />
                                             </svg>
                                           );
                                         })()}
@@ -1933,18 +1942,9 @@ export default function MasterScheduler() {
                                         const { items: projectMilestones } = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
                                           (ex.milestones || []).map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
                                         );
-                                        const milestoneXs = projectMilestones.map(pm => pm.xPos);
-                                        const guidelineStart = Math.min(startPos, ...milestoneXs);
-                                        const guidelineEnd = Math.max(endPos, ...milestoneXs);
-                                        const guidelineWidth = Math.max(guidelineEnd - guidelineStart, 40);
 
                                         return (
                                           <React.Fragment>
-                                            {/* Faint dashed guideline that ties milestones to their project's date range. */}
-                                            <div
-                                              className="absolute pointer-events-none border-t border-dashed border-slate-300/70 print:border-slate-400"
-                                              style={{ left: `${guidelineStart}px`, width: `${guidelineWidth}px`, top: `${iconCenterY}px`, zIndex: 22 }}
-                                            />
                                             {projectMilestones.map((pm) => {
                                               const isDraggingMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.milestoneId === pm.id;
                                               const effectiveMilestoneDate = isDraggingMilestone ? draggingMilestone.tempDate : pm.date;

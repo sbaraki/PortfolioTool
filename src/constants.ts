@@ -117,7 +117,7 @@ export const LANE_BOTTOM_PADDING = 14;
 export const BASE_LANE_HEIGHT = 76;
 export const COLLAPSED_LANE_HEIGHT = 26;
 export const HOLIDAY_LANE_HEIGHT = 48;
-export const TRACK_HEIGHT = 46;
+export const TRACK_HEIGHT = 34;
 export const HEADER_HEIGHT = 70;
 export const STANDARD_BAR_HEIGHT = 22;
 export const PHASE_BAR_HEIGHT = 8;
@@ -136,7 +136,7 @@ export const EMPTY_MILESTONE_ROW_HEIGHT = 26;
 // sidebar gallery-name header AND the timeline location-milestone strip. Both
 // columns offset their content by this amount so the project tracks line up
 // horizontally regardless of whether the gallery has milestones.
-export const GALLERY_HEADER_HEIGHT = 32;
+export const GALLERY_HEADER_HEIGHT = 38;
 // Reserved band (px) added below a project's last allocated phase/main-bar track
 // when that project carries milestones. The project-first milestone layout uses a
 // compact icon strip plus two-line label pills, so each packed label row needs
