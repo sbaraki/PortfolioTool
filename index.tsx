@@ -1,9 +1,9 @@
 import { useStore } from './src/store/useStore';
 import { useMuseumSync } from './src/hooks/useMuseumSync';
 import { useMuseumActions } from './src/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, EMPTY_MILESTONE_ROW_HEIGHT, PROJECT_MILESTONE_ROW_HEIGHT } from './src/constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, MILESTONE_COLORS, MILESTONE_ROW_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, EMPTY_MILESTONE_ROW_HEIGHT, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH } from './src/constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './src/lib/dateUtils';
-import { calculateTracks } from './src/lib/layoutEngine';
+import { calculateTracks, packMilestoneLabels } from './src/lib/layoutEngine';
 import { Exhibition, Gallery, GalleryKind, PhaseType, LocationMilestone, ProjectMilestone, ProjectPhase, ExhibitionStatus } from './src/types';
 import { DetailPanel } from './src/components/DetailPanel';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -301,27 +301,35 @@ export default function MasterScheduler() {
     return layouts;
   }, [filteredExhibitions, galleries, monthWidth, viewMonths, phaseTypes]);
 
-  const galleryHasMilestones = useMemo(() => {
-    const set = new Set<string>();
-    locationMilestones.forEach(m => set.add(m.gallery));
-    return set;
-  }, [locationMilestones]);
+  const galleryMilestoneRowHeights = useMemo(() => {
+    const heights: Record<string, number> = {};
+    galleries.forEach(gallery => {
+      const packed = packMilestoneLabels<LocationMilestone & { xPos: number }>(
+        locationMilestones
+          .filter(m => m.gallery === gallery.name)
+          .map(m => ({ ...m, xPos: getPositionFromDate(m.date, monthWidth, viewMonths) }))
+      );
+      heights[gallery.name] = packed.items.length > 0
+        ? Math.max(MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT + (packed.rowCount * MILESTONE_LABEL_ROW_HEIGHT) + 6)
+        : EMPTY_MILESTONE_ROW_HEIGHT;
+    });
+    return heights;
+  }, [galleries, locationMilestones, monthWidth, viewMonths]);
 
-  // Auto-collapse the gallery milestone row to a thin divider when the gallery has no
-  // LocationMilestone entries — keeps lanes compact while preserving the row when used.
-  const mhFor = (galleryName: string) =>
-    galleryHasMilestones.has(galleryName) ? MILESTONE_ROW_HEIGHT : EMPTY_MILESTONE_ROW_HEIGHT;
+  // Auto-collapse empty gallery milestone rows, but expand populated rows based on
+  // the number of packed label rows needed at the current zoom level.
+  const mhFor = (galleryName: string) => galleryMilestoneRowHeights[galleryName] ?? EMPTY_MILESTONE_ROW_HEIGHT;
 
   // For each gallery, compute per-track top offsets. Tracks whose project carries
-  // at least one ProjectMilestone get an extra PROJECT_MILESTONE_ROW_HEIGHT band so
-  // milestone icons + pills have reserved space and never overflow into adjacent
-  // tracks or galleries.
+  // ProjectMilestone entries get a dynamically sized band that expands with label
+  // density at the current zoom level so milestone pills never bleed into the next
+  // project track or gallery.
   const galleryTrackLayouts = useMemo(() => {
-    const out: Record<string, { trackTops: number[]; total: number; trackHasMilestones: boolean[] }> = {};
+    const out: Record<string, { trackTops: number[]; total: number; trackMilestoneRows: number[]; trackHeights: number[] }> = {};
     galleries.forEach(gallery => {
       const layout = galleryLayouts[gallery.name];
       const maxTracks = layout?.maxTracks || 1;
-      const trackHasMilestones = new Array(maxTracks).fill(false);
+      const trackMilestoneRows = new Array(maxTracks).fill(0);
       filteredExhibitions.forEach(ex => {
         if (ex.gallery !== gallery.name) return;
         if ((ex.milestones || []).length === 0) return;
@@ -332,18 +340,29 @@ export default function MasterScheduler() {
         // not the owner (topmost) track.
         const prePhasesCount = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
         const lastTrackIdx = Math.min(ti + prePhasesCount, maxTracks - 1);
-        trackHasMilestones[lastTrackIdx] = true;
+        const packed = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
+          (ex.milestones || []).map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
+        );
+        trackMilestoneRows[lastTrackIdx] = Math.max(trackMilestoneRows[lastTrackIdx], packed.rowCount);
       });
       const trackTops: number[] = [];
+      const trackHeights: number[] = [];
       let acc = 0;
       for (let i = 0; i < maxTracks; i++) {
         trackTops.push(acc);
-        acc += trackHasMilestones[i] ? TRACK_HEIGHT + PROJECT_MILESTONE_ROW_HEIGHT : TRACK_HEIGHT;
+        const rows = trackMilestoneRows[i];
+        const milestoneBand = rows > 0
+          ? Math.max(PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT + (rows * MILESTONE_LABEL_ROW_HEIGHT) + 4)
+          : 0;
+        const h = TRACK_HEIGHT + milestoneBand;
+        trackHeights.push(h);
+        acc += h;
       }
-      out[gallery.name] = { trackTops, total: acc, trackHasMilestones };
+      out[gallery.name] = { trackTops, total: acc, trackMilestoneRows, trackHeights };
     });
     return out;
-  }, [galleries, galleryLayouts, filteredExhibitions, phaseTypes]);
+  }, [galleries, galleryLayouts, filteredExhibitions, phaseTypes, monthWidth, viewMonths]);
+
 
   const galleryLaneHeights = useMemo(() => {
     return galleries.reduce((acc, gallery) => {
@@ -352,14 +371,14 @@ export default function MasterScheduler() {
         return acc;
       }
       const tracksTotal = galleryTrackLayouts[gallery.name]?.total || TRACK_HEIGHT;
-      const milestoneRow = galleryHasMilestones.has(gallery.name) ? MILESTONE_ROW_HEIGHT : EMPTY_MILESTONE_ROW_HEIGHT;
+      const milestoneRow = mhFor(gallery.name);
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
         milestoneRow + LANE_TOP_PADDING + tracksTotal + LANE_BOTTOM_PADDING
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [galleries, galleryTrackLayouts, collapsedGalleryIds, galleryHasMilestones]);
+  }, [galleries, galleryTrackLayouts, collapsedGalleryIds, galleryMilestoneRowHeights]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -641,7 +660,6 @@ export default function MasterScheduler() {
               onClick={() => setSelectedProjectId(null)}
             />
             <DetailPanel
-              key={selectedProjectId}
               exhibition={selectedExhibition}
               onClose={() => setSelectedProjectId(null)}
               onUpdate={handleUpdateExhibition}
@@ -1205,57 +1223,18 @@ export default function MasterScheduler() {
                              >
                                 <div className="absolute left-4 h-full flex items-center" />
                                 {(() => {
-                                  const gMilestones = locationMilestones.filter(m => m.gallery === g)
-                                    .map(m => ({ ...m, xPos: getPositionFromDate(m.date, monthWidth, viewMonths) }))
-                                    .sort((a, b) => a.xPos - b.xPos);
+                                  const { items: gMilestones } = packMilestoneLabels<LocationMilestone & { xPos: number }>(
+                                    locationMilestones
+                                      .filter(m => m.gallery === g)
+                                      .map(m => ({ ...m, xPos: getPositionFromDate(m.date, monthWidth, viewMonths) }))
+                                  );
 
-                                  // Estimate each label's rendered width so we can detect actual collisions
-                                  // (the previous fixed 110px threshold under-counted long titles and let
-                                  // adjacent labels overlap). Label = title + separator + date pill + padding.
-                                  const estimateLabelWidth = (title: string) => {
-                                    const titleChars = (title || '').length;
-                                    // ~5.8px per uppercase char at text-[9px] with 0.06em tracking
-                                    const titleW = titleChars * 5.8;
-                                    // separator (1px) + 2 × gap-1.5 (12px) + date (~55px) + px-1.5 (12px) + border (2px)
-                                    return Math.max(60, titleW + 82);
-                                  };
-
-                                  const labelPositions = new Array(gMilestones.length).fill('top');
-                                  let topRightEdge = -Infinity;
-                                  let bottomRightEdge = -Infinity;
-                                  const LABEL_GAP = 8;
-
-                                  for (let i = 0; i < gMilestones.length; i++) {
-                                    const curr = gMilestones[i];
-                                    const w = estimateLabelWidth(curr.title);
-                                    const left = curr.xPos - w / 2;
-                                    const right = curr.xPos + w / 2;
-
-                                    if (left - LABEL_GAP >= topRightEdge) {
-                                      labelPositions[i] = 'top';
-                                      topRightEdge = right;
-                                    } else if (left - LABEL_GAP >= bottomRightEdge) {
-                                      labelPositions[i] = 'bottom';
-                                      bottomRightEdge = right;
-                                    } else {
-                                      // Both rows would collide — pack into whichever row has the further-left right edge.
-                                      if (topRightEdge <= bottomRightEdge) {
-                                        labelPositions[i] = 'top';
-                                        topRightEdge = right;
-                                      } else {
-                                        labelPositions[i] = 'bottom';
-                                        bottomRightEdge = right;
-                                      }
-                                    }
-                                  }
-
-                                  return gMilestones.map((m, idx) => {
-                                    const labelPos = labelPositions[idx];
+                                  return gMilestones.map((m) => {
                                     return (
                                       <div 
                                         key={m.id} 
-                                        className="absolute top-1/2 flex items-center justify-center pointer-events-auto"
-                                        style={{ left: `${m.xPos}px`, transform: 'translate(-50%, -50%)' }}
+                                        className="absolute flex items-center justify-center pointer-events-auto"
+                                        style={{ left: `${m.xPos}px`, top: `${MILESTONE_ICON_BAND_HEIGHT / 2}px`, transform: 'translate(-50%, -50%)' }}
                                       >
                                         <div
                                           className="transform hover:scale-125 transition-transform cursor-pointer flex items-center justify-center relative z-20"
@@ -1308,8 +1287,8 @@ export default function MasterScheduler() {
                                             }
                                           })()}
                                         </div>
-                                        <div className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 whitespace-nowrap z-30 pointer-events-none inline-flex items-center gap-1.5 ${labelPos === 'bottom' ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
-                                          <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800">{m.title}</span>
+                                        <div className="absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 z-30 pointer-events-none inline-flex items-center gap-1.5 min-w-0" style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (m.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${m.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}>
+                                          <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{m.title}</span>
                                           <span className="w-px h-2 bg-slate-300" />
                                           <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500">{formatBarDate(m.date)}</span>
                                         </div>
@@ -1585,61 +1564,28 @@ export default function MasterScheduler() {
                                         );
                                       })()}
 
-                                      {/* Per-project milestones — rendered in the reserved band beneath the project track.
-                                          Pills stagger top/bottom relative to the icon to avoid horizontal collisions. */}
+                                      {/* Per-project milestones — rendered in a dynamically sized reserved
+                                          band beneath the project track. Labels pack into as many rows as needed
+                                          at the current zoom level instead of spilling into neighbouring tracks. */}
                                       {(ex.milestones || []).length > 0 && (() => {
                                         // Project occupies prePhasesRaw.length + 1 consecutive tracks
                                         // (one per pre-phase + one for the main bar). The reserved milestone
                                         // band sits immediately below the last allocated track.
                                         const bandTop = trackTop + (prePhasesRaw.length + 1) * TRACK_HEIGHT;
-                                        const bandCenter = bandTop + PROJECT_MILESTONE_ROW_HEIGHT / 2;
+                                        const iconCenterY = bandTop + MILESTONE_ICON_BAND_HEIGHT / 2;
 
-                                        const projectMilestones = (ex.milestones || [])
-                                          .map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
-                                          .sort((a, b) => a.xPos - b.xPos);
-
-                                        // Estimate label width: title chars × 5.8px + separator + date pill + padding/border.
-                                        const estimateLabelWidth = (title: string) => {
-                                          const titleW = (title || '').length * 5.8;
-                                          return Math.max(60, titleW + 82);
-                                        };
-
-                                        const labelPositions = new Array(projectMilestones.length).fill('top');
-                                        let topRightEdge = -Infinity;
-                                        let bottomRightEdge = -Infinity;
-                                        const LABEL_GAP = 8;
-
-                                        for (let i = 0; i < projectMilestones.length; i++) {
-                                          const curr = projectMilestones[i];
-                                          const w = estimateLabelWidth(curr.title);
-                                          const left = curr.xPos - w / 2;
-                                          const right = curr.xPos + w / 2;
-                                          if (left - LABEL_GAP >= topRightEdge) {
-                                            labelPositions[i] = 'top';
-                                            topRightEdge = right;
-                                          } else if (left - LABEL_GAP >= bottomRightEdge) {
-                                            labelPositions[i] = 'bottom';
-                                            bottomRightEdge = right;
-                                          } else {
-                                            if (topRightEdge <= bottomRightEdge) {
-                                              labelPositions[i] = 'top';
-                                              topRightEdge = right;
-                                            } else {
-                                              labelPositions[i] = 'bottom';
-                                              bottomRightEdge = right;
-                                            }
-                                          }
-                                        }
+                                        const { items: projectMilestones } = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
+                                          (ex.milestones || []).map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
+                                        );
 
                                         return (
                                           <React.Fragment>
                                             {/* Faint dashed guideline that ties milestones to their project's date range. */}
                                             <div
                                               className="absolute pointer-events-none border-t border-dashed border-slate-300/70 print:border-slate-400"
-                                              style={{ left: `${startPos}px`, width: `${width}px`, top: `${bandCenter}px`, zIndex: 22 }}
+                                              style={{ left: `${startPos}px`, width: `${width}px`, top: `${iconCenterY}px`, zIndex: 22 }}
                                             />
-                                            {projectMilestones.map((pm, idx) => {
-                                              const labelPos = labelPositions[idx];
+                                            {projectMilestones.map((pm) => {
                                               const c = pm.color || '#dc2626';
                                               const icon = pm.icon || 'diamond';
                                               return (
@@ -1648,7 +1594,7 @@ export default function MasterScheduler() {
                                                   className="absolute pointer-events-auto flex items-center justify-center"
                                                   style={{
                                                     left: `${pm.xPos}px`,
-                                                    top: `${bandCenter}px`,
+                                                    top: `${iconCenterY}px`,
                                                     transform: 'translate(-50%, -50%)',
                                                     zIndex: 28,
                                                   }}
@@ -1685,10 +1631,13 @@ export default function MasterScheduler() {
                                                       }
                                                     })()}
                                                   </div>
-                                                  <div className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all whitespace-nowrap z-20 inline-flex items-center gap-1.5 ${labelPos === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
-                                                    <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800">{pm.title}</span>
+                                                  <div
+                                                    className="absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 inline-flex items-center gap-1.5 min-w-0"
+                                                    style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (pm.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${pm.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
+                                                  >
+                                                    <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-800 truncate min-w-0">{pm.title}</span>
                                                     <span className="w-px h-2 bg-slate-300" />
-                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500">{formatBarDate(pm.date)}</span>
+                                                    <span className="text-[8.5px] font-medium uppercase tracking-[0.04em] text-slate-500 shrink-0">{formatBarDate(pm.date)}</span>
                                                   </div>
                                                 </div>
                                               );
@@ -1696,6 +1645,7 @@ export default function MasterScheduler() {
                                           </React.Fragment>
                                         );
                                       })()}
+
                                     </React.Fragment>
                                   );
                                 })}
