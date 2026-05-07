@@ -86,7 +86,6 @@ const estimateTextWidth = (text: string, fontSize: number, weight: 'medium' | 's
   return (text || '').length * fontSize * weightMultiplier;
 };
 
-
 /**
  * Estimates the milestone label width from both title and formatted date, returning
  * the sizing metadata used by the renderer. Labels stay single-line when the

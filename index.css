@@ -12,9 +12,6 @@
     color: #334155 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    /* Width is clipped to a single page so the timeline never paginates horizontally,
-       but vertical overflow is allowed: when content can't fit at the readable-text
-       floor, it spills to a second page rather than shrinking below legibility. */
     overflow-x: hidden !important;
     overflow-y: visible !important;
   }
@@ -25,14 +22,6 @@
     overflow-y: visible !important;
   }
 
-  /* Scale the entire portfolio shell so all content fits on one page.
-     The `zoom` value is set as an inline style by the beforeprint handler
-     in index.tsx (Edge fails to resolve `zoom: var(--print-scale)` in time
-     for pagination, so the inline style avoids the variable entirely).
-     We use `zoom` rather than `transform: scale()` because zoom changes the
-     element's layout box (so pagination sees the shrunken size), while
-     transform only changes visual rendering — leaving the browser to
-     paginate as if the content were still full-size. */
   [data-print-shell] {
     overflow: visible !important;
     width: max-content !important;
@@ -44,7 +33,6 @@
     break-inside: avoid !important;
   }
 
-  /* Inner scroll containers should reveal full content (it gets scaled, not scrolled) */
   .timeline-container,
   .custom-scrollbar {
     overflow: visible !important;
@@ -61,8 +49,6 @@
     display: none !important;
   }
 
-  /* Prevent gratuitous page breaks but allow overflow when the readable-text floor
-     is hit — tall portfolios can spill to a second page rather than become illegible. */
   * {
     page-break-before: avoid !important;
     page-break-after: avoid !important;
@@ -76,9 +62,6 @@
     text-shadow: none !important;
   }
 
-  /* Bump small text sizes for paper legibility. Print profiles may scale the
-     timeline below the preferred 75% readable threshold to preserve one-page
-     output, so these overrides keep dense timeline labels viable on paper. */
   [data-print-shell] .text-\[8px\] { font-size: 10px !important; }
   [data-print-shell] .text-\[8\.5px\] { font-size: 10.5px !important; }
   [data-print-shell] .text-\[9px\] { font-size: 11px !important; }

@@ -141,7 +141,6 @@ export const MILESTONE_ICON_BAND_HEIGHT = 20;
 export const MILESTONE_LABEL_ROW_HEIGHT = 24;
 export const MILESTONE_LABEL_MAX_WIDTH = 112;
 
-
 // Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
 // the rest of the app palette — phase fills, milestone colours, status pill
 // backgrounds, and the bar reds — so the strip reads as a distinct visual
