@@ -108,6 +108,39 @@ export const DetailPanel = ({
     setLocalPhaseDraft(newPhase);
   };
 
+  const handleApplyPreset = (preset: string) => {
+    let newPhases: ProjectPhase[] = [];
+    if (preset === 'standard') {
+      newPhases = [
+        { id: Math.random().toString(36).slice(2, 11), label: 'CONTENT', durationMonths: 3, typeId: phaseTypes.find(p => p.label.includes('CONTENT'))?.id || 'pt2' },
+        { id: Math.random().toString(36).slice(2, 11), label: 'DESIGN', durationMonths: 3, typeId: phaseTypes.find(p => p.label.includes('DESIGN'))?.id || 'pt3' },
+        { id: Math.random().toString(36).slice(2, 11), label: 'BUILD', durationMonths: 2, typeId: phaseTypes.find(p => p.label.includes('IMPLEMENTATION'))?.id || 'pt4' },
+      ];
+    } else if (preset === 'full') {
+      newPhases = phaseTypes.map(pt => ({
+        id: Math.random().toString(36).slice(2, 11),
+        label: pt.label,
+        durationMonths: 2,
+        typeId: pt.id
+      }));
+    } else if (preset === 'simple') {
+      newPhases = [
+        { id: Math.random().toString(36).slice(2, 11), label: 'PLANNING & DESIGN', durationMonths: 2, typeId: phaseTypes.find(p => p.label.includes('DESIGN'))?.id || 'pt3' },
+        { id: Math.random().toString(36).slice(2, 11), label: 'IMPLEMENTATION', durationMonths: 2, typeId: phaseTypes.find(p => p.label.includes('IMPLEMENTATION'))?.id || 'pt4' },
+      ];
+    } else if (preset === 'clear') {
+      newPhases = [];
+    }
+    
+    if (preset !== '') {
+      if (window.confirm('Replace current phases with this preset?')) {
+        setEditedEx(prev => ({ ...prev, phases: newPhases }));
+        setEditingPhaseId(null);
+        setLocalPhaseDraft(null);
+      }
+    }
+  };
+
   const handleRemovePhase = (id: string) => {
     setEditedEx(prev => ({ ...prev, phases: prev.phases.filter(p => p.id !== id) }));
   };
@@ -482,13 +515,29 @@ export const DetailPanel = ({
           <div className={sectionCls}>
             <div className="flex items-center justify-between">
               <span className={sectionHeaderCls}>Phases</span>
-              <button
-                aria-label="Add new phase"
-                onClick={handleAddPhase}
-                className="px-2 py-1 bg-slate-900 text-white text-[10px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none"
-              >
-                <Plus size={10} strokeWidth={2.5} /> Add
-              </button>
+              <div className="flex items-center gap-2">
+                <select 
+                  className="bg-white border border-slate-200 px-2 py-1 text-[10px] font-medium uppercase text-slate-700 outline-none hover:bg-slate-50 transition-colors cursor-pointer"
+                  onChange={(e) => {
+                    handleApplyPreset(e.target.value);
+                    e.target.value = "";
+                  }}
+                  value=""
+                >
+                  <option value="" disabled>Presets...</option>
+                  <option value="standard">Standard (3 Phase)</option>
+                  <option value="full">Full (All Types)</option>
+                  <option value="simple">Simple (2 Phase)</option>
+                  <option value="clear">Clear All</option>
+                </select>
+                <button
+                  aria-label="Add new phase"
+                  onClick={handleAddPhase}
+                  className="px-2 py-1 bg-slate-900 text-white text-[10px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none"
+                >
+                  <Plus size={10} strokeWidth={2.5} /> Add
+                </button>
+              </div>
             </div>
             <div className="space-y-1.5">
               {editedEx.phases.map((phase, idx) => {

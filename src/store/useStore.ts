@@ -4,6 +4,10 @@ import { DEFAULT_GALLERIES, DEFAULT_PHASE_TYPES } from '../constants';
 
 interface HistoryFrame {
   exhibitions: Exhibition[];
+  galleries: Gallery[];
+  phaseTypes: PhaseType[];
+  locationMilestones: LocationMilestone[];
+  museumName: string;
 }
 
 interface AppState {
@@ -90,40 +94,46 @@ export const useStore = create<AppState>((set, get) => ({
   setShowConflicts: (show) => set({ showConflicts: show }),
 
   commitHistory: () => {
-    const { exhibitions, historyPast } = get();
-    // Only commit if exhibitions array has at least one element or if it's an actual change
-    // Using a simpler approach: just push the current exhibitions state.
+    const { exhibitions, galleries, phaseTypes, locationMilestones, museumName, historyPast } = get();
     set({
-      historyPast: [...historyPast, { exhibitions }],
+      historyPast: [...historyPast, { exhibitions, galleries, phaseTypes, locationMilestones, museumName }],
       historyFuture: []
     });
   },
 
   undo: () => {
-    const { historyPast, historyFuture, exhibitions } = get();
+    const { historyPast, historyFuture, exhibitions, galleries, phaseTypes, locationMilestones, museumName } = get();
     if (historyPast.length === 0) return;
     
     const prevFrame = historyPast[historyPast.length - 1];
-    const currentFrame = { exhibitions };
+    const currentFrame = { exhibitions, galleries, phaseTypes, locationMilestones, museumName };
     
     set({
       historyPast: historyPast.slice(0, -1),
       historyFuture: [currentFrame, ...historyFuture],
-      exhibitions: prevFrame.exhibitions
+      exhibitions: prevFrame.exhibitions,
+      galleries: prevFrame.galleries,
+      phaseTypes: prevFrame.phaseTypes,
+      locationMilestones: prevFrame.locationMilestones,
+      museumName: prevFrame.museumName
     });
   },
 
   redo: () => {
-    const { historyPast, historyFuture, exhibitions } = get();
+    const { historyPast, historyFuture, exhibitions, galleries, phaseTypes, locationMilestones, museumName } = get();
     if (historyFuture.length === 0) return;
 
     const nextFrame = historyFuture[0];
-    const currentFrame = { exhibitions };
+    const currentFrame = { exhibitions, galleries, phaseTypes, locationMilestones, museumName };
 
     set({
       historyPast: [...historyPast, currentFrame],
       historyFuture: historyFuture.slice(1),
-      exhibitions: nextFrame.exhibitions
+      exhibitions: nextFrame.exhibitions,
+      galleries: nextFrame.galleries,
+      phaseTypes: nextFrame.phaseTypes,
+      locationMilestones: nextFrame.locationMilestones,
+      museumName: nextFrame.museumName
     });
   }
 }));

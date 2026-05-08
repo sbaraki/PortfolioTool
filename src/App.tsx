@@ -157,7 +157,9 @@ export default function MasterScheduler() {
     monthWidth, setMonthWidth,
     timelineStartDate, setTimelineStartDate,
     timelineEndDate, setTimelineEndDate,
-    commitHistory, undo, redo, historyPast, historyFuture
+    commitHistory, undo, redo, historyPast, historyFuture,
+    showConflicts, setShowConflicts,
+    searchQuery, setSearchQuery,
   } = useStore();
   const [, setEditMilestoneDraft] = useState<LocationMilestone | null>(null);
   const { handleUpdateExhibition, handleRemoveExhibition, handleRenameGallery, handleSetGalleryKind, handleAddGallery, handleRemoveGallery, handleDuplicateProject } = useMuseumActions();
@@ -208,25 +210,6 @@ export default function MasterScheduler() {
   } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
   const suppressMilestoneClickRef = useRef(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const modifier = isMac ? e.metaKey : e.ctrlKey;
-      
-      if (modifier && e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
 
   // Edge-drag resize state — separate from long-press move so resize starts instantly.
   const [resizingEdge, setResizingEdge] = useState<{ id: string; edge: 'left' | 'right' } | null>(null);
@@ -347,6 +330,27 @@ export default function MasterScheduler() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const sidebarListRef = useRef<HTMLDivElement>(null);
 
+  // ── Keyboard shortcuts ──────────────────────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+      if (e.key === 'Escape') { setSelectedProjectId(null); return; }
+      if (isTyping) return;
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'z') { e.preventDefault(); redo(); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
+
+  // Scroll the timeline so todayPos is centred in the viewport.
+  const scrollToToday = () => {
+    if (!timelineRef.current) return;
+    const el = timelineRef.current;
+    el.scrollLeft = todayPos - el.clientWidth / 2;
+  };
+
 
   const applyPreset = (years: number) => {
     if (isNaN(years)) return;
@@ -388,8 +392,33 @@ export default function MasterScheduler() {
 
   const filteredExhibitions = useMemo(() => {
     const visibleGalleryNames = new Set(portfolioGalleries.map(g => g.name));
-    return exhibitions.filter(ex => effectiveStatuses.has(ex.status) && visibleGalleryNames.has(ex.gallery));
-  }, [exhibitions, effectiveStatuses, portfolioGalleries]);
+    const q = searchQuery.trim().toLowerCase();
+    return exhibitions.filter(ex =>
+      effectiveStatuses.has(ex.status) &&
+      visibleGalleryNames.has(ex.gallery) &&
+      (q === '' || ex.title.toLowerCase().includes(q) || (ex.exhibitionId || '').toLowerCase().includes(q))
+    );
+  }, [exhibitions, effectiveStatuses, portfolioGalleries, searchQuery]);
+
+  // ── Conflict detection ─────────────────────────────────────────────────
+  // A Set of exhibition IDs that overlap with at least one peer in the same gallery.
+  const conflictingIds = useMemo(() => {
+    const ids = new Set<string>();
+    portfolioGalleries.forEach(gallery => {
+      const exs = filteredExhibitions.filter(ex => ex.gallery === gallery.name && !ex.isMilestone);
+      for (let i = 0; i < exs.length; i++) {
+        for (let j = i + 1; j < exs.length; j++) {
+          const a = exs[i], b = exs[j];
+          // Overlap: a starts before b ends AND b starts before a ends
+          if (a.startDate < b.endDate && b.startDate < a.endDate) {
+            ids.add(a.id);
+            ids.add(b.id);
+          }
+        }
+      }
+    });
+    return ids;
+  }, [filteredExhibitions, portfolioGalleries]);
 
   const printProjectMilestoneCount = filteredExhibitions.reduce((sum, ex) => sum + (ex.milestones?.length || 0), 0);
 
@@ -1071,9 +1100,10 @@ export default function MasterScheduler() {
                   <span className="text-[11px] text-slate-600">Portfolio</span>
                 </div>
 
-                {/* Center: range + zoom + status pills */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex items-center gap-1.5 border border-slate-200 px-2 leading-none h-7">
+                {/* Center: range + zoom + search */}
+                <div className="flex items-center gap-2 min-w-0 flex-1 justify-center">
+                  {/* Date range */}
+                  <div className="flex items-center gap-1.5 border border-slate-200 px-2 leading-none h-7 shrink-0">
                     <Calendar size={11} className="text-slate-400 shrink-0" />
                     <input
                       aria-label="Start date"
@@ -1092,9 +1122,10 @@ export default function MasterScheduler() {
                     />
                   </div>
 
-                  <div className="w-px h-4 bg-slate-200" />
+                  <div className="w-px h-4 bg-slate-200 shrink-0" />
 
-                  <div className="flex items-center gap-0.5" role="group" aria-label="Timeline span presets">
+                  {/* Year presets */}
+                  <div className="flex items-center gap-0.5 shrink-0" role="group" aria-label="Timeline span presets">
                     {[1, 2, 3, 4, 5].map((y) => (
                       <button
                         key={y}
@@ -1106,6 +1137,32 @@ export default function MasterScheduler() {
                         {y}Y
                       </button>
                     ))}
+                  </div>
+
+                  <div className="w-px h-4 bg-slate-200 shrink-0" />
+
+                  {/* Search */}
+                  <div className="relative flex items-center h-7 shrink-0">
+                    <Search size={11} className="absolute left-2 text-slate-400 pointer-events-none" />
+                    <input
+                      id="project-search"
+                      aria-label="Search projects"
+                      type="text"
+                      placeholder="Search projects…"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-full border border-slate-200 pl-6 pr-6 text-[11px] text-slate-900 outline-none focus:border-slate-400 transition-colors bg-white w-44"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-1.5 text-slate-400 hover:text-slate-700 transition-colors"
+                        title="Clear search"
+                        aria-label="Clear search"
+                      >
+                        <X size={11} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
