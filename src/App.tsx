@@ -1787,7 +1787,7 @@ export default function MasterScheduler() {
                          }
 
                          return (
-	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b-2 border-slate-300 gallery-lane-bg relative overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
+	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b-2 border-slate-300 gallery-lane-bg relative overflow-hidden print:overflow-visible shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
 	                             <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-30 pointer-events-none ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
 	                             <div
 	                               className={`absolute top-0 left-0 right-0 border-b border-slate-300 pointer-events-none ${isPermanent ? 'bg-amber-50/60' : 'bg-slate-50/80'} print:bg-white`}
@@ -1984,31 +1984,45 @@ export default function MasterScheduler() {
                                           return (
                                             <React.Fragment key={phase.id}>
                                               {phase.isPost ? (
-                                                <div
-                                                  className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900 print:overflow-visible print:whitespace-nowrap"
-                                                  style={{ left: `${phase.endX + 5}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px' }}
-                                                  title={phase.label}
-                                                >
-                                                  {phase.label}
+                                                <>
+                                                  {/* Post-phase label: sits to the RIGHT of the bar */}
+                                                  <div
+                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
+                                                    style={{ left: `${phase.endX + 5}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px', zIndex: 10 }}
+                                                    title={phase.label}
+                                                  >
+                                                    {phase.label}
+                                                  </div>
+                                                  {/* Print-only date annotation: rendered BELOW the bar so it never overlaps the bar or label */}
                                                   {isPrintMode && (
-                                                    <span className="ml-1 text-[8px] font-mono text-slate-400 font-normal">
-                                                      ({formatBarDate(getDateFromPosition(phase.startX, monthWidth, viewMonths))} – {formatBarDate(getDateFromPosition(phase.endX, monthWidth, viewMonths))})
-                                                    </span>
+                                                    <div
+                                                      className="absolute pointer-events-none text-[7.5px] font-mono text-slate-400 leading-none"
+                                                      style={{ left: `${phase.endX + 5}px`, top: `${phase.y + PHASE_BAR_HEIGHT + 2}px`, width: '130px', zIndex: 10 }}
+                                                    >
+                                                      {formatBarDate(getDateFromPosition(phase.startX, monthWidth, viewMonths))}–{formatBarDate(getDateFromPosition(phase.endX, monthWidth, viewMonths))}
+                                                    </div>
                                                   )}
-                                                </div>
+                                                </>
                                               ) : (
-                                                <div
-                                                  className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate text-right print:text-slate-900 print:overflow-visible print:whitespace-nowrap"
-                                                  style={{ left: `${phase.startX - 115}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px' }}
-                                                  title={phase.label}
-                                                >
+                                                <>
+                                                  {/* Pre-phase label: sits to the LEFT of the bar, right-aligned */}
+                                                  <div
+                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate text-right print:text-slate-900"
+                                                    style={{ left: `${phase.startX - 115}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px', zIndex: 10 }}
+                                                    title={phase.label}
+                                                  >
+                                                    {phase.label}
+                                                  </div>
+                                                  {/* Print-only date annotation: rendered BELOW the bar so it never overlaps the bar or label */}
                                                   {isPrintMode && (
-                                                    <span className="mr-1 text-[8px] font-mono text-slate-400 font-normal">
-                                                      ({formatBarDate(getDateFromPosition(phase.startX, monthWidth, viewMonths))} – {formatBarDate(getDateFromPosition(phase.endX, monthWidth, viewMonths))})
-                                                    </span>
+                                                    <div
+                                                      className="absolute pointer-events-none text-[7.5px] font-mono text-slate-400 leading-none text-right"
+                                                      style={{ left: `${phase.startX - 130}px`, top: `${phase.y + PHASE_BAR_HEIGHT + 2}px`, width: '125px', zIndex: 10 }}
+                                                    >
+                                                      {formatBarDate(getDateFromPosition(phase.startX, monthWidth, viewMonths))}–{formatBarDate(getDateFromPosition(phase.endX, monthWidth, viewMonths))}
+                                                    </div>
                                                   )}
-                                                  {phase.label}
-                                                </div>
+                                                </>
                                               )}
                                               <div
                                                 className="absolute shadow-sm hover:shadow-md hover:opacity-90 transition-all pointer-events-auto border border-white/60 overflow-hidden"
