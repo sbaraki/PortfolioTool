@@ -1,3 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
 @media print {
   @page {
     size: var(--print-page-width, 17in) var(--print-page-height, 11in);
@@ -35,7 +42,8 @@
 
   .timeline-container,
   .custom-scrollbar {
-    overflow: visible !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
     height: auto !important;
     max-height: none !important;
   }
@@ -62,9 +70,22 @@
     text-shadow: none !important;
   }
 
-  [data-print-shell] .text-\[8px\] { font-size: 10px !important; }
-  [data-print-shell] .text-\[8\.5px\] { font-size: 10.5px !important; }
-  [data-print-shell] .text-\[9px\] { font-size: 11px !important; }
-  [data-print-shell] .text-\[10px\] { font-size: 12px !important; }
-  [data-print-shell] .text-\[11px\] { font-size: 12.5px !important; }
+  /* Force higher contrast for board grid lines in print */
+  .timeline-container div[style*="border-r"] {
+    border-right-color: #cbd5e1 !important; /* slate-300 */
+  }
+
+  /* Darken small metadata text for print readability */
+  [data-print-shell] .text-slate-500,
+  [data-print-shell] .text-slate-400 {
+    color: #475569 !important; /* slate-600 */
+  }
+
+  [data-print-shell] .text-\[8px\] { font-size: calc(10px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[8\.5px\] { font-size: calc(10.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[9px\] { font-size: calc(11px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[10px\] { font-size: calc(12px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[11px\] { font-size: calc(12.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[12px\] { font-size: calc(13px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[13px\] { font-size: calc(14px * var(--print-font-multiplier, 1)) !important; }
 }

@@ -150,44 +150,47 @@ export const MILESTONE_LABEL_MAX_WIDTH = 112;
 // the rest of the app palette — phase fills, milestone colours, status pill
 // backgrounds, and the bar reds — so the strip reads as a distinct visual
 // channel that signals status at a glance.
-//   Proposed       → violet  #a78bfa
+//   TBC            → violet  #a78bfa
 //   In Development → yellow  #fde047 (dark icon for contrast)
 //   Open to Public → teal    #2dd4bf
 //   Closed         → dark grey #475569
 export const getStatusStyles = (status: string) => {
   switch(status) {
     case 'Open to Public': return {
-      accent: '#059669',
-      bg: '#ecfdf5',
-      border: '#10b981',
-      text: '#064e3b',
-      label: 'OPEN TO PUBLIC',
-      icon: 'ticket',
-      iconBg: '#2dd4bf',
-      iconText: '#ffffff',
-      barBg: '#dc2626'
-    };
-    case 'In Development': return {
       accent: '#d97706',
       bg: '#fffbeb',
       border: '#f59e0b',
       text: '#78350f',
-      label: 'IN DEVELOPMENT',
-      icon: 'hammer',
+      label: 'OPEN TO PUBLIC',
+      icon: 'ticket',
       iconBg: '#fde047',
       iconText: '#1e293b',
-      barBg: '#b91c1c'
+      barBg: '#ef4444',
+      barText: '#ffffff'
     };
-    case 'Proposed': return {
-      accent: '#4b5563',
-      bg: '#f9fafb',
-      border: '#d1d5db',
-      text: '#1f2937',
-      label: 'PROPOSED',
+    case 'In Development': return {
+      accent: '#059669',
+      bg: '#ecfdf5',
+      border: '#10b981',
+      text: '#064e3b',
+      label: 'IN DEVELOPMENT',
+      icon: 'hammer',
+      iconBg: '#2dd4bf',
+      iconText: '#ffffff',
+      barBg: '#fca5a5',
+      barText: '#7f1d1d'
+    };
+    case 'TBC': return {
+      accent: '#475569',
+      bg: '#f8fafc',
+      border: '#94a3b8',
+      text: '#1e293b',
+      label: 'TBC',
       icon: 'circle-dashed',
       iconBg: '#a78bfa',
       iconText: '#ffffff',
-      barBg: '#f87171'
+      barBg: '#fee2e2',
+      barText: '#991b1b'
     };
     case 'Closed': return {
       accent: '#000000',
@@ -198,7 +201,8 @@ export const getStatusStyles = (status: string) => {
       icon: 'lock',
       iconBg: '#475569',
       iconText: '#ffffff',
-      barBg: '#7f1d1d'
+      barBg: '#e2e8f0',
+      barText: '#0f172a'
     };
     default: return {
       accent: '#94a3b8',
@@ -209,7 +213,8 @@ export const getStatusStyles = (status: string) => {
       icon: 'help-circle',
       iconBg: '#94a3b8',
       iconText: '#ffffff',
-      barBg: '#94a3b8'
+      barBg: '#94a3b8',
+      barText: '#ffffff'
     };
   }
 };

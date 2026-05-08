@@ -3,6 +3,7 @@ import { Check, Edit2, X, Trash2, ChevronUp, ChevronDown, Copy, Plus, Flag, User
 import { Exhibition, Gallery, ProjectPhase, PhaseType, ProjectMilestone, MilestoneIcon } from '../types';
 import { getDateWithMonthDuration, getDurationMonths } from '../lib/dateUtils';
 import { getStatusStyles, MILESTONE_COLORS } from '../constants';
+import { DatePicker } from './DatePicker';
 
 const MILESTONE_ICON_OPTIONS: { key: MilestoneIcon; label: string; preview: React.ReactNode }[] = [
   { key: 'diamond', label: 'Diamond', preview: <div className="w-2.5 h-2.5 bg-white border border-slate-300 rotate-45" /> },
@@ -36,6 +37,16 @@ export const DetailPanel = ({
   const [localPhaseDraft, setLocalPhaseDraft] = useState<ProjectPhase | null>(null);
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [localMilestoneDraft, setLocalMilestoneDraft] = useState<ProjectMilestone | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isEditing) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEditing, onClose]);
 
   useEffect(() => {
     setEditedEx(exhibition);
@@ -216,7 +227,7 @@ export const DetailPanel = ({
   };
 
   const inputCls = "w-full bg-white border border-slate-200 px-2 py-1.5 text-[12px] text-slate-900 outline-none focus:border-slate-400 transition-colors";
-  const labelCls = "text-[10px] font-medium uppercase tracking-tight text-slate-500";
+  const labelCls = "text-[10px] font-medium uppercase tracking-tight text-slate-600";
   const sectionCls = "border border-slate-200 bg-white p-3 space-y-3";
   const sectionHeaderCls = "text-[11px] font-semibold uppercase tracking-tight text-slate-700";
 
@@ -273,7 +284,7 @@ export const DetailPanel = ({
             <button
               aria-label="Edit project"
               onClick={() => setIsEditing(true)}
-              className="p-1.5 text-slate-500 hover:bg-slate-50 transition-colors"
+              className="p-1.5 text-slate-600 hover:bg-slate-50 transition-colors"
             >
               <Edit2 size={14} />
             </button>
@@ -301,7 +312,7 @@ export const DetailPanel = ({
               value={editedEx.status}
               onChange={(e) => handleFieldChange('status', e.target.value)}
             >
-              {['Proposed', 'In Development', 'Open to Public', 'Closed'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+              {['TBC', 'In Development', 'Open to Public', 'Closed'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
             </select>
           ) : (
             <span
@@ -396,7 +407,7 @@ export const DetailPanel = ({
                 />
               </button>
             ) : (
-              <span className={`shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-tight leading-none ${exhibition.isMilestone ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-500'}`}>
+              <span className={`shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-tight leading-none ${exhibition.isMilestone ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>
                 {exhibition.isMilestone ? 'On' : 'Off'}
               </span>
             )}
@@ -404,14 +415,11 @@ export const DetailPanel = ({
 
           {editedEx.isMilestone ? (
             <div className="space-y-1">
-              <label htmlFor="ex-start-date" className={labelCls}>Completion Date</label>
               {isEditing ? (
-                <input
-                  id="ex-start-date"
-                  type="date"
-                  className={inputCls}
+                <DatePicker
                   value={editedEx.startDate}
-                  onChange={(e) => handleFieldChange('startDate', e.target.value)}
+                  onChange={(val) => handleFieldChange('startDate', val)}
+                  label="Completion Date"
                 />
               ) : (
                 <p className="text-[12px] font-medium text-slate-700">{exhibition.startDate}</p>
@@ -421,29 +429,22 @@ export const DetailPanel = ({
             <>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label htmlFor="ex-start-date" className={labelCls}>Start</label>
                   {isEditing ? (
-                    <input
-                      id="ex-start-date"
-                      type="date"
-                      className={inputCls}
+                    <DatePicker
                       value={editedEx.startDate}
-                      onChange={(e) => handleStartDateChange(e.target.value)}
+                      onChange={(val) => handleStartDateChange(val)}
+                      label="Start"
                     />
                   ) : (
                     <p className="text-[12px] font-medium text-slate-700">{exhibition.startDate}</p>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor="ex-end-date" className={labelCls}>End</label>
                   {isEditing ? (
-                    <input
-                      id="ex-end-date"
-                      type="date"
-                      min={editedEx.startDate}
-                      className={inputCls}
+                    <DatePicker
                       value={editedEx.endDate}
-                      onChange={(e) => handleEndDateChange(e.target.value)}
+                      onChange={(val) => handleEndDateChange(val)}
+                      label="End"
                     />
                   ) : (
                     <p className="text-[12px] font-medium text-slate-700">{exhibition.endDate}</p>
@@ -466,7 +467,7 @@ export const DetailPanel = ({
                         if (!isNaN(val)) handleDurationChange(val);
                       }}
                     />
-                    <span className="text-[10px] font-medium uppercase tracking-tight text-slate-500">months</span>
+                    <span className="text-[10px] font-medium uppercase tracking-tight text-slate-600">months</span>
                   </div>
                 ) : (
                   <p className="text-[12px] font-medium text-slate-700 mt-1">{totalProjectDuration} months</p>
@@ -636,16 +637,11 @@ export const DetailPanel = ({
                           onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, title: e.target.value.toUpperCase() } : null)}
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className={labelCls}>Date</label>
-                        <input
-                          type="date"
-                          aria-label={`Milestone ${idx + 1} date`}
-                          className={inputCls}
-                          value={localMilestoneDraft.date}
-                          onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, date: e.target.value } : null)}
-                        />
-                      </div>
+                      <DatePicker
+                        value={localMilestoneDraft.date}
+                        onChange={(val) => setLocalMilestoneDraft(prev => prev ? { ...prev, date: val } : null)}
+                        label="Date"
+                      />
                       <div className="space-y-1">
                         <label className={labelCls}>Icon</label>
                         <div className="grid grid-cols-3 gap-1">

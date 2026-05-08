@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { Exhibition, Gallery, PhaseType, LocationMilestone, ExhibitionStatus } from '../types';
 import { DEFAULT_GALLERIES, DEFAULT_PHASE_TYPES } from '../constants';
 
+interface HistoryFrame {
+  exhibitions: Exhibition[];
+}
+
 interface AppState {
   // Config State
   museumName: string;
@@ -11,6 +15,10 @@ interface AppState {
   // Timeline State
   exhibitions: Exhibition[];
   locationMilestones: LocationMilestone[];
+
+  // History State
+  historyPast: HistoryFrame[];
+  historyFuture: HistoryFrame[];
 
   // UI & Filter State
   monthWidth: number;
@@ -33,15 +41,23 @@ interface AppState {
   setSearchQuery: (query: string) => void;
   setStatusFilter: (filter: ExhibitionStatus | 'All') => void;
   setShowConflicts: (show: boolean) => void;
+
+  // History Actions
+  commitHistory: () => void;
+  undo: () => void;
+  redo: () => void;
 }
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   museumName: 'NATIONAL HERITAGE TRUST',
   galleries: DEFAULT_GALLERIES,
   phaseTypes: DEFAULT_PHASE_TYPES,
   
   exhibitions: [],
   locationMilestones: [],
+
+  historyPast: [],
+  historyFuture: [],
   
   monthWidth: 120,
   timelineStartDate: '2026-01-01',
@@ -72,4 +88,42 @@ export const useStore = create<AppState>((set) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   setStatusFilter: (filter) => set({ statusFilter: filter }),
   setShowConflicts: (show) => set({ showConflicts: show }),
+
+  commitHistory: () => {
+    const { exhibitions, historyPast } = get();
+    // Only commit if exhibitions array has at least one element or if it's an actual change
+    // Using a simpler approach: just push the current exhibitions state.
+    set({
+      historyPast: [...historyPast, { exhibitions }],
+      historyFuture: []
+    });
+  },
+
+  undo: () => {
+    const { historyPast, historyFuture, exhibitions } = get();
+    if (historyPast.length === 0) return;
+    
+    const prevFrame = historyPast[historyPast.length - 1];
+    const currentFrame = { exhibitions };
+    
+    set({
+      historyPast: historyPast.slice(0, -1),
+      historyFuture: [currentFrame, ...historyFuture],
+      exhibitions: prevFrame.exhibitions
+    });
+  },
+
+  redo: () => {
+    const { historyPast, historyFuture, exhibitions } = get();
+    if (historyFuture.length === 0) return;
+
+    const nextFrame = historyFuture[0];
+    const currentFrame = { exhibitions };
+
+    set({
+      historyPast: [...historyPast, currentFrame],
+      historyFuture: historyFuture.slice(1),
+      exhibitions: nextFrame.exhibitions
+    });
+  }
 }));

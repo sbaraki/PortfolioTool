@@ -1,4 +1,4 @@
-export type ExhibitionStatus = 'Proposed' | 'In Development' | 'Open to Public' | 'Closed';
+export type ExhibitionStatus = 'TBC' | 'In Development' | 'Open to Public' | 'Closed';
 
 export type GalleryKind = 'permanent' | 'temporary';
 
@@ -69,4 +69,9 @@ export interface PrintSettings {
   laneBehavior: PrintLaneBehavior;
   includeLegends: boolean;
   includeSummary: boolean;
+  grayscale: boolean;
+  showPhases: boolean;
+  showDescription: boolean;
+  fontSizeMultiplier: number;
+  footerNote?: string;
 }
