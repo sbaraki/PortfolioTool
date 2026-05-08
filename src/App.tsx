@@ -124,7 +124,7 @@ const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   selectedGalleryIds: [],
   laneBehavior: 'current',
   includeLegends: true,
-  includeSummary: true,
+  includeSummary: false,
   grayscale: false,
   showPhases: true,
   showDescription: false,
@@ -1243,7 +1243,7 @@ export default function MasterScheduler() {
                 className="flex-1 overflow-auto timeline-root custom-scrollbar no-print-bg px-3 pb-3 print:overflow-visible relative"
                 ref={timelineRef}
               >
-                <div className="flex min-w-max h-max print:block relative gap-3 pt-2">
+                <div className="flex min-w-max h-max print:flex relative gap-3 pt-2">
                   <aside 
                     data-print-sidebar 
                     className="sticky left-0 bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" 

@@ -36,8 +36,27 @@
     flex: none !important;
     padding: 0 !important;
     gap: 0.1in !important;
+    transform: scale(var(--print-scale, 1)) !important;
+    transform-origin: top left !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  [data-print-sidebar] {
+    position: static !important;
+    height: auto !important;
+    border-right: 2px solid #e2e8f0 !important;
+    flex-shrink: 0 !important;
+    z-index: auto !important;
+    background: white !important;
+  }
+
+  [data-print-timeline] {
+    flex: none !important;
+    width: max-content !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
   }
 
   .timeline-container,
