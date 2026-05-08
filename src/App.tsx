@@ -172,7 +172,7 @@ export default function MasterScheduler() {
   const [isPrintMode, setIsPrintMode] = useState(false);
   
   const currentTrackHeight = isPrintMode 
-    ? (Math.max(STANDARD_BAR_HEIGHT, (printSettings.showDescription ? 30 : 0)) + printSettings.projectRowGap) 
+    ? (Math.max(STANDARD_BAR_HEIGHT, (printSettings.showDescription ? 34 : 0)) + printSettings.projectRowGap) 
     : TRACK_HEIGHT;
 
   const getEffPhases = (ex: Exhibition) => {
@@ -1423,7 +1423,7 @@ export default function MasterScheduler() {
                           // visual centre matches the timeline bar's centre regardless of
                           // whether the ID line is present (a flex-justify-center stack
                           // would shift the title up when the ID is rendered).
-                          const titleBandTop = topPos + (currentTrackHeight - (isPrintMode && printSettings.showDescription ? 28 : STANDARD_BAR_HEIGHT)) / 2;
+                          const titleBandTop = topPos + (currentTrackHeight - (isPrintMode && printSettings.showDescription ? 32 : STANDARD_BAR_HEIGHT)) / 2;
                           return (
                             <div
                               key={`title-${ex.id}`}
