@@ -845,15 +845,15 @@ export default function MasterScheduler() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="flex items-center gap-2 border border-slate-200 px-2 py-2 text-[11px] text-slate-700">
+                  <label className="flex items-center gap-2 border border-slate-200 px-2 py-2 text-[11px] text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors">
                     <input
                       type="checkbox"
                       checked={printSettings.includeSummary}
                       onChange={(e) => setPrintSettings(prev => ({ ...prev, includeSummary: e.target.checked }))}
                     />
-                    Summary counts
+                    Phase Log & Inventory
                   </label>
-                  <label className="flex items-center gap-2 border border-slate-200 px-2 py-2 text-[11px] text-slate-700">
+                  <label className="flex items-center gap-2 border border-slate-200 px-2 py-2 text-[11px] text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors">
                     <input
                       type="checkbox"
                       checked={printSettings.includeLegends}
@@ -1243,21 +1243,24 @@ export default function MasterScheduler() {
                 className="flex-1 overflow-auto timeline-root custom-scrollbar no-print-bg px-3 pb-3 print:overflow-visible relative"
                 ref={timelineRef}
               >
-                <div className="flex min-w-max h-max print:flex relative gap-3 pt-2">
+                <div className="flex min-w-max h-max print:flex relative pt-2">
                   <aside 
                     data-print-sidebar 
                     className="sticky left-0 bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" 
                     style={{ width: `${SIDEBAR_WIDTH}px` }}
                   >
-                    <div style={{ height: `${HEADER_HEIGHT}px` }} className="sticky top-0 z-[110] shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-3 print:bg-white shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
-                      <div className="flex flex-col gap-0.5 min-w-0">
-                        <span className="text-[10px] font-medium text-slate-600 uppercase tracking-wide leading-none">Galleries</span>
-                        <span className="text-[11px] font-semibold text-slate-700 leading-none mt-1">
-                          <span className="font-mono text-slate-500">{portfolioGalleries.length}</span>
-                          <span className="text-slate-300 mx-1">·</span>
-                          <span className="font-mono text-slate-500">{filteredExhibitions.length}</span>
-                          {' '}project{filteredExhibitions.length === 1 ? '' : 's'}
-                        </span>
+                    <div style={{ height: `${HEADER_HEIGHT}px` }} className="sticky top-0 z-[110] shrink-0 bg-white border-b border-slate-200 flex flex-col print:bg-white shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
+                      <div className="flex h-[22px] border-b border-slate-200 bg-white px-3 items-center">
+                        <span className="text-[10px] font-bold text-slate-800 uppercase tracking-[0.1em]">Timeline</span>
+                      </div>
+                      <div className="flex h-[16px] border-b border-slate-200 bg-slate-50/60 px-3 items-center">
+                        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.08em]">Fiscal Year</span>
+                      </div>
+                      <div className="flex h-[16px] border-b border-slate-200 bg-slate-50/40 px-3 items-center">
+                        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.08em]">Quarter</span>
+                      </div>
+                      <div className="flex h-[16px] bg-white px-3 items-center">
+                        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.08em]">Month</span>
                       </div>
                     </div>
                     <div className="flex flex-col flex-1" ref={sidebarListRef}>
