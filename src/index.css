@@ -75,16 +75,20 @@
   }
 
   * {
-    page-break-before: avoid !important;
-    page-break-after: avoid !important;
-    break-before: avoid !important;
-    break-after: avoid !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     text-shadow: none !important;
+  }
+
+  /* Prevent bars and labels from splitting across pages if multiple pages are used */
+  .gallery-lane-bg,
+  [role="button"],
+  .project-bar {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   /* Force higher contrast for board grid lines in print */
@@ -98,11 +102,11 @@
     color: #475569 !important; /* slate-600 */
   }
 
-  [data-print-shell] .text-\[8px\] { font-size: calc(10px * var(--print-font-multiplier, 1)) !important; }
-  [data-print-shell] .text-\[8\.5px\] { font-size: calc(10.5px * var(--print-font-multiplier, 1)) !important; }
-  [data-print-shell] .text-\[9px\] { font-size: calc(11px * var(--print-font-multiplier, 1)) !important; }
-  [data-print-shell] .text-\[10px\] { font-size: calc(12px * var(--print-font-multiplier, 1)) !important; }
-  [data-print-shell] .text-\[11px\] { font-size: calc(12.5px * var(--print-font-multiplier, 1)) !important; }
-  [data-print-shell] .text-\[12px\] { font-size: calc(13px * var(--print-font-multiplier, 1)) !important; }
-  [data-print-shell] .text-\[13px\] { font-size: calc(14px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[8px\] { font-size: calc(8.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[8\.5px\] { font-size: calc(9px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[9px\] { font-size: calc(9.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[10px\] { font-size: calc(10px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[11px\] { font-size: calc(11px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[12px\] { font-size: calc(12px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[13px\] { font-size: calc(13px * var(--print-font-multiplier, 1)) !important; }
 }

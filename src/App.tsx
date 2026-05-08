@@ -169,7 +169,14 @@ export default function MasterScheduler() {
   const [printSettings, setPrintSettings] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS);
   const [isPrintMode, setIsPrintMode] = useState(false);
   
-  const currentTrackHeight = isPrintMode ? (STANDARD_BAR_HEIGHT + printSettings.projectRowGap) : TRACK_HEIGHT;
+  const currentTrackHeight = isPrintMode 
+    ? (Math.max(STANDARD_BAR_HEIGHT, (printSettings.showDescription ? 30 : 0)) + printSettings.projectRowGap) 
+    : TRACK_HEIGHT;
+
+  const getEffPhases = (ex: Exhibition) => {
+    if (isPrintMode && !printSettings.showPhases) return [];
+    return ex.phases || [];
+  };
   const [printGeneratedAt, setPrintGeneratedAt] = useState<Date | null>(null);
   const [collapsedGalleryIds, setCollapsedGalleryIds] = useState<Set<string>>(new Set());
   const toggleGalleryCollapsed = (id: string) => {
@@ -454,7 +461,9 @@ export default function MasterScheduler() {
   const galleryLayouts = useMemo(() => {
     const layouts: { [galleryName: string]: { tracks: { [id: string]: number }, maxTracks: number } } = {};
     portfolioGalleries.forEach(gallery => {
-      const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
+      const galleryProjects = filteredExhibitions
+        .filter(ex => ex.gallery === gallery.name)
+        .map(ex => ({ ...ex, phases: getEffPhases(ex) }));
       const layoutInfo = calculateTracks(galleryProjects, monthWidth, viewMonths, phaseTypes);
       layouts[gallery.name] = { tracks: layoutInfo.tracks, maxTracks: layoutInfo.maxTracks };
     });
@@ -488,7 +497,7 @@ export default function MasterScheduler() {
 
 
   const getProjectPhaseRows = (project: Exhibition) => {
-    const prePhasesCount = (project.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
+    const prePhasesCount = getEffPhases(project).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
     return Math.max(1, prePhasesCount + 1);
   };
 
@@ -514,15 +523,13 @@ export default function MasterScheduler() {
       const trackMilestoneRows = new Array(maxTracks).fill(0);
       filteredExhibitions.forEach(ex => {
         if (ex.gallery !== gallery.name) return;
-        if ((ex.milestones || []).length === 0) return;
+        const milestones = ex.milestones || [];
+        if (milestones.length === 0) return;
         const ti = layout?.tracks[ex.id];
         if (ti === undefined) return;
-        // calculateTracks reserves one row per pre-phase plus the main-bar row.
-        // Attach the milestone band to the project's actual last allocated row,
-        // independent of gallery-level milestone strips.
         const lastTrackIdx = getProjectLastAllocatedTrackIndex(ex, ti, maxTracks);
         const packed = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
-          (ex.milestones || []).map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
+          milestones.map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
         );
         trackMilestoneRows[lastTrackIdx] = Math.max(trackMilestoneRows[lastTrackIdx], packed.rowCount);
       });
@@ -1359,12 +1366,17 @@ export default function MasterScheduler() {
                           // visual centre matches the timeline bar's centre regardless of
                           // whether the ID line is present (a flex-justify-center stack
                           // would shift the title up when the ID is rendered).
-                          const titleBandTop = topPos + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2;
+                          const titleBandTop = topPos + (currentTrackHeight - (isPrintMode && printSettings.showDescription ? 28 : STANDARD_BAR_HEIGHT)) / 2;
                           return (
                             <div
                               key={`title-${ex.id}`}
                               className="absolute flex items-center gap-1.5 overflow-hidden"
-                              style={{ top: titleBandTop, height: `${STANDARD_BAR_HEIGHT}px`, left: '12px', right: '10px' }}
+                              style={{ 
+                                top: titleBandTop, 
+                                height: isPrintMode && printSettings.showDescription ? '32px' : `${STANDARD_BAR_HEIGHT}px`, 
+                                left: '12px', 
+                                right: '10px' 
+                              }}
                             >
                               <div className="flex flex-col min-w-0">
                                 <div className="flex items-center gap-1.5 min-w-0">
@@ -1903,8 +1915,8 @@ export default function MasterScheduler() {
                                     isResizingPhaseHere && p.id === resizingPhase!.phaseId
                                       ? phaseResizeTempDuration!
                                       : p.durationMonths;
-                                  const prePhasesRaw = (ex.phases || []).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost);
-                                  const postPhasesRaw = (ex.phases || []).filter(p => phaseTypes.find(t => t.id === p.typeId)?.isPost);
+                                  const prePhasesRaw = getEffPhases(ex).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost);
+                                  const postPhasesRaw = getEffPhases(ex).filter(p => phaseTypes.find(t => t.id === p.typeId)?.isPost);
 
                                   const totalPrePhaseWidthOnly = prePhasesRaw.reduce((acc, p) => acc + phaseDurationFor(p) * monthWidth, 0);
                                   const totalPreGaps = prePhasesRaw.length * PHASE_GAP;
