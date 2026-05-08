@@ -35,8 +35,8 @@ export const calculatePrintScale = ({
 }: PrintScaleInput): PrintScaleResult => {
   const contentWidthPx = sidebarWidthPx + columnGap + timelineWidthPx + paddingX;
   const contentHeightPx = headerHeightPx + Math.max(sidebarHeightPx, timelineHeightPx) + paddingY;
-  const fitScale = Math.min(1, pageWidthPx / contentWidthPx, pageHeightPx / contentHeightPx);
-  const scale = Math.max(minScale, fitScale);
+  const fitScale = Math.min(pageWidthPx / contentWidthPx, pageHeightPx / contentHeightPx);
+  const scale = Math.min(2.0, Math.max(minScale, fitScale));
 
   return {
     contentWidthPx,

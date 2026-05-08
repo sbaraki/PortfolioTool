@@ -4,17 +4,20 @@ import { Exhibition, Gallery, GalleryKind } from '../types';
 export const useMuseumActions = () => {
   const {
     exhibitions, setExhibitions,
-    galleries, setGalleries
+    galleries, setGalleries,
+    commitHistory
   } = useStore();
 
   const createId = () => Math.random().toString(36).slice(2, 11);
 
   const handleUpdateExhibition = (updatedEx: Exhibition) => {
+    commitHistory();
     setExhibitions(prev => prev.map(ex => (ex.id === updatedEx.id ? updatedEx : ex)));
   };
 
   const handleRemoveExhibition = (id: string) => {
     if (!window.confirm('PERMANENTLY DELETE THIS PROJECT?')) return;
+    commitHistory();
     setExhibitions(prev => prev.filter(ex => ex.id !== id));
   };
 
@@ -28,6 +31,7 @@ export const useMuseumActions = () => {
     if (target.name === trimmed) return;
     if (galleries.some(g => g.id !== id && g.name === trimmed)) return;
     const oldName = target.name;
+    // Don't commitHistory for gallery modifications yet unless we include galleries in HistoryFrame
     setGalleries(prev => prev.map(g => g.id === id ? { ...g, name: trimmed } : g));
     setExhibitions(prev => prev.map(ex => ex.gallery === oldName ? { ...ex, gallery: trimmed } : ex));
   };
@@ -60,6 +64,7 @@ export const useMuseumActions = () => {
   const handleDuplicateProject = (id: string) => {
     const source = exhibitions.find(ex => ex.id === id);
     if (!source) return;
+    commitHistory();
     const copy = {
       ...source,
       id: createId(),

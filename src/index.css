@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@media print {
+  @page {
+    size: var(--print-page-width, 17in) var(--print-page-height, 11in);
+    margin: 0.15in;
+  }
+
+  html, body {
+    width: var(--print-page-width, 17in) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: white !important;
+    color: #334155 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+
+  #root {
+    width: var(--print-page-width, 17in) !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+
+  [data-print-shell] {
+    overflow: visible !important;
+    width: max-content !important;
+    height: max-content !important;
+    flex: none !important;
+    padding: 0 !important;
+    gap: 0.1in !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  [data-print-sidebar] {
+    position: static !important;
+    height: auto !important;
+    border-right: 2px solid #e2e8f0 !important;
+    flex-shrink: 0 !important;
+    z-index: auto !important;
+    background: white !important;
+  }
+
+  [data-print-timeline] {
+    flex: none !important;
+    width: max-content !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .timeline-container,
+  .custom-scrollbar {
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .no-print,
+  .no-print-lane {
+    display: none !important;
+  }
+
+  .fixed.inset-0.no-print {
+    display: none !important;
+  }
+
+  * {
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Force higher contrast for board grid lines in print */
+  .timeline-container div[style*="border-r"] {
+    border-right-color: #cbd5e1 !important; /* slate-300 */
+  }
+
+  /* Darken small metadata text for print readability */
+  [data-print-shell] .text-slate-500,
+  [data-print-shell] .text-slate-400 {
+    color: #475569 !important; /* slate-600 */
+  }
+
+  [data-print-shell] .text-\[8px\] { font-size: calc(10px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[8\.5px\] { font-size: calc(10.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[9px\] { font-size: calc(11px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[10px\] { font-size: calc(12px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[11px\] { font-size: calc(12.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[12px\] { font-size: calc(13px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[13px\] { font-size: calc(14px * var(--print-font-multiplier, 1)) !important; }
+}

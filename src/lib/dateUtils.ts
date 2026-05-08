@@ -10,6 +10,7 @@ export const toISODate = (date: Date): string => {
 
 /**
  * Projects a calendar date into an exact X-axis pixel position based on zoom (monthWidth)
+ * Uses a normalized scale where each month box has a fixed width.
  */
 export const getPositionFromDate = (dateStr: string, monthWidth: number, vMonths: any[]): number => {
   const date = new Date(dateStr + 'T12:00:00');
@@ -20,31 +21,39 @@ export const getPositionFromDate = (dateStr: string, monthWidth: number, vMonths
   const targetAbs = date.getFullYear() * 12 + date.getMonth();
   const monthDiff = targetAbs - startAbs;
   
+  // Progress within the month box: 0.0 at start of Day 1, approaching 1.0 at end of the last day.
   const daysInMonth = getDaysInMonth(date);
-  return (monthDiff * monthWidth) + ((date.getDate() - 1) / daysInMonth * monthWidth);
+  const dayProgress = (date.getDate() - 1) / daysInMonth;
+  
+  return (monthDiff + dayProgress) * monthWidth;
 };
 
 /**
- * Reverses an X-axis pixel position back into a robust calendar date string
+ * Reverses an X-axis pixel position back into a robust calendar date string.
+ * Strictly inverse to getPositionFromDate.
  */
 export const getDateFromPosition = (x: number, monthWidth: number, vMonths: any[]): string => {
   if (!vMonths || vMonths.length === 0) return toISODate(new Date());
   
-  const totalMonths = x / monthWidth;
+  const totalMonthsRel = x / monthWidth;
   const start = vMonths[0];
   const startAbs = start.year * 12 + start.month;
   
-  const targetAbs = startAbs + totalMonths;
-  const targetYear = Math.floor(targetAbs / 12);
-  const targetMonth = Math.floor(targetAbs % 12);
-  const dayFrac = targetAbs - Math.floor(targetAbs);
+  const absoluteTargetMonths = startAbs + totalMonthsRel;
+  const targetYear = Math.floor(absoluteTargetMonths / 12);
+  const targetMonth = Math.floor(absoluteTargetMonths % 12);
+  const monthBoxFrac = absoluteTargetMonths - Math.floor(absoluteTargetMonths);
   
-  // Create a base date for the target month to find true days in that month
-  const baseMonthDate = new Date(targetYear, targetMonth, 15);
+  // Find the exact day within this specific month.
+  const baseMonthDate = new Date(targetYear, targetMonth, 1);
   const daysInMonth = getDaysInMonth(baseMonthDate);
   
-  const day = Math.max(1, Math.min(daysInMonth, Math.round(dayFrac * daysInMonth) + 1));
-  return toISODate(new Date(targetYear, targetMonth, day));
+  // We use floor because an X position within a day box should map to that day.
+  // 0.0 -> Day 1, 0.99... -> Last Day
+  const day = Math.floor(monthBoxFrac * daysInMonth) + 1;
+  const clampedDay = Math.max(1, Math.min(daysInMonth, day));
+  
+  return toISODate(new Date(targetYear, targetMonth, clampedDay));
 };
 
 export const getDateWithMonthDuration = (startDateStr: string, months: number): string => {
@@ -53,7 +62,11 @@ export const getDateWithMonthDuration = (startDateStr: string, months: number): 
 
   const wholeMonths = Math.trunc(months);
   const fractionalMonths = months - wholeMonths;
+  
+  // Step 1: Add whole months. date-fns handles overflowing days (e.g. Jan 31 + 1 month = Feb 28).
   const afterWholeMonths = addMonths(start, wholeMonths);
+  
+  // Step 2: Handle fractional months relative to the current month the date landed in.
   const daysInTargetMonth = getDaysInMonth(afterWholeMonths);
   const fractionalDays = Math.round(fractionalMonths * daysInTargetMonth);
 
@@ -67,14 +80,19 @@ export const getDurationDays = (startDateStr: string, endDateStr: string): numbe
   return differenceInCalendarDays(end, start);
 };
 
+/**
+ * Calculates duration in visual "Month Units" relative to the timeline grid.
+ * This ensures that a bar spanning Jan 1 to Feb 1 is exactly 1.0 months long visually.
+ */
 export const getDurationMonths = (startDateStr: string, endDateStr: string): number => {
-  const start = new Date(startDateStr + 'T12:00:00');
-  const end = new Date(endDateStr + 'T12:00:00');
-  if (!isValid(start) || !isValid(end)) return 0;
-
-  const days = Math.max(0, differenceInCalendarDays(end, start));
-  const averageMonthLength = 365.25 / 12;
-  return Math.round((days / averageMonthLength) * 10) / 10;
+  // Use a phantom monthWidth of 1 to get the normalized month-unit distance
+  const vMonths = [{ year: 2000, month: 0 }]; // arbitrary base
+  const startPos = getPositionFromDate(startDateStr, 1, vMonths);
+  const endPos = getPositionFromDate(endDateStr, 1, vMonths);
+  
+  const diff = endPos - startPos;
+  // Round to nearest 0.1 for clean data
+  return Math.max(0, Math.round(diff * 10) / 10);
 };
 
 /**
@@ -83,7 +101,7 @@ export const getDurationMonths = (startDateStr: string, endDateStr: string): num
 export const formatBarDate = (dateStr: string): string => {
   const date = new Date(dateStr + 'T12:00:00');
   if (!isValid(date)) return '---';
-  return format(date, 'MMM d, yyyy').toUpperCase();
+  return format(date, 'eee, MMM d, yyyy').toUpperCase();
 };
 
 /**

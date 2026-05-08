@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .root {
+            width: 400px;
+            height: 300px;
+            overflow: auto;
+            border: 2px solid red;
+        }
+        .container {
+            display: flex;
+            min-width: max-content;
+        }
+        .sidebar {
+            width: 100px;
+            background: yellow;
+            position: sticky;
+            left: 0;
+            z-index: 100;
+        }
+        .timeline {
+            width: 800px;
+            background: #eee;
+            background-image: repeating-linear-gradient(90deg, transparent, transparent 50px, #ccc 50px, #ccc 51px);
+        }
+        .header {
+            position: sticky;
+            top: 0;
+            background: pink;
+            height: 50px;
+            z-index: 50;
+        }
+        .content {
+            height: 800px;
+            border-bottom: 2px solid black;
+        }
+    </style>
+</head>
+<body>
+    <div class="root">
+        <div class="container">
+            <div class="sidebar">
+                <div class="header" style="z-index: 110;">Header</div>
+                <div class="content">S Content</div>
+            </div>
+            <div class="timeline">
+                <div class="header">Header 2</div>
+                <div class="content">T Content</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
