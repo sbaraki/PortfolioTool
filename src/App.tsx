@@ -129,6 +129,7 @@ const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   showPhases: true,
   showDescription: false,
   fontSizeMultiplier: 1.0,
+  projectRowGap: 12,
   footerNote: '',
 };
 
@@ -146,6 +147,7 @@ const formatPrintDateTime = (date: Date | null) => {
 export default function MasterScheduler() {
   const SIDEBAR_WIDTH = 220;
   const { currentUser, syncStatus } = useMuseumSync();
+
   const {
     museumName, setMuseumName,
     galleries, setGalleries,
@@ -166,6 +168,8 @@ export default function MasterScheduler() {
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [printSettings, setPrintSettings] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS);
   const [isPrintMode, setIsPrintMode] = useState(false);
+  
+  const currentTrackHeight = isPrintMode ? (STANDARD_BAR_HEIGHT + printSettings.projectRowGap) : TRACK_HEIGHT;
   const [printGeneratedAt, setPrintGeneratedAt] = useState<Date | null>(null);
   const [collapsedGalleryIds, setCollapsedGalleryIds] = useState<Set<string>>(new Set());
   const toggleGalleryCollapsed = (id: string) => {
@@ -529,14 +533,14 @@ export default function MasterScheduler() {
         trackTops.push(acc);
         const rows = trackMilestoneRows[i];
         const milestoneBand = getProjectMilestoneBandHeight(rows);
-        const h = TRACK_HEIGHT + milestoneBand;
+        const h = currentTrackHeight + milestoneBand;
         trackHeights.push(h);
         acc += h;
       }
       out[gallery.name] = { trackTops, total: acc, trackMilestoneRows, trackHeights };
     });
     return out;
-  }, [portfolioGalleries, galleryLayouts, filteredExhibitions, phaseTypes, monthWidth, viewMonths]);
+  }, [portfolioGalleries, galleryLayouts, filteredExhibitions, phaseTypes, monthWidth, viewMonths, currentTrackHeight]);
 
 
   const galleryLaneHeights = useMemo(() => {
@@ -545,7 +549,7 @@ export default function MasterScheduler() {
         acc[gallery.name] = COLLAPSED_LANE_HEIGHT;
         return acc;
       }
-      const tracksTotal = galleryTrackLayouts[gallery.name]?.total || TRACK_HEIGHT;
+      const tracksTotal = galleryTrackLayouts[gallery.name]?.total || currentTrackHeight;
       const topStrip = mhFor(gallery.name);
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
@@ -907,6 +911,22 @@ export default function MasterScheduler() {
                         className="flex-1 accent-slate-900"
                       />
                       <span className="text-[11px] font-mono w-10 text-right">{Math.round(printSettings.fontSizeMultiplier * 100)}%</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-[100px_1fr] items-center gap-3">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600 block">Row vertical gap</label>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="60" 
+                        step="2"
+                        value={printSettings.projectRowGap}
+                        onChange={(e) => setPrintSettings(prev => ({ ...prev, projectRowGap: parseInt(e.target.value) }))}
+                        className="flex-1 accent-slate-900"
+                      />
+                      <span className="text-[11px] font-mono w-10 text-right">{printSettings.projectRowGap}px</span>
                     </div>
                   </div>
                   
@@ -1320,11 +1340,9 @@ export default function MasterScheduler() {
                           <span className="shrink-0 text-[10px] font-mono font-semibold text-slate-500 px-1.5 py-0.5 bg-white border border-slate-200">{galleryProjects.length}</span>
                         </div>
                         {galleryProjects.map(ex => {
-                          const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
-                          if (trackIndex === undefined) return null;
                           const layout = galleryTrackLayouts[gallery.name];
                           const trackTops = layout?.trackTops ?? [];
-                          const trackTop = trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                          const trackTop = trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
                           // A project owns prePhases.length + 1 consecutive tracks. Position the title
                           // on the LAST allocated track (where the main bar lives), not the first
                           // (which holds the topmost pre-phase). This keeps the sidebar title aligned
@@ -1339,7 +1357,7 @@ export default function MasterScheduler() {
                           // visual centre matches the timeline bar's centre regardless of
                           // whether the ID line is present (a flex-justify-center stack
                           // would shift the title up when the ID is rendered).
-                          const titleBandTop = topPos + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
+                          const titleBandTop = topPos + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2;
                           return (
                             <div
                               key={`title-${ex.id}`}
@@ -1383,7 +1401,7 @@ export default function MasterScheduler() {
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined || trackIndex === 0) return null;
-                          const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                          const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
                           return (
                             <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-200 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackTop }} />
                           );
@@ -1845,7 +1863,7 @@ export default function MasterScheduler() {
                               {galleryProjects.map(ex => {
                                 const trackIndex = galleryLayouts[g]!.tracks[ex.id];
                                 if (trackIndex === undefined || trackIndex === 0) return null;
-                                const trackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                                const trackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
                                 return (
                                   <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackTop }} />
                                 );
@@ -1868,11 +1886,11 @@ export default function MasterScheduler() {
                                   const trackLayout = galleryTrackLayouts[g];
                                   const trackTops = trackLayout?.trackTops ?? [];
                                   const maxTracks = Math.max(1, galleryLayouts[g]?.maxTracks || trackTops.length || 1);
-                                  const ownerTrackTop = trackTops[trackIndex] ?? trackIndex * TRACK_HEIGHT;
+                                  const ownerTrackTop = trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
                                   const trackTop = mhFor(g) + LANE_TOP_PADDING + ownerTrackTop;
                                   const projectRowTop = (rowOffset: number) => {
                                     const absoluteTrackIndex = Math.min(trackIndex + rowOffset, maxTracks - 1);
-                                    const fallback = ownerTrackTop + (rowOffset * TRACK_HEIGHT);
+                                    const fallback = ownerTrackTop + (rowOffset * currentTrackHeight);
                                     return mhFor(g) + LANE_TOP_PADDING + (trackTops[absoluteTrackIndex] ?? fallback);
                                   };
 
@@ -1896,7 +1914,7 @@ export default function MasterScheduler() {
                                     const pWidth = phaseDurationFor(p) * monthWidth;
                                     const pStart = phaseStartPos + preOffset;
                                     const pEnd = pStart + pWidth;
-                                    const pY = projectRowTop(i) + (TRACK_HEIGHT - PHASE_BAR_HEIGHT) / 2;
+                                    const pY = projectRowTop(i) + (currentTrackHeight - PHASE_BAR_HEIGHT) / 2;
                                     preOffset += pWidth + PHASE_GAP;
                                     return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypes.find(t => t.id === p.typeId), i, isPost: false };
                                   });
@@ -1905,8 +1923,8 @@ export default function MasterScheduler() {
                                   // Align it with the last pre-phase row so the dependency arrow flows straight into it
                                   // instead of dropping down to a wasted row below the phases.
                                   const mainBarY = ex.isMilestone && prePhasesRaw.length > 0
-                                    ? projectRowTop(prePhasesRaw.length - 1) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2
-                                    : projectRowTop(prePhasesRaw.length) + (TRACK_HEIGHT - STANDARD_BAR_HEIGHT) / 2;
+                                    ? projectRowTop(prePhasesRaw.length - 1) + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2
+                                    : projectRowTop(prePhasesRaw.length) + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2;
 
                                   let postOffset = PHASE_GAP;
                                   const renderedPost = ex.isMilestone ? [] : postPhasesRaw.map((p, i) => {
@@ -1914,7 +1932,7 @@ export default function MasterScheduler() {
                                     const pStart = endPos + postOffset;
                                     const pEnd = pStart + pWidth;
                                     const targetYIndex = prePhasesRaw.length > 0 ? prePhasesRaw.length - 1 : 0;
-                                    const pY = projectRowTop(targetYIndex) + (TRACK_HEIGHT - PHASE_BAR_HEIGHT) / 2;
+                                    const pY = projectRowTop(targetYIndex) + (currentTrackHeight - PHASE_BAR_HEIGHT) / 2;
                                     postOffset += pWidth + PHASE_GAP;
                                     return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypes.find(t => t.id === p.typeId), i: i, isPost: true };
                                   });
@@ -2144,8 +2162,8 @@ export default function MasterScheduler() {
                                         // render on those allocated rows. Resolve through galleryTrackLayouts so a
                                         // milestone band always starts below the project's actual last allocated row.
                                         const lastAllocatedTrackIndex = getProjectLastAllocatedTrackIndex(ex, trackIndex, maxTracks);
-                                        const lastAllocatedTrackTop = mhFor(g) + LANE_TOP_PADDING + (trackTops[lastAllocatedTrackIndex] ?? (ownerTrackTop + ((lastAllocatedTrackIndex - trackIndex) * TRACK_HEIGHT)));
-                                        const bandTop = lastAllocatedTrackTop + TRACK_HEIGHT;
+                                        const lastAllocatedTrackTop = mhFor(g) + LANE_TOP_PADDING + (trackTops[lastAllocatedTrackIndex] ?? (ownerTrackTop + ((lastAllocatedTrackIndex - trackIndex) * currentTrackHeight)));
+                                        const bandTop = lastAllocatedTrackTop + currentTrackHeight;
                                         const iconCenterY = bandTop + MILESTONE_ICON_BAND_HEIGHT / 2;
 
                                         const { items: projectMilestones } = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
@@ -2500,7 +2518,7 @@ export default function MasterScheduler() {
             <span className="text-slate-300 hidden md:inline">·</span>
             <span className="hidden md:inline">Drag bar edges to resize</span>
             <span className="text-slate-300 hidden md:inline">·</span>
-            <span className="font-mono text-slate-500">PortfolioTool v2</span>
+            <span className="font-mono text-slate-500">PortfolioTool v3</span>
           </div>
         </footer>
       )}

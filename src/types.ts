@@ -73,5 +73,6 @@ export interface PrintSettings {
   showPhases: boolean;
   showDescription: boolean;
   fontSizeMultiplier: number;
+  projectRowGap: number;
   footerNote?: string;
 }
