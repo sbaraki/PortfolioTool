@@ -1340,6 +1340,8 @@ export default function MasterScheduler() {
                           <span className="shrink-0 text-[10px] font-mono font-semibold text-slate-500 px-1.5 py-0.5 bg-white border border-slate-200">{galleryProjects.length}</span>
                         </div>
                         {galleryProjects.map(ex => {
+                          const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
+                          if (trackIndex === undefined) return null;
                           const layout = galleryTrackLayouts[gallery.name];
                           const trackTops = layout?.trackTops ?? [];
                           const trackTop = trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
