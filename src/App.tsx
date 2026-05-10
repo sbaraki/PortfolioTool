@@ -1075,7 +1075,7 @@ export default function MasterScheduler() {
         );
       })()}
 
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 pb-6 print:pb-0">
         {activeTab === 'portfolio' ? (
           <>
             <header className="bg-white border-b border-slate-200 z-50 shrink-0 print:hidden">
@@ -1313,7 +1313,7 @@ export default function MasterScheduler() {
                         <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.08em]">Month</span>
                       </div>
                     </div>
-                    <div className="flex flex-col flex-1 bg-white relative z-10" ref={sidebarListRef}>
+                    <div className="flex flex-col flex-1 bg-white relative z-10 print:pt-2" ref={sidebarListRef}>
                   {portfolioGalleries.map((gallery) => {
                     const laneHeight = galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT;
                     const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
@@ -1706,7 +1706,7 @@ export default function MasterScheduler() {
 
                   {/* Grid / Lanes */}
 	                  <div className="relative flex-1 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),rgba(248,250,252,0.88)_45%,rgba(241,245,249,0.92)_100%)] print:bg-none print:bg-white">
-	                    <div className="flex flex-col">
+		                    <div className="flex flex-col print:pt-2">
 	                      {filteredExhibitions.length === 0 && (
 	                        <div className="absolute inset-0 flex items-center justify-center p-20 pointer-events-none z-0">
                             <div className="max-w-md bg-white/90 border border-slate-200 px-8 py-10 shadow-[0_18px_40px_rgba(15,23,42,0.08)] text-center">
@@ -2533,36 +2533,8 @@ export default function MasterScheduler() {
       </main>
 
       {activeTab === 'portfolio' && (
-        <footer className="shrink-0 h-6 bg-white border-t border-slate-200 flex items-center justify-between px-3 text-[10px] text-slate-600 leading-none print:hidden">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${currentUser ? syncDotClass : 'bg-slate-300'}`} />
-              <span>{currentUser ? syncLabel : 'Local only'}</span>
-            </span>
-            <span className="text-slate-300">·</span>
-            <span><span className="font-mono text-slate-600">{filteredExhibitions.length}</span> projects</span>
-            <span className="text-slate-300">·</span>
-            <span><span className="font-mono text-slate-600">{galleries.length}</span> galleries</span>
-            <span className="text-slate-300">·</span>
-            <div className="flex items-center gap-4">
-              {ALL_STATUSES.map(s => {
-                const sty = getStatusStyles(s);
-                return (
-                  <div key={s} className="flex items-center gap-1.5 opacity-80">
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: sty.barBg }} />
-                    <span className="uppercase tracking-wide font-medium text-[9px]">{s}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden md:inline">Long-press a bar to drag</span>
-            <span className="text-slate-300 hidden md:inline">·</span>
-            <span className="hidden md:inline">Drag bar edges to resize</span>
-            <span className="text-slate-300 hidden md:inline">·</span>
-            <span className="font-mono text-slate-500">PortfolioTool v3</span>
-          </div>
+        <footer className="fixed bottom-0 left-0 right-0 z-[130] h-6 bg-white border-t border-slate-200 flex items-center justify-end px-3 text-[10px] text-slate-600 leading-none print:hidden">
+          <span className="font-mono text-slate-500">PortfolioTool-v3 by SB</span>
         </footer>
       )}
     </div>

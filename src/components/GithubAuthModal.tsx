@@ -58,21 +58,27 @@ export function GithubAuthModal({ onClose }: Props) {
     setError('');
 
     try {
-      const { createGist, getGistData } = await import('../lib/githubGist');
+      const { createGist, findExistingPortfolioGist, getGistData } = await import('../lib/githubGist');
 
       let finalGistId = parsedGistId;
 
       if (!finalGistId) {
-        const { useStore } = await import('../store/useStore');
-        const state = useStore.getState();
-        const initialData = {
-          museumName: state.museumName,
-          galleries: state.galleries,
-          phaseTypes: state.phaseTypes,
-          exhibitions: state.exhibitions,
-          locationMilestones: state.locationMilestones
-        };
-        finalGistId = await createGist(trimmedPat, initialData);
+        const existingGist = await findExistingPortfolioGist(trimmedPat);
+
+        if (existingGist) {
+          finalGistId = existingGist.id;
+        } else {
+          const { useStore } = await import('../store/useStore');
+          const state = useStore.getState();
+          const initialData = {
+            museumName: state.museumName,
+            galleries: state.galleries,
+            phaseTypes: state.phaseTypes,
+            exhibitions: state.exhibitions,
+            locationMilestones: state.locationMilestones
+          };
+          finalGistId = await createGist(trimmedPat, initialData);
+        }
       } else {
         await getGistData(finalGistId, trimmedPat);
       }
@@ -103,7 +109,7 @@ export function GithubAuthModal({ onClose }: Props) {
               <div className="space-y-1">
                 <p className="text-[12px] font-semibold uppercase tracking-wider">One-time personal setup</p>
                 <p className="text-[12px] leading-relaxed">
-                  Paste a GitHub token with Gist access. If this browser has the timeline you want to keep, start sync here first; Portfolio Tool will create a private sync Gist from the data already on this machine.
+                  Paste a GitHub token with Gist access. Portfolio Tool will connect to your existing sync Gist when it finds one, or create a private sync Gist from this machine.
                 </p>
               </div>
             </div>
