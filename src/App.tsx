@@ -1324,30 +1324,30 @@ export default function MasterScheduler() {
                 )}
               </div>
               <div
-                className="flex-1 overflow-auto timeline-root custom-scrollbar no-print-bg px-3 pb-3 print:overflow-visible relative"
+                className="flex-1 overflow-auto timeline-root custom-scrollbar no-print-bg pr-3 pb-3 print:overflow-visible relative"
                 ref={timelineRef}
               >
-                <div className="flex min-w-max h-max print:flex relative pt-2">
+                <div className="flex min-w-max h-max print:flex relative pt-2 pl-3">
                   <aside 
                     data-print-sidebar 
-                    className="sticky left-0 bg-white flex flex-col shrink-0 z-40 border-r border-slate-200 shadow-sm" 
+                    className="sticky left-0 bg-white flex flex-col shrink-0 z-[120] border-r border-slate-200 shadow-sm isolate overflow-hidden -ml-3" 
                     style={{ width: `${SIDEBAR_WIDTH}px` }}
                   >
                     <div style={{ height: `${HEADER_HEIGHT}px` }} className="sticky top-0 z-[110] shrink-0 bg-white border-b border-slate-200 flex flex-col print:bg-white shadow-[0_2px_4px_rgba(0,0,0,0.02)]">
                       <div className="flex h-[22px] border-b border-slate-200 bg-white px-3 items-center">
                         <span className="text-[10px] font-bold text-slate-800 uppercase tracking-[0.1em]">Timeline</span>
                       </div>
-                      <div className="flex h-[16px] border-b border-slate-200 bg-slate-50/60 px-3 items-center">
+                      <div className="flex h-[16px] border-b border-slate-200 bg-slate-50 px-3 items-center">
                         <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.08em]">Fiscal Year</span>
                       </div>
-                      <div className="flex h-[16px] border-b border-slate-200 bg-slate-50/40 px-3 items-center">
+                      <div className="flex h-[16px] border-b border-slate-200 bg-slate-50 px-3 items-center">
                         <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.08em]">Quarter</span>
                       </div>
                       <div className="flex h-[16px] bg-white px-3 items-center">
                         <span className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.08em]">Month</span>
                       </div>
                     </div>
-                    <div className="flex flex-col flex-1" ref={sidebarListRef}>
+                    <div className="flex flex-col flex-1 bg-white relative z-10" ref={sidebarListRef}>
                   {portfolioGalleries.map((gallery) => {
                     const laneHeight = galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT;
                     const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
@@ -1359,10 +1359,10 @@ export default function MasterScheduler() {
                     const headerHeight = mhFor(gallery.name);
                     if (isCollapsed) {
                       return (
-                        <div
-                          key={gallery.id}
-                          style={{ height: `${laneHeight}px` }}
-                          className={`relative border-b-2 border-slate-300 overflow-hidden flex items-center pl-4 pr-2.5 gap-1.5 ${isPermanent ? 'bg-amber-50/70' : 'bg-slate-50'} print:bg-white`}
+	                        <div
+	                          key={gallery.id}
+	                          style={{ height: `${laneHeight}px` }}
+	                          className={`relative border-b-2 border-slate-300 overflow-hidden flex items-center pl-4 pr-2.5 gap-1.5 ${isPermanent ? 'bg-amber-50' : 'bg-slate-50'} print:bg-white`}
                         >
                           <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
                           <button
@@ -1373,7 +1373,7 @@ export default function MasterScheduler() {
                           >
                             <ChevronRight size={12} strokeWidth={2.25} />
                           </button>
-                          <span className="font-bold text-[13px] text-slate-900 truncate flex-1 uppercase tracking-[0.04em]" title={gallery.name}>{gallery.name}</span>
+	                          <span className="font-bold text-[12px] text-slate-900 truncate flex-1 uppercase tracking-[0.03em] leading-tight" title={gallery.name}>{gallery.name}</span>
                           {isPermanent && (
                             <Star size={11} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
                           )}
@@ -1382,13 +1382,13 @@ export default function MasterScheduler() {
                       );
                     }
                     return (
-                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b-2 border-slate-300 overflow-hidden ${isPermanent ? 'bg-amber-50/40' : 'bg-white'}`}>
-                        <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-10 ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
-                        <div
-                          style={{ height: `${headerHeight}px` }}
-                          className={`absolute top-0 left-0 w-full border-b border-slate-300 flex items-center gap-1.5 pl-4 pr-2.5 z-20 ${isPermanent ? 'bg-amber-50' : 'bg-slate-50'} print:bg-white`}
-                          title={isPermanent ? 'Permanent gallery' : 'Temporary exhibition space'}
-                        >
+	                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b-2 border-slate-300 overflow-hidden ${isPermanent ? 'bg-amber-50' : 'bg-white'}`}>
+	                        <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-10 ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
+	                        <div
+	                          style={{ height: `${headerHeight}px` }}
+	                          className={`absolute top-0 left-0 w-full border-b-2 flex items-center gap-2 pl-4 pr-2.5 z-20 ${isPermanent ? 'bg-amber-100 border-amber-200' : 'bg-slate-100 border-slate-300'} print:bg-white print:border-slate-300`}
+	                          title={isPermanent ? 'Permanent gallery' : 'Temporary exhibition space'}
+	                        >
                           <button
                             type="button"
                             aria-label={`Collapse ${gallery.name}`}
@@ -1397,12 +1397,17 @@ export default function MasterScheduler() {
                           >
                             <ChevronDown size={12} strokeWidth={2.25} />
                           </button>
-                          <span className="font-bold text-[13px] text-slate-900 truncate flex-1 uppercase tracking-[0.04em]" title={gallery.name}>{gallery.name}</span>
-                          {isPermanent && (
-                            <Star size={11} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
-                          )}
-                          <span className="shrink-0 text-[10px] font-mono font-semibold text-slate-500 px-1.5 py-0.5 bg-white border border-slate-200">{galleryProjects.length}</span>
-                        </div>
+	                          <span className="font-bold text-[12px] text-slate-950 flex-1 uppercase tracking-[0.03em] leading-[1.05] whitespace-normal break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]" title={gallery.name}>{gallery.name}</span>
+	                          <div className="shrink-0 flex items-center gap-1">
+	                            <span className={`text-[8px] font-bold uppercase tracking-[0.06em] px-1.5 py-0.5 border leading-none ${isPermanent ? 'bg-white text-amber-800 border-amber-200' : 'bg-white text-slate-600 border-slate-200'}`}>
+	                              {isPermanent ? 'Perm' : 'Temp'}
+	                            </span>
+	                            {isPermanent && (
+	                              <Star size={11} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
+	                            )}
+	                            <span className="shrink-0 text-[10px] font-mono font-semibold text-slate-600 px-1.5 py-0.5 bg-white border border-slate-200 leading-none">{galleryProjects.length}</span>
+	                          </div>
+	                        </div>
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined) return null;
@@ -1419,62 +1424,60 @@ export default function MasterScheduler() {
                           // lane padding + track top. Without mhFor() the sidebar title
                           // floats above the timeline bar by ~28-48px.
                           const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + lastTrackTop;
-                          // Anchor the title text to the bar's exact vertical band so its
-                          // visual centre matches the timeline bar's centre regardless of
-                          // whether the ID line is present (a flex-justify-center stack
-                          // would shift the title up when the ID is rendered).
-                          const titleBandTop = topPos + (currentTrackHeight - (isPrintMode && printSettings.showDescription ? 32 : STANDARD_BAR_HEIGHT)) / 2;
-                          return (
-                            <div
-                              key={`title-${ex.id}`}
-                              className="absolute flex items-center gap-1.5 overflow-hidden"
-                              style={{ 
-                                top: titleBandTop, 
-                                height: isPrintMode && printSettings.showDescription ? '32px' : `${STANDARD_BAR_HEIGHT}px`, 
-                                left: '12px', 
-                                right: '10px' 
-                              }}
-                            >
-                              <div className="flex flex-col min-w-0">
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="text-[12px] font-medium text-slate-900 truncate leading-tight" title={ex.title}>{ex.title}</span>
-                                  {(() => {
-                                    const s = getStatusStyles(ex.status);
-                                    return (
-                                      <span 
-                                        className="shrink-0 text-[7px] font-bold px-1 py-0.5 rounded-[2px] uppercase tracking-tighter border font-mono leading-none"
-                                        style={{ backgroundColor: s.bg, color: s.text, borderColor: s.border }}
-                                      >
-                                        {ex.status === 'Open to Public' ? 'OPEN' : 
-                                         ex.status === 'In Development' ? 'DEV' : 
-                                         ex.status === 'TBC' ? 'TBC' : 'CLOSE'}
-                                      </span>
-                                    );
-                                  })()}
-                                </div>
-                                {isPrintMode && printSettings.showDescription && ex.description && (
-                                  <span className="text-[9px] text-slate-600 italic truncate leading-tight mt-0.5" title={ex.description}>
-                                    {ex.description}
-                                  </span>
-                                )}
-                              </div>
-                              {ex.exhibitionId && (
-                                <span
-                                  className="shrink-0 text-[9px] font-mono text-slate-500 leading-none whitespace-nowrap"
-                                  title={ex.exhibitionId}
-                                >
-                                  {ex.exhibitionId}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
+	                          const s = getStatusStyles(ex.status);
+	                          const shortStatus = ex.status === 'Open to Public' ? 'OPEN' : 
+	                            ex.status === 'In Development' ? 'DEV' : 
+	                            ex.status === 'TBC' ? 'TBC' : 'CLOSE';
+	                          return (
+	                            <div
+	                              key={`title-${ex.id}`}
+	                              className="absolute flex items-center overflow-hidden"
+	                              style={{ 
+	                                top: topPos, 
+	                                height: `${currentTrackHeight}px`, 
+	                                left: '12px', 
+	                                right: '10px' 
+	                              }}
+	                            >
+	                              <div className="flex flex-col justify-center min-w-0 w-full gap-[2px]">
+	                                <span 
+	                                  className="text-[11px] font-semibold text-slate-950 leading-[12px] overflow-hidden break-words [display:-webkit-box] [-webkit-box-orient:vertical]"
+	                                  style={{ WebkitLineClamp: isPrintMode ? 3 : 2 }}
+	                                  title={ex.title}
+	                                >
+	                                  {ex.title}
+	                                </span>
+	                                <div className="flex items-center gap-1.5 min-w-0 text-[8px] leading-none">
+	                                  <span
+	                                    className="shrink-0 font-bold px-1 py-0.5 rounded-[2px] uppercase tracking-tighter border font-mono"
+	                                    style={{ backgroundColor: s.bg, color: s.text, borderColor: s.border }}
+	                                  >
+	                                    {shortStatus}
+	                                  </span>
+	                                  {ex.exhibitionId && (
+	                                    <span
+	                                      className="min-w-0 truncate font-mono text-slate-500"
+	                                      title={ex.exhibitionId}
+	                                    >
+	                                      {ex.exhibitionId}
+	                                    </span>
+	                                  )}
+	                                </div>
+	                                {isPrintMode && printSettings.showDescription && ex.description && (
+	                                  <span className="text-[9px] text-slate-600 italic truncate leading-tight mt-0.5" title={ex.description}>
+	                                    {ex.description}
+	                                  </span>
+	                                )}
+	                              </div>
+	                            </div>
+	                          );
+	                        })}
                         {galleryProjects.map(ex => {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined || trackIndex === 0) return null;
                           const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
                           return (
-                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-200 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackTop }} />
+	                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-100 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackTop }} />
                           );
                         })}
                       </div>
@@ -1844,10 +1847,14 @@ export default function MasterScheduler() {
                          }
 
                          return (
-	                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b-2 border-slate-300 gallery-lane-bg relative overflow-hidden print:overflow-visible shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-[linear-gradient(180deg,rgba(255,255,255,1)_0%,rgba(248,250,252,0.95)_100%)] print:bg-none print:bg-white">
+		                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b-2 border-slate-300 gallery-lane-bg relative overflow-hidden print:overflow-visible shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-white print:bg-white">
 	                             <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-30 pointer-events-none ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
 	                             <div
-	                               className={`absolute top-0 left-0 right-0 border-b border-slate-300 pointer-events-none ${isPermanent ? 'bg-amber-50/60' : 'bg-slate-50/80'} print:bg-white`}
+	                               className={`${isPermanent ? 'bg-amber-50/20' : 'bg-white'} absolute left-0 right-0 bottom-0 pointer-events-none`}
+	                               style={{ top: `${headerStripHeight}px`, zIndex: 0 }}
+	                             />
+	                             <div
+	                               className={`absolute top-0 left-0 right-0 border-b-2 pointer-events-none ${isPermanent ? 'bg-amber-100/80 border-amber-200' : 'bg-slate-100/95 border-slate-300'} print:bg-white print:border-slate-300`}
 	                               style={{ height: `${headerStripHeight}px`, zIndex: 5 }}
 	                             />
                               {(() => {
@@ -1936,7 +1943,7 @@ export default function MasterScheduler() {
                                 if (trackIndex === undefined || trackIndex === 0) return null;
                                 const trackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
                                 return (
-                                  <div key={`line-${ex.id}`} className="absolute w-full border-t-[1.5px] border-slate-300 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackTop }} />
+	                                  <div key={`line-${ex.id}`} className="absolute w-full border-t border-slate-200 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackTop }} />
                                 );
                               })}
 
@@ -2610,4 +2617,3 @@ export default function MasterScheduler() {
     </div>
   );
 }
-
