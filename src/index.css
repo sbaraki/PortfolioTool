@@ -41,15 +41,18 @@
   }
 
   [data-print-sidebar] {
-    position: static !important;
+    position: relative !important;
     height: auto !important;
     border-right: 2px solid #e2e8f0 !important;
     flex-shrink: 0 !important;
-    z-index: auto !important;
+    z-index: 30 !important;
+    overflow: hidden !important;
     background: white !important;
   }
 
   [data-print-timeline] {
+    position: relative !important;
+    z-index: 1 !important;
     flex: none !important;
     width: max-content !important;
     min-width: 0 !important;
