@@ -85,6 +85,7 @@ const normalizePhaseTypes = (phaseTypes: PhaseType[] = []): PhaseType[] => {
     return {
       ...defaultType,
       ...matched,
+      label: defaultType.label,
       color,
       id: defaultType.id,
       isPost: defaultType.isPost,

@@ -17,11 +17,11 @@ export const DEFAULT_GALLERIES: Gallery[] = [
 ];
 
 export const DEFAULT_PHASE_TYPES: PhaseType[] = [
-  { id: 'pt1', label: 'IDEA DEVELOPMENT', color: '#94a3b8' },
-  { id: 'pt2', label: 'CONTENT DEVELOPMENT', color: '#3b82f6' },
-  { id: 'pt3', label: 'DESIGN DEVELOPMENT', color: '#a3cc39' },
-  { id: 'pt4', label: 'IMPLEMENTATION', color: '#facc15', isActive: true },
-  { id: 'pt5', label: 'DEINSTALL', color: '#dc2626', isPost: true },
+  { id: 'pt1', label: 'Idea Dev', color: '#94a3b8' },
+  { id: 'pt2', label: 'Content Dev', color: '#3b82f6' },
+  { id: 'pt3', label: 'Design Dev', color: '#a3cc39' },
+  { id: 'pt4', label: 'Implementation', color: '#facc15', isActive: true },
+  { id: 'pt5', label: 'Deinstall', color: '#dc2626', isPost: true },
 ];
 
 export const MILESTONE_COLORS = [

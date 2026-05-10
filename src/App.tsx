@@ -159,7 +159,6 @@ export default function MasterScheduler() {
     timelineEndDate, setTimelineEndDate,
     commitHistory, undo, redo, historyPast, historyFuture,
     showConflicts, setShowConflicts,
-    searchQuery, setSearchQuery,
   } = useStore();
   const [, setEditMilestoneDraft] = useState<LocationMilestone | null>(null);
   const { handleUpdateExhibition, handleRemoveExhibition, handleRenameGallery, handleSetGalleryKind, handleAddGallery, handleRemoveGallery, handleDuplicateProject } = useMuseumActions();
@@ -392,13 +391,11 @@ export default function MasterScheduler() {
 
   const filteredExhibitions = useMemo(() => {
     const visibleGalleryNames = new Set(portfolioGalleries.map(g => g.name));
-    const q = searchQuery.trim().toLowerCase();
     return exhibitions.filter(ex =>
       effectiveStatuses.has(ex.status) &&
-      visibleGalleryNames.has(ex.gallery) &&
-      (q === '' || ex.title.toLowerCase().includes(q) || (ex.exhibitionId || '').toLowerCase().includes(q))
+      visibleGalleryNames.has(ex.gallery)
     );
-  }, [exhibitions, effectiveStatuses, portfolioGalleries, searchQuery]);
+  }, [exhibitions, effectiveStatuses, portfolioGalleries]);
 
   // ── Conflict detection ─────────────────────────────────────────────────
   // A Set of exhibition IDs that overlap with at least one peer in the same gallery.
@@ -753,14 +750,13 @@ export default function MasterScheduler() {
     >
       {showGithubAuth && <div className="no-print"><GithubAuthModal onClose={() => setShowGithubAuth(false)} /></div>}
       {showPrintOptions && (
-        <div className="fixed inset-0 bg-slate-900/45 z-[110] backdrop-blur-sm flex items-center justify-center p-4 no-print" onClick={() => setShowPrintOptions(false)}>
+        <div className="fixed inset-0 bg-slate-900/45 z-[150] backdrop-blur-sm flex items-center justify-center p-4 no-print" onClick={() => setShowPrintOptions(false)}>
           <div className="bg-white border border-slate-200 w-full max-w-3xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText size={15} className="text-slate-700" />
                 <div>
                   <h2 className="text-[13px] font-bold uppercase tracking-[0.16em] text-slate-900">Print options</h2>
-                  <p className="text-[10px] text-slate-600 mt-0.5">Choose the audience, content, and explanatory detail for this printout.</p>
                 </div>
               </div>
               <button aria-label="Close print options" onClick={() => setShowPrintOptions(false)} className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-50">
@@ -808,12 +804,6 @@ export default function MasterScheduler() {
                   </select>
                 </label>
 
-                <div className="border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-900 leading-snug">
-                  If the timeline needs to print below {Math.round(MIN_READABLE_PRINT_SCALE * 100)}% scale, shorten the date range or choose fewer lanes for a larger print.
-                </div>
-              </section>
-
-              <section className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Statuses</label>
@@ -846,6 +836,12 @@ export default function MasterScheduler() {
                   </div>
                 </div>
 
+                <div className="border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-900 leading-snug">
+                  If the timeline needs to print below {Math.round(MIN_READABLE_PRINT_SCALE * 100)}% scale, shorten the date range or choose fewer lanes for a larger print.
+                </div>
+              </section>
+
+              <section className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Selected lanes</label>
@@ -906,14 +902,6 @@ export default function MasterScheduler() {
                 <div className="border-t border-slate-100 pt-3 mt-1">
                   <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600 block mb-2">Visual appearance</label>
                   <div className="grid grid-cols-2 gap-2">
-                    <label className="flex items-center gap-2 border border-slate-200 px-2 py-2 text-[11px] text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={printSettings.grayscale}
-                        onChange={(e) => setPrintSettings(prev => ({ ...prev, grayscale: e.target.checked }))}
-                      />
-                      Grayscale mode
-                    </label>
                     <label className="flex items-center gap-2 border border-slate-200 px-2 py-2 text-[11px] text-slate-700">
                       <input
                         type="checkbox"
@@ -1063,7 +1051,7 @@ export default function MasterScheduler() {
         return (
           <>
             <div
-              className="fixed inset-0 bg-slate-900/40 z-[90] no-print backdrop-blur-[2px]"
+              className="fixed inset-0 bg-slate-900/40 z-[130] no-print backdrop-blur-[2px]"
               onClick={() => setSelectedProjectId(null)}
             />
             <DetailPanel
@@ -1097,10 +1085,10 @@ export default function MasterScheduler() {
                   </div>
                   <span className="text-[12px] font-medium text-slate-900 truncate max-w-[220px]" title={museumName}>{museumName}</span>
                   <span className="text-slate-300 text-[11px]">/</span>
-                  <span className="text-[11px] text-slate-600">Portfolio</span>
+                  <span className="text-[11px] text-slate-600">Exhibition Plan</span>
                 </div>
 
-                {/* Center: range + zoom + search */}
+                {/* Center: range + zoom */}
                 <div className="flex items-center gap-2 min-w-0 flex-1 justify-center">
                   {/* Date range */}
                   <div className="flex items-center gap-1.5 border border-slate-200 px-2 leading-none h-7 shrink-0">
@@ -1139,31 +1127,6 @@ export default function MasterScheduler() {
                     ))}
                   </div>
 
-                  <div className="w-px h-4 bg-slate-200 shrink-0" />
-
-                  {/* Search */}
-                  <div className="relative flex items-center h-7 shrink-0">
-                    <Search size={11} className="absolute left-2 text-slate-400 pointer-events-none" />
-                    <input
-                      id="project-search"
-                      aria-label="Search projects"
-                      type="text"
-                      placeholder="Search projects…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="h-full border border-slate-200 pl-6 pr-6 text-[11px] text-slate-900 outline-none focus:border-slate-400 transition-colors bg-white w-44"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-1.5 text-slate-400 hover:text-slate-700 transition-colors"
-                        title="Clear search"
-                        aria-label="Clear search"
-                      >
-                        <X size={11} />
-                      </button>
-                    )}
-                  </div>
                 </div>
 
                 {/* Right: sync + actions */}
@@ -1680,18 +1643,18 @@ export default function MasterScheduler() {
                   {/* Header */}
                   <div className="sticky top-0 z-[60] border-b border-slate-200 flex flex-col overflow-hidden bg-white" style={{ height: `${HEADER_HEIGHT}px` }}>
                     <div className="flex h-[22px] border-b border-slate-200 bg-white relative z-10 print:bg-white print:border-slate-400">
-                      {yearBlocks.map(block => <div key={block.label} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center px-3 font-semibold text-[11px] tracking-[0.06em] text-slate-900 border-r border-slate-200 print:border-slate-400 print:text-black">{block.label}</div>)}
+                      {yearBlocks.map(block => <div key={block.label} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center px-3 font-bold text-[12px] tracking-[0.06em] text-slate-950 border-r border-slate-200 print:border-slate-400 print:text-black">{block.label}</div>)}
                     </div>
                      <div className="flex h-[16px] border-b border-slate-200 bg-slate-50/60 relative z-10 print:bg-orange-50 print:border-orange-300">
                        {fyBlocks.map((block) => (
-                         <div key={block.label} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center justify-start px-3 font-bold text-[9px] uppercase tracking-[0.08em] border-r border-slate-200 text-slate-700 print:text-orange-900">{block.label}</div>
+                         <div key={block.label} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center justify-start px-3 font-bold text-[10px] uppercase tracking-[0.08em] border-r border-slate-200 text-slate-800 print:text-orange-900">{block.label}</div>
                        ))}
                      </div>
                     <div className="flex h-[16px] border-b border-slate-200 bg-slate-50/40 relative z-10 print:bg-slate-50 text-slate-700">
-                      {fyQuarterBlocks.map((block, i) => <div key={`${block.label}-${i}`} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center justify-center border-r border-slate-200 text-[9px] font-bold tracking-[0.06em] text-slate-600 print:text-slate-900">{block.label}</div>)}
+                      {fyQuarterBlocks.map((block, i) => <div key={`${block.label}-${i}`} style={{ width: `${monthWidth * block.count}px` }} className="shrink-0 h-full flex items-center justify-center border-r border-slate-200 text-[10px] font-bold tracking-[0.06em] text-slate-700 print:text-slate-900">{block.label}</div>)}
                     </div>
                     <div className="flex h-[16px] bg-white relative z-10 print:bg-white text-slate-600">
-                      {viewMonths.map(m => <div key={`${m.year}-${m.month}`} style={{ width: `${monthWidth}px` }} className="shrink-0 h-full flex items-center justify-center border-r border-slate-200 text-[9px] font-semibold tracking-[0.04em] print:text-slate-900">{m.label}</div>)}
+                      {viewMonths.map(m => <div key={`${m.year}-${m.month}`} style={{ width: `${monthWidth}px` }} className="shrink-0 h-full flex items-center justify-center border-r border-slate-200 text-[10px] font-semibold tracking-[0.04em] text-slate-700 print:text-slate-900">{m.label}</div>)}
                     </div>
                   </div>
 
@@ -2020,8 +1983,9 @@ export default function MasterScheduler() {
                                   return (
                                     <React.Fragment key={ex.id}>
                                       <div className={`absolute pointer-events-none transition-opacity duration-200 ${isDraggingThis ? 'opacity-30' : ''} ${isPrintMode && !printSettings.showPhases ? 'print:hidden' : ''}`}>
-                                        {renderedPhases.map((phase, idx) => {
-                                          const yCenter = phase.y + PHASE_BAR_HEIGHT / 2;
+	                                        {renderedPhases.map((phase, idx) => {
+	                                          const phaseLabel = phase.type?.label || phase.label;
+	                                          const yCenter = phase.y + PHASE_BAR_HEIGHT / 2;
                                           let nextYCenter = -1;
                                           let nextX = -1;
                                           let hasNext = true;
@@ -2045,18 +2009,18 @@ export default function MasterScheduler() {
                                             }
                                           }
 
-                                          return (
-                                            <React.Fragment key={phase.id}>
-                                              {phase.isPost ? (
-                                                <>
-                                                  {/* Post-phase label: sits to the RIGHT of the bar */}
-                                                  <div
-                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
-                                                    style={{ left: `${phase.endX + 5}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px', zIndex: 10 }}
-                                                    title={phase.label}
-                                                  >
-                                                    {phase.label}
-                                                  </div>
+	                                          return (
+	                                            <React.Fragment key={phase.id}>
+	                                              {phase.isPost ? (
+	                                                <>
+	                                                  {/* Post-phase label: sits to the RIGHT of the bar */}
+	                                                  <div
+	                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
+	                                                    style={{ left: `${phase.endX + 5}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px', zIndex: 10 }}
+	                                                    title={phaseLabel}
+	                                                  >
+	                                                    {phaseLabel}
+	                                                  </div>
                                                   {/* Print-only date annotation: rendered BELOW the bar so it never overlaps the bar or label */}
                                                   {isPrintMode && (
                                                     <div
@@ -2070,13 +2034,13 @@ export default function MasterScheduler() {
                                               ) : (
                                                 <>
                                                   {/* Pre-phase label: sits to the LEFT of the bar, right-aligned */}
-                                                  <div
-                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate text-right print:text-slate-900"
-                                                    style={{ left: `${phase.startX - 115}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px', zIndex: 10 }}
-                                                    title={phase.label}
-                                                  >
-                                                    {phase.label}
-                                                  </div>
+	                                                  <div
+	                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate text-right print:text-slate-900"
+	                                                    style={{ left: `${phase.startX - 115}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px', zIndex: 10 }}
+	                                                    title={phaseLabel}
+	                                                  >
+	                                                    {phaseLabel}
+	                                                  </div>
                                                   {/* Print-only date annotation: rendered BELOW the bar so it never overlaps the bar or label */}
                                                   {isPrintMode && (
                                                     <div
@@ -2088,14 +2052,14 @@ export default function MasterScheduler() {
                                                   )}
                                                 </>
                                               )}
-                                              <div
-                                                className="absolute shadow-sm hover:shadow-md hover:opacity-90 transition-all pointer-events-auto border border-white/60 overflow-hidden"
-                                                style={{ left: `${phase.startX}px`, top: `${phase.y}px`, width: `${Math.max(phase.width - 2, 0)}px`, height: `${PHASE_BAR_HEIGHT}px`, backgroundColor: phase.type?.color || '#eee' }}
-                                                title={`${phase.label} — drag right edge to resize`}
-                                              />
-                                              <div
-                                                aria-label={`Resize phase ${phase.label}`}
-                                                className="absolute cursor-ew-resize pointer-events-auto hover:bg-slate-900/30 transition-colors no-print"
+	                                              <div
+	                                                className="absolute shadow-sm hover:shadow-md hover:opacity-90 transition-all pointer-events-auto border border-white/60 overflow-hidden"
+	                                                style={{ left: `${phase.startX}px`, top: `${phase.y}px`, width: `${Math.max(phase.width - 2, 0)}px`, height: `${PHASE_BAR_HEIGHT}px`, backgroundColor: phase.type?.color || '#eee' }}
+	                                                title={`${phaseLabel} — drag right edge to resize`}
+	                                              />
+	                                              <div
+	                                                aria-label={`Resize phase ${phaseLabel}`}
+	                                                className="absolute cursor-ew-resize pointer-events-auto hover:bg-slate-900/30 transition-colors no-print"
                                                 style={{
                                                   left: `${phase.endX - EDGE_HIT_ZONE}px`,
                                                   top: `${phase.y}px`,

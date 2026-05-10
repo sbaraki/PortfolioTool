@@ -52,7 +52,7 @@ export function GithubAuthModal({ onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 z-[100] backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-slate-900/40 z-[150] backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white border border-slate-300 w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="bg-slate-900 text-white px-4 py-3 font-semibold tracking-widest flex justify-between items-center text-[12px]">
           <span>GITHUB SYNC</span>

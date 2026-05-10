@@ -110,11 +110,12 @@ export const DetailPanel = ({
 
   const handleApplyPreset = (preset: string) => {
     let newPhases: ProjectPhase[] = [];
+    const phaseByLabel = (fragment: string) => phaseTypes.find(p => p.label.toUpperCase().includes(fragment))?.id;
     if (preset === 'standard') {
       newPhases = [
-        { id: Math.random().toString(36).slice(2, 11), label: 'CONTENT', durationMonths: 3, typeId: phaseTypes.find(p => p.label.includes('CONTENT'))?.id || 'pt2' },
-        { id: Math.random().toString(36).slice(2, 11), label: 'DESIGN', durationMonths: 3, typeId: phaseTypes.find(p => p.label.includes('DESIGN'))?.id || 'pt3' },
-        { id: Math.random().toString(36).slice(2, 11), label: 'BUILD', durationMonths: 2, typeId: phaseTypes.find(p => p.label.includes('IMPLEMENTATION'))?.id || 'pt4' },
+        { id: Math.random().toString(36).slice(2, 11), label: 'CONTENT', durationMonths: 3, typeId: phaseByLabel('CONTENT') || 'pt2' },
+        { id: Math.random().toString(36).slice(2, 11), label: 'DESIGN', durationMonths: 3, typeId: phaseByLabel('DESIGN') || 'pt3' },
+        { id: Math.random().toString(36).slice(2, 11), label: 'BUILD', durationMonths: 2, typeId: phaseByLabel('IMPLEMENTATION') || 'pt4' },
       ];
     } else if (preset === 'full') {
       newPhases = phaseTypes.map(pt => ({
@@ -125,8 +126,8 @@ export const DetailPanel = ({
       }));
     } else if (preset === 'simple') {
       newPhases = [
-        { id: Math.random().toString(36).slice(2, 11), label: 'PLANNING & DESIGN', durationMonths: 2, typeId: phaseTypes.find(p => p.label.includes('DESIGN'))?.id || 'pt3' },
-        { id: Math.random().toString(36).slice(2, 11), label: 'IMPLEMENTATION', durationMonths: 2, typeId: phaseTypes.find(p => p.label.includes('IMPLEMENTATION'))?.id || 'pt4' },
+        { id: Math.random().toString(36).slice(2, 11), label: 'PLANNING & DESIGN', durationMonths: 2, typeId: phaseByLabel('DESIGN') || 'pt3' },
+        { id: Math.random().toString(36).slice(2, 11), label: 'IMPLEMENTATION', durationMonths: 2, typeId: phaseByLabel('IMPLEMENTATION') || 'pt4' },
       ];
     } else if (preset === 'clear') {
       newPhases = [];
@@ -266,7 +267,7 @@ export const DetailPanel = ({
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 w-full sm:w-[440px] bg-white border-l border-slate-200 z-[100] flex flex-col no-print shadow-[-8px_0_24px_rgba(15,23,42,0.06)]"
+      className="fixed inset-y-0 right-0 w-full sm:w-[440px] bg-white border-l border-slate-200 z-[140] flex flex-col no-print shadow-[-8px_0_24px_rgba(15,23,42,0.06)]"
     >
       <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-start gap-3 bg-white">
         <div className="flex-1 min-w-0">
@@ -372,7 +373,7 @@ export const DetailPanel = ({
                 id="ex-id"
                 className={inputCls}
                 value={editedEx.exhibitionId || ''}
-                placeholder="EX-0000-000"
+                placeholder="EXH000"
                 onChange={(e) => handleFieldChange('exhibitionId', e.target.value.toUpperCase())}
               />
             ) : (
@@ -413,7 +414,6 @@ export const DetailPanel = ({
           <div className="flex items-start justify-between gap-2 pt-2 border-t border-slate-100">
             <div className="flex-1 min-w-0">
               <span className={labelCls}>Track as completion milestone</span>
-              <span className="text-[10px] text-slate-400 block mt-0.5">Single date instead of date range. For permanent installs.</span>
             </div>
             {isEditing ? (
               <button
@@ -652,7 +652,6 @@ export const DetailPanel = ({
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <span className={sectionHeaderCls}>Milestones</span>
-              <p className="text-[10px] text-slate-400 mt-0.5">Inline beats on this project's track.</p>
             </div>
             {isEditing && (
               <button
