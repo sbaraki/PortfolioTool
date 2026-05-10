@@ -109,7 +109,7 @@ export function GithubAuthModal({ onClose }: Props) {
               <div className="space-y-1">
                 <p className="text-[12px] font-semibold uppercase tracking-wider">One-time personal setup</p>
                 <p className="text-[12px] leading-relaxed">
-                  Paste a GitHub token with Gist access. Portfolio Tool will connect to your existing sync Gist when it finds one, or create a private sync Gist from this machine.
+                  Paste a GitHub token with Gist access. Portfolio Tool will look for an existing sync Gist in your account first; use Advanced when you already know the exact Gist URL or ID.
                 </p>
               </div>
             </div>
@@ -127,7 +127,7 @@ export function GithubAuthModal({ onClose }: Props) {
                 autoComplete="off"
               />
               <p className="text-[11px] leading-relaxed text-slate-500">
-                Use a fine-grained personal access token with only the Gists permission. The token is stored in this browser for personal sync.
+                Use a fine-grained personal access token with only the Gists permission. The token gives access; the Gist stores the timeline.
               </p>
             </div>
 

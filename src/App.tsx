@@ -147,8 +147,8 @@ const formatPrintDateTime = (date: Date | null) => {
 export default function MasterScheduler() {
   const SIDEBAR_WIDTH = 220;
   const { currentUser, syncStatus } = useMuseumSync();
-  const syncLabel = syncStatus === 'syncing' ? 'Syncing' : syncStatus === 'error' ? 'Sync error' : 'Synced';
-  const syncDotClass = syncStatus === 'syncing' ? 'bg-blue-500' : syncStatus === 'error' ? 'bg-red-500' : 'bg-emerald-500';
+  const syncLabel = syncStatus === 'syncing' ? 'Syncing' : syncStatus === 'error' ? 'Sync error' : syncStatus === 'synced' ? 'Synced' : 'Connecting';
+  const syncDotClass = syncStatus === 'error' ? 'bg-red-500' : syncStatus === 'synced' ? 'bg-emerald-500' : 'bg-blue-500';
 
   const {
     museumName, setMuseumName,
@@ -1405,17 +1405,17 @@ export default function MasterScheduler() {
 	                                right: '10px' 
 	                              }}
 	                            >
-	                              <div className="flex flex-col justify-center min-w-0 w-full gap-[2px]">
+	                              <div className="flex flex-col justify-center min-w-0 w-full gap-px py-0.5">
 	                                <span 
-	                                  className="text-[11px] font-semibold text-slate-950 leading-[12px] overflow-hidden break-words [display:-webkit-box] [-webkit-box-orient:vertical]"
+	                                  className="text-[10px] font-semibold text-slate-950 leading-[10.5px] overflow-hidden break-words [display:-webkit-box] [-webkit-box-orient:vertical]"
 	                                  style={{ WebkitLineClamp: isPrintMode ? 3 : 2 }}
 	                                  title={ex.title}
 	                                >
 	                                  {ex.title}
 	                                </span>
-	                                <div className="flex items-center gap-1.5 min-w-0 text-[8px] leading-none">
+	                                <div className="flex items-center gap-1.5 min-w-0 text-[7px] leading-[9px]">
 	                                  <span
-	                                    className="shrink-0 font-bold px-1 py-0.5 rounded-[2px] uppercase tracking-tighter border font-mono"
+	                                    className="shrink-0 font-bold px-1 py-0 rounded-[2px] uppercase tracking-tighter border font-mono leading-[9px]"
 	                                    style={{ backgroundColor: s.bg, color: s.text, borderColor: s.border }}
 	                                  >
 	                                    {shortStatus}
@@ -1706,9 +1706,12 @@ export default function MasterScheduler() {
 
                   {/* Grid / Lanes */}
 	                  <div className="relative flex-1 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),rgba(248,250,252,0.88)_45%,rgba(241,245,249,0.92)_100%)] print:bg-none print:bg-white">
-		                    <div className="flex flex-col print:pt-2">
+	                    <div className="flex flex-col print:pt-2">
 	                      {filteredExhibitions.length === 0 && (
-	                        <div className="absolute inset-0 flex items-center justify-center p-20 pointer-events-none z-0">
+	                        <div
+                            className="absolute top-0 bottom-0 left-0 flex items-center justify-center p-20 pointer-events-none z-40"
+                            style={{ width: `calc(100vw - ${SIDEBAR_WIDTH}px)` }}
+                          >
                             <div className="max-w-md bg-white/90 border border-slate-200 px-8 py-10 shadow-[0_18px_40px_rgba(15,23,42,0.08)] text-center">
 	                            <Search size={40} className="mx-auto mb-4 text-slate-300" />
 	                            <p className="text-xl font-semibold uppercase tracking-[0.18em] text-slate-700">No Projects Found</p>
@@ -1834,7 +1837,7 @@ export default function MasterScheduler() {
                                       <div 
                                         key={m.id} 
                                         className="absolute flex items-center justify-center pointer-events-auto"
-                                        style={{ left: `${m.xPos}px`, top: `${MILESTONE_ICON_BAND_HEIGHT / 2}px`, transform: 'translate(-50%, -50%)' }}
+                                        style={{ left: `${m.xPos}px`, top: `${MILESTONE_ICON_BAND_HEIGHT / 2}px`, transform: 'translate(-50%, -50%)', zIndex: 35 }}
                                       >
                                         <div
                                           className="transform hover:scale-125 transition-transform cursor-pointer flex items-center justify-center relative z-20"
