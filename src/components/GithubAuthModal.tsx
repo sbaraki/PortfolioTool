@@ -5,6 +5,20 @@ interface Props {
   onClose: () => void;
 }
 
+const looksLikeGithubToken = (value: string) => /^(github_pat_|gh[pousr]_)/.test(value.trim());
+
+const parseGistId = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  const urlMatch = trimmed.match(/gist\.github\.com\/(?:[^/\s]+\/)?([a-f0-9]{20,64})(?:[/?#]|$)/i);
+  if (urlMatch) return urlMatch[1];
+
+  if (/^[a-f0-9]{20,64}$/i.test(trimmed)) return trimmed;
+
+  return null;
+};
+
 export function GithubAuthModal({ onClose }: Props) {
   const [pat, setPat] = useState(localStorage.getItem('github_pat') || '');
   const [gistId, setGistId] = useState(localStorage.getItem('github_gist_id') || '');
@@ -13,8 +27,30 @@ export function GithubAuthModal({ onClose }: Props) {
   const [error, setError] = useState('');
 
   const handleSave = async () => {
-    if (!pat.trim()) {
+    const trimmedPat = pat.trim();
+    const trimmedGistId = gistId.trim();
+
+    if (!trimmedPat && looksLikeGithubToken(trimmedGistId)) {
+      setPat(trimmedGistId);
+      setGistId('');
+      setShowAdvanced(false);
+      setError('That was a GitHub token, so I moved it to the GitHub Token field. Leave Existing Gist ID blank to create a private sync Gist.');
+      return;
+    }
+
+    if (!trimmedPat) {
       setError('Paste a GitHub token with Gist access to start syncing.');
+      return;
+    }
+
+    if (looksLikeGithubToken(trimmedGistId)) {
+      setError('Existing Gist ID should be a Gist ID or Gist URL, not a GitHub token. Clear this field unless you already have a Portfolio Tool sync Gist.');
+      return;
+    }
+
+    const parsedGistId = parseGistId(trimmedGistId);
+    if (parsedGistId === null) {
+      setError('Existing Gist ID should look like a GitHub Gist ID or a full gist.github.com URL.');
       return;
     }
 
@@ -24,7 +60,7 @@ export function GithubAuthModal({ onClose }: Props) {
     try {
       const { createGist, getGistData } = await import('../lib/githubGist');
 
-      let finalGistId = gistId.trim();
+      let finalGistId = parsedGistId;
 
       if (!finalGistId) {
         const { useStore } = await import('../store/useStore');
@@ -36,12 +72,12 @@ export function GithubAuthModal({ onClose }: Props) {
           exhibitions: state.exhibitions,
           locationMilestones: state.locationMilestones
         };
-        finalGistId = await createGist(pat, initialData);
+        finalGistId = await createGist(trimmedPat, initialData);
       } else {
-        await getGistData(finalGistId, pat);
+        await getGistData(finalGistId, trimmedPat);
       }
 
-      localStorage.setItem('github_pat', pat);
+      localStorage.setItem('github_pat', trimmedPat);
       localStorage.setItem('github_gist_id', finalGistId);
 
       window.location.reload();
@@ -108,11 +144,21 @@ export function GithubAuthModal({ onClose }: Props) {
                   type="text"
                   className="w-full border border-slate-300 p-3 font-medium text-sm outline-none focus:bg-slate-50 transition-colors"
                   value={gistId}
-                  onChange={(e) => setGistId(e.target.value)}
-                  placeholder="Leave blank to create a private Gist"
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    if (looksLikeGithubToken(nextValue)) {
+                      setPat(nextValue.trim());
+                      setGistId('');
+                      setError('That looks like a GitHub token, so I moved it to the GitHub Token field.');
+                      return;
+                    }
+                    setGistId(nextValue);
+                    setError('');
+                  }}
+                  placeholder="Gist ID or gist.github.com URL"
                 />
                 <p className="text-[11px] leading-relaxed text-slate-500">
-                  Only fill this in when connecting another machine to a Gist that Portfolio Tool already created.
+                  Only fill this in when connecting another machine to a Gist that Portfolio Tool already created. Leave blank to create a private sync Gist from this machine.
                 </p>
               </div>
             )}

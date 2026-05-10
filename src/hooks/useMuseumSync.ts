@@ -111,6 +111,7 @@ export const useMuseumSync = () => {
   
   // Track last synced state to prevent redundant saves
   const lastSyncedStateRef = useRef<string | null>(null);
+  const hasCompletedInitialGistPullRef = useRef(false);
 
   const { 
     exhibitions, setExhibitions,
@@ -178,30 +179,36 @@ export const useMuseumSync = () => {
   // 3. GitHub Gist Initial Data Pull
   useEffect(() => {
     if (!currentUser || isInitialLoad) return;
+    hasCompletedInitialGistPullRef.current = false;
 
     const pullData = async () => {
       try {
         setSyncStatus('syncing');
         const data = await getGistData(currentUser.gistId, currentUser.pat);
-        if (data) {
-          if (data.museumName) setMuseumName(data.museumName);
-          const normalizedGalleries = normalizeGalleries(data.galleries);
-          setGalleries(normalizedGalleries);
-          if (data.phaseTypes) setPhaseTypes(normalizePhaseTypes(data.phaseTypes));
-          if (data.exhibitions) setExhibitions(normalizeExhibitions(data.exhibitions));
-          if (data.locationMilestones) setLocationMilestones(data.locationMilestones);
-
-          lastSyncedStateRef.current = JSON.stringify({
-            museumName: data.museumName || 'NATIONAL HERITAGE TRUST',
-            galleries: normalizedGalleries,
-            phaseTypes: normalizePhaseTypes(data.phaseTypes || []),
-            exhibitions: data.exhibitions || [],
-            locationMilestones: data.locationMilestones || []
-          });
+        if (!data) {
+          throw new Error('This Gist does not contain Portfolio Tool timeline data. Use the Gist ID created by Portfolio Tool on the laptop that has your timeline.');
         }
+
+        const normalizedState = {
+          museumName: data.museumName || 'NATIONAL HERITAGE TRUST',
+          galleries: normalizeGalleries(data.galleries),
+          phaseTypes: normalizePhaseTypes(data.phaseTypes || []),
+          exhibitions: normalizeExhibitions(data.exhibitions),
+          locationMilestones: Array.isArray(data.locationMilestones) ? data.locationMilestones : []
+        };
+
+        setMuseumName(normalizedState.museumName);
+        setGalleries(normalizedState.galleries);
+        setPhaseTypes(normalizedState.phaseTypes);
+        setExhibitions(normalizedState.exhibitions);
+        setLocationMilestones(normalizedState.locationMilestones);
+
+        lastSyncedStateRef.current = JSON.stringify(normalizedState);
+        hasCompletedInitialGistPullRef.current = true;
         setSyncStatus('synced');
       } catch (err) {
         console.error("Gist pull error", err);
+        hasCompletedInitialGistPullRef.current = false;
         setSyncStatus('error');
       }
     };
@@ -213,6 +220,7 @@ export const useMuseumSync = () => {
   // 4. Auto-save to GitHub Gist when state changes
   useEffect(() => {
     if (!currentUser || isInitialLoad) return;
+    if (!hasCompletedInitialGistPullRef.current) return;
 
     const currentState = {
       museumName,

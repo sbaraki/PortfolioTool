@@ -147,6 +147,8 @@ const formatPrintDateTime = (date: Date | null) => {
 export default function MasterScheduler() {
   const SIDEBAR_WIDTH = 220;
   const { currentUser, syncStatus } = useMuseumSync();
+  const syncLabel = syncStatus === 'syncing' ? 'Syncing' : syncStatus === 'error' ? 'Sync error' : 'Synced';
+  const syncDotClass = syncStatus === 'syncing' ? 'bg-blue-500' : syncStatus === 'error' ? 'bg-red-500' : 'bg-emerald-500';
 
   const {
     museumName, setMuseumName,
@@ -1144,9 +1146,9 @@ export default function MasterScheduler() {
                       title={`${currentUser.displayName || currentUser.email || 'Signed in'} — click to sign out`}
                     >
                       <Cloud size={12} />
-                      <span className="text-[11px]">{syncStatus === 'syncing' ? 'Syncing…' : 'Synced'}</span>
-                      {syncStatus === 'syncing' && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 ml-0.5" />
+                      <span className="text-[11px]">{syncStatus === 'syncing' ? 'Syncing…' : syncLabel}</span>
+                      {(syncStatus === 'syncing' || syncStatus === 'error') && (
+                        <span className={`w-1.5 h-1.5 rounded-full ${syncDotClass} ml-0.5`} />
                       )}
                     </button>
                   ) : (
@@ -2549,8 +2551,8 @@ export default function MasterScheduler() {
         <footer className="shrink-0 h-6 bg-white border-t border-slate-200 flex items-center justify-between px-3 text-[10px] text-slate-600 leading-none print:hidden">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
-              <span className={`w-1.5 h-1.5 rounded-full ${currentUser ? (syncStatus === 'syncing' ? 'bg-blue-500' : 'bg-emerald-500') : 'bg-slate-300'}`} />
-              <span>{currentUser ? (syncStatus === 'syncing' ? 'Syncing' : 'Synced') : 'Local only'}</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${currentUser ? syncDotClass : 'bg-slate-300'}`} />
+              <span>{currentUser ? syncLabel : 'Local only'}</span>
             </span>
             <span className="text-slate-300">·</span>
             <span><span className="font-mono text-slate-600">{filteredExhibitions.length}</span> projects</span>
