@@ -128,8 +128,8 @@ const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   grayscale: false,
   showPhases: true,
   showDescription: false,
-  fontSizeMultiplier: 1.0,
-  projectRowGap: 12,
+  fontSizeMultiplier: 1.08,
+  projectRowGap: 16,
   footerNote: '',
 };
 
@@ -897,7 +897,7 @@ export default function MasterScheduler() {
                       checked={printSettings.includeLegends}
                       onChange={(e) => setPrintSettings(prev => ({ ...prev, includeLegends: e.target.checked }))}
                     />
-                    Legends
+                    Project status key
                   </label>
                 </div>
 
@@ -1275,16 +1275,17 @@ export default function MasterScheduler() {
                   </div>
                 )}
                 {printSettings.includeLegends && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[8.5px] text-slate-600">
-                    <span className="font-semibold uppercase tracking-[0.08em] text-slate-700">Legend</span>
-                    {phaseTypes.map(type => (
-                      <span key={type.id} className="inline-flex items-center gap-1">
-                        <span className="w-3 h-1.5 border border-slate-400" style={{ background: type.color }} />
-                        {type.label}
-                      </span>
-                    ))}
-                    <span className="inline-flex items-center gap-1"><Star size={9} className="text-amber-700 fill-amber-700" /> Permanent gallery</span>
-                    <span className="inline-flex items-center gap-1"><Flag size={9} /> Milestone / event</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[8.5px] text-slate-600" data-print-status-key>
+                    <span className="font-semibold uppercase tracking-[0.08em] text-slate-700">Project status</span>
+                    {ALL_STATUSES.map(status => {
+                      const statusStyle = getStatusStyles(status);
+                      return (
+                        <span key={status} className="inline-flex items-center gap-1.5">
+                          <span className="w-3 h-1.5 border border-slate-400" style={{ background: statusStyle.barBg }} />
+                          {status}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -2017,41 +2018,25 @@ export default function MasterScheduler() {
 	                                                <>
 	                                                  {/* Post-phase label: sits to the RIGHT of the bar */}
 	                                                  <div
-	                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate print:text-slate-900"
-	                                                    style={{ left: `${phase.endX + 5}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px', zIndex: 10 }}
+	                                                    data-print-phase-label
+	                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.04em] text-slate-700 leading-none truncate print:text-slate-900"
+	                                                    style={{ left: `${phase.endX + 6}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '132px', zIndex: 10 }}
 	                                                    title={phaseLabel}
 	                                                  >
 	                                                    {phaseLabel}
 	                                                  </div>
-                                                  {/* Print-only date annotation: rendered BELOW the bar so it never overlaps the bar or label */}
-                                                  {isPrintMode && (
-                                                    <div
-                                                      className="absolute pointer-events-none text-[7.5px] font-mono text-slate-400 leading-none"
-                                                      style={{ left: `${phase.endX + 5}px`, top: `${phase.y + PHASE_BAR_HEIGHT + 2}px`, width: '130px', zIndex: 10 }}
-                                                    >
-                                                      {formatBarDate(getDateFromPosition(phase.startX, monthWidth, viewMonths))}–{formatBarDate(getDateFromPosition(phase.endX, monthWidth, viewMonths))}
-                                                    </div>
-                                                  )}
                                                 </>
                                               ) : (
                                                 <>
                                                   {/* Pre-phase label: sits to the LEFT of the bar, right-aligned */}
 	                                                  <div
-	                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 leading-none truncate text-right print:text-slate-900"
-	                                                    style={{ left: `${phase.startX - 115}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '110px', zIndex: 10 }}
+	                                                    data-print-phase-label
+	                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.04em] text-slate-700 leading-none truncate text-right print:text-slate-900"
+	                                                    style={{ left: `${phase.startX - 138}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '132px', zIndex: 10 }}
 	                                                    title={phaseLabel}
 	                                                  >
 	                                                    {phaseLabel}
 	                                                  </div>
-                                                  {/* Print-only date annotation: rendered BELOW the bar so it never overlaps the bar or label */}
-                                                  {isPrintMode && (
-                                                    <div
-                                                      className="absolute pointer-events-none text-[7.5px] font-mono text-slate-400 leading-none text-right"
-                                                      style={{ left: `${phase.startX - 130}px`, top: `${phase.y + PHASE_BAR_HEIGHT + 2}px`, width: '125px', zIndex: 10 }}
-                                                    >
-                                                      {formatBarDate(getDateFromPosition(phase.startX, monthWidth, viewMonths))}–{formatBarDate(getDateFromPosition(phase.endX, monthWidth, viewMonths))}
-                                                    </div>
-                                                  )}
                                                 </>
                                               )}
 	                                              <div

@@ -60,6 +60,36 @@
     height: auto !important;
   }
 
+  [data-print-header] {
+    gap: 0.04in !important;
+    padding-top: 0.06in !important;
+    padding-bottom: 0.06in !important;
+  }
+
+  [data-print-header] h1 {
+    letter-spacing: 0.12em !important;
+    line-height: 1.1 !important;
+  }
+
+  [data-print-status-key] {
+    color: #334155 !important;
+    line-height: 1.15 !important;
+  }
+
+  [data-print-phase-label] {
+    color: #1e293b !important;
+    font-size: calc(10px * var(--print-font-multiplier, 1)) !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1 !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+  }
+
+  [data-print-sidebar] span,
+  [data-print-sidebar] div {
+    line-height: 1.08 !important;
+  }
+
   .timeline-container,
   .custom-scrollbar {
     overflow-x: hidden !important;
