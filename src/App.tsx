@@ -1,13 +1,13 @@
-import { useStore } from '\.\/store/useStore';
-import { useMuseumSync } from '\.\/hooks/useMuseumSync';
-import { useMuseumActions } from '\.\/hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT, MILESTONE_LABEL_ROW_HEIGHT, MILESTONE_LABEL_MAX_WIDTH, MILESTONE_ROW_HEIGHT, EMPTY_MILESTONE_ROW_HEIGHT, GALLERY_HEADER_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from '\.\/constants';
-import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from '\.\/lib/dateUtils';
-import { calculateTracks, packMilestoneLabels } from '\.\/lib/layoutEngine';
-import { calculatePrintScale } from '\.\/lib/printLayout';
-import { exportExhibitionsToCSV } from '\.\/lib/exportUtils';
-import { Exhibition, Gallery, GalleryKind, PhaseType, ProjectMilestone, ProjectPhase, ExhibitionStatus, LocationMilestone, PrintSettings } from '\.\/types';
-import { DetailPanel } from '\.\/components/DetailPanel';
+import { useStore } from './store/useStore';
+import { useMuseumSync } from './hooks/useMuseumSync';
+import { useMuseumActions } from './hooks/useMuseumActions';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, GALLERY_HEADER_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './constants';
+import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './lib/dateUtils';
+import { calculateTracks } from './lib/layoutEngine';
+import { calculatePrintScale } from './lib/printLayout';
+import { exportExhibitionsToCSV } from './lib/exportUtils';
+import { CheckpointKind, Exhibition, Gallery, GalleryKind, ProjectPhase, ExhibitionStatus, PrintSettings } from './types';
+import { DetailPanel } from './components/DetailPanel';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -57,65 +57,87 @@ import {
   FileText
 } from 'lucide-react';
 
-import { GithubAuthModal } from '\.\/components/GithubAuthModal';
+import { GithubAuthModal } from './components/GithubAuthModal';
 
 // --- Main App ---
 
 const ALL_STATUSES: ExhibitionStatus[] = ['TBC', 'In Development', 'Open to Public', 'Closed'];
 
-const MilestoneLabel = ({
-  title,
-  date,
-  labelFontSize,
-  dateFontSize,
-  isTwoLine,
-}: {
-  title: string;
-  date: string;
-  labelFontSize: number;
-  dateFontSize: number;
-  isTwoLine: boolean;
-}) => {
-  const formattedDate = formatBarDate(date);
-
-  if (isTwoLine) {
-    return (
-      <div className="flex h-full min-w-0 flex-col items-center justify-center gap-[2px] text-center leading-none">
-        <span
-          className="font-semibold uppercase tracking-[0.04em] text-slate-800 whitespace-nowrap"
-          style={{ fontSize: `${labelFontSize}px` }}
-        >
-          {title}
-        </span>
-        <span
-          className="font-medium uppercase tracking-[0.04em] text-slate-600 whitespace-nowrap"
-          style={{ fontSize: `${dateFontSize}px` }}
-        >
-          {formattedDate}
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <span
-        className="font-semibold uppercase tracking-[0.06em] text-slate-800 min-w-0 whitespace-nowrap"
-        style={{ fontSize: `${labelFontSize}px` }}
-      >
-        {title}
-      </span>
-      <span className="w-px h-2 bg-slate-300 shrink-0" />
-      <span
-        className="font-medium uppercase tracking-[0.04em] text-slate-600 shrink-0 whitespace-nowrap"
-        style={{ fontSize: `${dateFontSize}px` }}
-      >
-        {formattedDate}
-      </span>
-    </>
-  );
+const MILESTONE_KIND_META: Record<CheckpointKind, {
+  label: string;
+  Icon: React.ElementType;
+  markerClass: string;
+  iconClass: string;
+  labelBorderClass: string;
+}> = {
+  kickoff: {
+    label: 'Kickoff',
+    Icon: Flag,
+    markerClass: 'bg-sky-600',
+    iconClass: 'bg-sky-50 text-sky-700 border-sky-200',
+    labelBorderClass: 'border-sky-200',
+  },
+  review: {
+    label: 'Review',
+    Icon: Eye,
+    markerClass: 'bg-violet-600',
+    iconClass: 'bg-violet-50 text-violet-700 border-violet-200',
+    labelBorderClass: 'border-violet-200',
+  },
+  approval: {
+    label: 'Approval',
+    Icon: BadgeCheck,
+    markerClass: 'bg-emerald-600',
+    iconClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    labelBorderClass: 'border-emerald-200',
+  },
+  install: {
+    label: 'Install',
+    Icon: Truck,
+    markerClass: 'bg-amber-600',
+    iconClass: 'bg-amber-50 text-amber-700 border-amber-200',
+    labelBorderClass: 'border-amber-200',
+  },
+  opening: {
+    label: 'Opening',
+    Icon: Star,
+    markerClass: 'bg-rose-600',
+    iconClass: 'bg-rose-50 text-rose-700 border-rose-200',
+    labelBorderClass: 'border-rose-200',
+  },
+  close: {
+    label: 'Close',
+    Icon: CircleCheck,
+    markerClass: 'bg-slate-700',
+    iconClass: 'bg-slate-50 text-slate-700 border-slate-200',
+    labelBorderClass: 'border-slate-300',
+  },
+  other: {
+    label: 'Other',
+    Icon: Clock,
+    markerClass: 'bg-red-600',
+    iconClass: 'bg-red-50 text-red-700 border-red-200',
+    labelBorderClass: 'border-red-200',
+  },
 };
 
+const formatMilestoneDate = (dateStr: string) => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!year || !month || !day) return dateStr || '---';
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  }).toUpperCase();
+};
+
+type TimelineRect = { x: number; y: number; width: number; height: number };
+
+const timelineRectsOverlap = (a: TimelineRect, b: TimelineRect, padding = 4) => (
+  a.x < b.x + b.width + padding &&
+  a.x + a.width + padding > b.x &&
+  a.y < b.y + b.height + padding &&
+  a.y + a.height + padding > b.y
+);
 
 const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   paperSize: 'ledger',
@@ -155,14 +177,12 @@ export default function MasterScheduler() {
     galleries, setGalleries,
     phaseTypes, setPhaseTypes,
     exhibitions, setExhibitions,
-    locationMilestones,
     monthWidth, setMonthWidth,
     timelineStartDate, setTimelineStartDate,
     timelineEndDate, setTimelineEndDate,
     commitHistory, undo, redo, historyPast, historyFuture,
     showConflicts, setShowConflicts,
   } = useStore();
-  const [, setEditMilestoneDraft] = useState<LocationMilestone | null>(null);
   const { handleUpdateExhibition, handleRemoveExhibition, handleRenameGallery, handleSetGalleryKind, handleAddGallery, handleRemoveGallery, handleDuplicateProject } = useMuseumActions();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -204,13 +224,13 @@ export default function MasterScheduler() {
   const [dragTempEndDate, setDragTempEndDate] = useState<string | null>(null);
   const [draggingMilestone, setDraggingMilestone] = useState<{
     projectId: string;
-    milestoneId: string;
+    checkpointId: string;
     initialMouseX: number;
+    initialX: number;
     initialDate: string;
     tempDate: string;
   } | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
-  const suppressMilestoneClickRef = useRef(false);
 
   // Edge-drag resize state — separate from long-press move so resize starts instantly.
   const [resizingEdge, setResizingEdge] = useState<{ id: string; edge: 'left' | 'right' } | null>(null);
@@ -404,7 +424,7 @@ export default function MasterScheduler() {
   const conflictingIds = useMemo(() => {
     const ids = new Set<string>();
     portfolioGalleries.forEach(gallery => {
-      const exs = filteredExhibitions.filter(ex => ex.gallery === gallery.name && !ex.isMilestone);
+      const exs = filteredExhibitions.filter(ex => ex.gallery === gallery.name && ex.scheduleMode !== 'single-date');
       for (let i = 0; i < exs.length; i++) {
         for (let j = i + 1; j < exs.length; j++) {
           const a = exs[i], b = exs[j];
@@ -419,7 +439,7 @@ export default function MasterScheduler() {
     return ids;
   }, [filteredExhibitions, portfolioGalleries]);
 
-  const printProjectMilestoneCount = filteredExhibitions.reduce((sum, ex) => sum + (ex.milestones?.length || 0), 0);
+  const printProjectCheckpointCount = filteredExhibitions.reduce((sum, ex) => sum + (ex.checkpoints?.length || 0), 0);
 
   const handleStartPrint = () => {
     flushSync(() => {
@@ -498,30 +518,7 @@ export default function MasterScheduler() {
     return layouts;
   }, [filteredExhibitions, portfolioGalleries, monthWidth, viewMonths, phaseTypes]);
 
-  const galleryMilestoneRowHeights = useMemo(() => {
-    const heights: Record<string, number> = {};
-    portfolioGalleries.forEach(gallery => {
-      const packed = packMilestoneLabels<LocationMilestone & { xPos: number }>(
-        locationMilestones
-          .filter(m => m.gallery === gallery.name)
-          .map(m => ({ ...m, xPos: getPositionFromDate(m.date, monthWidth, viewMonths) }))
-      );
-      heights[gallery.name] = packed.items.length > 0
-        ? Math.max(MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT + (packed.rowCount * MILESTONE_LABEL_ROW_HEIGHT) + 6)
-        : EMPTY_MILESTONE_ROW_HEIGHT;
-    });
-    return heights;
-  }, [portfolioGalleries, locationMilestones, monthWidth, viewMonths]);
-
-  // Top-strip height for a gallery lane. Both the sidebar (gallery-name header) and
-  // the timeline (location-milestone strip) reserve this much vertical room before
-  // project tracks start so the two columns stay vertically aligned. Always at least
-  // GALLERY_HEADER_HEIGHT so gallery names are never clipped, even when the lane has
-  // no milestones.
-  const mhFor = (galleryName: string) => Math.max(
-    galleryMilestoneRowHeights[galleryName] ?? EMPTY_MILESTONE_ROW_HEIGHT,
-    GALLERY_HEADER_HEIGHT
-  );
+  const mhFor = (_galleryName: string) => GALLERY_HEADER_HEIGHT;
 
 
   const getProjectPhaseRows = (project: Exhibition) => {
@@ -529,53 +526,24 @@ export default function MasterScheduler() {
     return Math.max(1, prePhasesCount + 1);
   };
 
-  const getProjectLastAllocatedTrackIndex = (project: Exhibition, startTrack: number, maxTracks: number) => (
-    Math.min(startTrack + getProjectPhaseRows(project) - 1, Math.max(0, maxTracks - 1))
-  );
-
-  const getProjectMilestoneBandHeight = (labelRows: number) => (
-    labelRows > 0
-      ? Math.max(PROJECT_MILESTONE_ROW_HEIGHT, MILESTONE_ICON_BAND_HEIGHT + (labelRows * MILESTONE_LABEL_ROW_HEIGHT) + 8)
-      : 0
-  );
-
-  // For each gallery, compute per-track top offsets. Tracks whose project carries
-  // ProjectMilestone entries get a dynamically sized band that expands with label
-  // density at the current zoom level so milestone pills never bleed into the next
-  // project track or gallery.
   const galleryTrackLayouts = useMemo(() => {
-    const out: Record<string, { trackTops: number[]; total: number; trackMilestoneRows: number[]; trackHeights: number[] }> = {};
+    const out: Record<string, { trackTops: number[]; total: number; trackHeights: number[] }> = {};
     portfolioGalleries.forEach(gallery => {
       const layout = galleryLayouts[gallery.name];
       const maxTracks = layout?.maxTracks || 1;
-      const trackMilestoneRows = new Array(maxTracks).fill(0);
-      filteredExhibitions.forEach(ex => {
-        if (ex.gallery !== gallery.name) return;
-        const milestones = ex.milestones || [];
-        if (milestones.length === 0) return;
-        const ti = layout?.tracks[ex.id];
-        if (ti === undefined) return;
-        const lastTrackIdx = getProjectLastAllocatedTrackIndex(ex, ti, maxTracks);
-        const packed = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
-          milestones.map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
-        );
-        trackMilestoneRows[lastTrackIdx] = Math.max(trackMilestoneRows[lastTrackIdx], packed.rowCount);
-      });
       const trackTops: number[] = [];
       const trackHeights: number[] = [];
       let acc = 0;
       for (let i = 0; i < maxTracks; i++) {
         trackTops.push(acc);
-        const rows = trackMilestoneRows[i];
-        const milestoneBand = getProjectMilestoneBandHeight(rows);
-        const h = currentTrackHeight + milestoneBand;
+        const h = currentTrackHeight;
         trackHeights.push(h);
         acc += h;
       }
-      out[gallery.name] = { trackTops, total: acc, trackMilestoneRows, trackHeights };
+      out[gallery.name] = { trackTops, total: acc, trackHeights };
     });
     return out;
-  }, [portfolioGalleries, galleryLayouts, filteredExhibitions, phaseTypes, monthWidth, viewMonths, currentTrackHeight]);
+  }, [portfolioGalleries, galleryLayouts, currentTrackHeight]);
 
 
   const galleryLaneHeights = useMemo(() => {
@@ -592,7 +560,7 @@ export default function MasterScheduler() {
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, galleryMilestoneRowHeights]);
+  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -619,13 +587,6 @@ export default function MasterScheduler() {
   }, [timelineStartDate, timelineEndDate, monthWidth, viewMonths]);
 
   const showWeeklyGrid = monthWidth >= WEEKLY_GRID_THRESHOLD;
-
-  const activeMilestoneDragFeedback = draggingMilestone
-    ? {
-        date: draggingMilestone.tempDate,
-        x: getPositionFromDate(draggingMilestone.tempDate, monthWidth, viewMonths),
-      }
-    : null;
 
   const activeDragFeedback = (draggingBarId || resizingEdge) && dragTempStartDate && dragTempEndDate
     ? {
@@ -684,19 +645,19 @@ export default function MasterScheduler() {
     setPhaseResizeTempDuration(phase.durationMonths);
   };
 
-  const onMilestoneMouseDown = (e: React.MouseEvent, projectId: string, milestone: ProjectMilestone) => {
+  const onMilestoneMouseDown = (e: React.MouseEvent, project: Exhibition, checkpointId: string, date: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
     clearLongPress();
     setIsDraggingScroll(false);
-    suppressMilestoneClickRef.current = false;
     setDraggingMilestone({
-      projectId,
-      milestoneId: milestone.id,
+      projectId: project.id,
+      checkpointId,
       initialMouseX: e.clientX,
-      initialDate: milestone.date,
-      tempDate: milestone.date,
+      initialX: getPositionFromDate(date, monthWidth, viewMonths),
+      initialDate: date,
+      tempDate: date,
     });
   };
 
@@ -734,16 +695,41 @@ export default function MasterScheduler() {
   const commitMilestoneDrag = () => {
     if (draggingMilestone) {
       const ex = exhibitions.find(p => p.id === draggingMilestone.projectId);
-      if (ex) {
-        const updatedMilestones = ex.milestones.map(m => m.id === draggingMilestone.milestoneId
-          ? { ...m, date: draggingMilestone.tempDate }
-          : m
-        );
-        handleUpdateExhibition({ ...ex, milestones: updatedMilestones });
+      if (ex && draggingMilestone.tempDate !== draggingMilestone.initialDate) {
+        handleUpdateExhibition({
+          ...ex,
+          checkpoints: (ex.checkpoints || []).map(checkpoint =>
+            checkpoint.id === draggingMilestone.checkpointId
+              ? { ...checkpoint, date: draggingMilestone.tempDate }
+              : checkpoint
+          )
+        });
       }
     }
     setDraggingMilestone(null);
   };
+
+  useEffect(() => {
+    if (!draggingMilestone) return;
+
+    const handleMilestoneWindowMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - draggingMilestone.initialMouseX;
+      let nextDate = getDateFromPosition(draggingMilestone.initialX + deltaX, monthWidth, viewMonths);
+      if (showWeeklyGrid && !e.altKey) nextDate = snapDate(nextDate, 'week');
+      setDraggingMilestone(prev => prev ? { ...prev, tempDate: nextDate } : null);
+    };
+
+    const handleMilestoneWindowUp = () => {
+      commitMilestoneDrag();
+    };
+
+    window.addEventListener('mousemove', handleMilestoneWindowMove);
+    window.addEventListener('mouseup', handleMilestoneWindowUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMilestoneWindowMove);
+      window.removeEventListener('mouseup', handleMilestoneWindowUp);
+    };
+  }, [draggingMilestone, monthWidth, viewMonths, showWeeklyGrid, exhibitions]);
 
   return (
     <div
@@ -1053,8 +1039,8 @@ export default function MasterScheduler() {
         return (
           <>
             <div
-              className="fixed inset-0 bg-slate-900/40 z-[130] no-print backdrop-blur-[2px]"
-              onClick={() => setSelectedProjectId(null)}
+              className="fixed inset-0 bg-slate-900/40 z-[130] no-print backdrop-blur-[2px] pointer-events-none"
+              aria-hidden="true"
             />
             <DetailPanel
               exhibition={selectedExhibition}
@@ -1231,15 +1217,14 @@ export default function MasterScheduler() {
                       const now = new Date();
                       const exStart = getDateWithMonthDuration(toISODate(now), 12);
                       const exEnd = getDateWithMonthDuration(exStart, 3);
-                      const isMilestone = defaultGallery.kind === 'permanent';
+                      const scheduleMode: Exhibition['scheduleMode'] = defaultGallery.kind === 'permanent' ? 'single-date' : 'range';
                       const newEx: Exhibition = {
                         id, exhibitionId: '', title: 'NEW PROJECT', status: 'TBC',
-                        startDate: exStart, endDate: isMilestone ? exStart : exEnd, gallery: defaultGallery.name,
-                        milestones: [], phases: phaseTypes.map(pt => ({
+                        startDate: exStart, endDate: scheduleMode === 'single-date' ? exStart : exEnd, gallery: defaultGallery.name,
+                        scheduleMode, checkpoints: [], phases: phaseTypes.map(pt => ({
                           id: Math.random().toString(36).slice(2, 11), label: pt.label,
                           durationMonths: pt.isPost ? 1 : 3, typeId: pt.id
                         })), description: '',
-                        isMilestone
                       };
                       commitHistory();
                       setExhibitions([...exhibitions, newEx]);
@@ -1271,7 +1256,7 @@ export default function MasterScheduler() {
                         {status}: {filteredExhibitions.filter(ex => ex.status === status).length}
                       </span>
                     ))}
-                    <span>Project milestones: {printProjectMilestoneCount}</span>
+                    <span>Project milestones: {printProjectCheckpointCount}</span>
                   </div>
                 )}
                 {printSettings.includeLegends && (
@@ -1319,9 +1304,8 @@ export default function MasterScheduler() {
                     const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
                     const isPermanent = gallery.kind === 'permanent';
                     const isCollapsed = effectiveCollapsedGalleryIds.has(gallery.id);
-                    // Match the timeline's location-milestone strip height so the
-                    // gallery name has the same vertical space as the milestones it
-                    // labels, and project tracks below it line up across both columns.
+                    // Keep the gallery header and project tracks aligned across the
+                    // sidebar and the timeline.
                     const headerHeight = mhFor(gallery.name);
                     if (isCollapsed) {
                       return (
@@ -1365,9 +1349,6 @@ export default function MasterScheduler() {
                           </button>
 	                          <span className="font-bold text-[12px] text-slate-950 flex-1 uppercase tracking-[0.03em] leading-[1.05] whitespace-normal break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]" title={gallery.name}>{gallery.name}</span>
 	                          <div className="shrink-0 flex items-center gap-1">
-	                            <span className={`text-[8px] font-bold uppercase tracking-[0.06em] px-1.5 py-0.5 border leading-none ${isPermanent ? 'bg-white text-amber-800 border-amber-200' : 'bg-white text-slate-600 border-slate-200'}`}>
-	                              {isPermanent ? 'Perm' : 'Temp'}
-	                            </span>
 	                            {isPermanent && (
 	                              <Star size={11} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
 	                            )}
@@ -1384,7 +1365,7 @@ export default function MasterScheduler() {
                           // on the LAST allocated track (where the main bar lives), not the first
                           // (which holds the topmost pre-phase). This keeps the sidebar title aligned
                           // with the bar a viewer's eye lands on, mirroring the timeline layout.
-                          const lastTrackIdx = getProjectLastAllocatedTrackIndex(ex, trackIndex, Math.max(1, trackTops.length));
+                          const lastTrackIdx = Math.min(trackIndex + getProjectPhaseRows(ex) - 1, Math.max(0, trackTops.length - 1));
                           const lastTrackTop = trackTops[lastTrackIdx] ?? trackTop;
                           // Mirror the timeline's project-bar Y offset: top strip +
                           // lane padding + track top. Without mhFor() the sidebar title
@@ -1476,7 +1457,6 @@ export default function MasterScheduler() {
                   }
                   if (resizingEdge) commitResize();
                   if (resizingPhase) commitPhaseResize();
-                  if (draggingMilestone) commitMilestoneDrag();
                   setDraggingBarId(null);
                   setDragTempStartDate(null);
                   setDragTempEndDate(null);
@@ -1496,7 +1476,6 @@ export default function MasterScheduler() {
                   }
                   if (resizingEdge) commitResize();
                   if (resizingPhase) commitPhaseResize();
-                  if (draggingMilestone) commitMilestoneDrag();
                   setDraggingBarId(null);
                   setDragTempStartDate(null);
                   setDragTempEndDate(null);
@@ -1504,16 +1483,6 @@ export default function MasterScheduler() {
                 }}
                 onMouseMove={(e) => {
                   clearLongPress();
-
-                  if (draggingMilestone) {
-                    const deltaX = e.clientX - draggingMilestone.initialMouseX;
-                    if (Math.abs(deltaX) > 2) suppressMilestoneClickRef.current = true;
-                    const initialX = getPositionFromDate(draggingMilestone.initialDate, monthWidth, viewMonths);
-                    let newDate = getDateFromPosition(initialX + deltaX, monthWidth, viewMonths);
-                    if (showWeeklyGrid && !e.altKey) newDate = snapDate(newDate, 'week');
-                    setDraggingMilestone(prev => prev ? { ...prev, tempDate: newDate } : prev);
-                    return;
-                  }
 
                   if (resizingEdge) {
                     const deltaX = e.clientX - resizeInitialMouseXRef.current;
@@ -1558,6 +1527,14 @@ export default function MasterScheduler() {
                     return;
                   }
 
+                  if (draggingMilestone) {
+                    const deltaX = e.clientX - draggingMilestone.initialMouseX;
+                    let nextDate = getDateFromPosition(draggingMilestone.initialX + deltaX, monthWidth, viewMonths);
+                    if (showWeeklyGrid && !e.altKey) nextDate = snapDate(nextDate, 'week');
+                    setDraggingMilestone(prev => prev ? { ...prev, tempDate: nextDate } : null);
+                    return;
+                  }
+
 	                  if (draggingBarId) {
 	                    const deltaX = e.clientX - dragStartMouseXRef.current;
 	                    const newProjectX = dragStartProjectXRef.current + deltaX;
@@ -1583,24 +1560,6 @@ export default function MasterScheduler() {
                   <div className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-[70] pointer-events-none" style={{ left: `${todayPos}px` }}>
                     <div className="sticky top-[6px] bg-red-600 text-white font-semibold text-[10px] px-1.5 py-0.5 uppercase transform -translate-x-1/2 shadow-sm w-max whitespace-nowrap">TODAY</div>
                   </div>
-
-                  {activeMilestoneDragFeedback && (
-                    <div className="absolute top-0 bottom-0 z-[76] pointer-events-none no-print" style={{ width: `${totalTimelineWidth}px` }}>
-                      {/* Original Position Ghost */}
-                      <div
-                        className="absolute top-0 bottom-0 w-px border-l border-dashed border-slate-400 opacity-40"
-                        style={{ left: `${getPositionFromDate(draggingMilestone?.initialDate || '', monthWidth, viewMonths)}px` }}
-                      />
-                      <div
-                        className="absolute top-0 bottom-0 w-[2px] bg-amber-500 shadow-[0_0_0_1px_rgba(255,255,255,0.85),0_0_16px_rgba(245,158,11,0.38)]"
-                        style={{ left: `${activeMilestoneDragFeedback.x}px` }}
-                      >
-                        <div className="sticky top-[70px] -translate-x-1/2 rounded-sm border border-amber-700 bg-amber-500 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-white shadow-lg whitespace-nowrap">
-                          Milestone {formatBarDate(activeMilestoneDragFeedback.date)}
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {activeDragFeedback && (
                     <div className="absolute top-0 bottom-0 z-[75] pointer-events-none no-print" style={{ width: `${totalTimelineWidth}px` }}>
@@ -1748,63 +1707,25 @@ export default function MasterScheduler() {
                                    const startX = getPositionFromDate(ex.startDate, monthWidth, viewMonths);
                                    const endX = getPositionFromDate(ex.endDate, monthWidth, viewMonths);
                                    const w = Math.max(2, endX - startX);
-                                   const styles = getStatusStyles(ex.status);
-                                   
+                                  const styles = getStatusStyles(ex.status);
+
                                    // Scatter them slightly vertically to show overlap
                                    const y = 8 + (i % 3) * 6;
 
                                    return (
-                                     <React.Fragment key={ex.id}>
-                                       {/* Core Project Bar Preview */}
-                                       <div 
-                                         className="absolute h-2.5 rounded-full ring-1 ring-white/50"
-                                         style={{ 
-                                           left: `${startX}px`, 
-                                           width: `${w}px`, 
-                                           top: `${y}px`,
-                                           backgroundColor: styles.barBg,
-                                           opacity: 0.35
-                                         }}
-                                       />
-                                       {/* Milestones for this project */}
-                                       {(ex.milestones || []).map(m => {
-                                         const mx = getPositionFromDate(m.date, monthWidth, viewMonths);
-                                         return (
-                                           <div 
-                                             key={m.id}
-                                             className="absolute w-2.5 h-2.5 rotate-45 border border-white/80 shadow-sm"
-                                             style={{ 
-                                               left: `${mx}px`, 
-                                               top: `${y}px`, 
-                                               backgroundColor: styles.barBg,
-                                               transform: 'translate(-50%, -10%) rotate(45deg)',
-                                               zIndex: 5
-                                             }}
-                                           />
-                                         );
-                                       })}
-                                     </React.Fragment>
+                                     <div
+                                       key={ex.id}
+                                       className="absolute h-2.5 rounded-full ring-1 ring-white/50"
+                                       style={{
+                                         left: `${startX}px`,
+                                         width: `${w}px`,
+                                         top: `${y}px`,
+                                         backgroundColor: styles.barBg,
+                                         opacity: 0.35
+                                       }}
+                                     />
                                    );
                                  })}
-                                 
-                                 {/* Location Milestones Preview */}
-                                 {locationMilestones
-                                   .filter(lm => lm.gallery === g)
-                                   .map(lm => {
-                                     const lmx = getPositionFromDate(lm.date, monthWidth, viewMonths);
-                                     return (
-                                       <div 
-                                         key={lm.id}
-                                         className="absolute h-full w-px bg-slate-400/20"
-                                         style={{ left: `${lmx}px`, top: 0 }}
-                                       >
-                                         <div 
-                                           className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-slate-400"
-                                         />
-                                       </div>
-                                     );
-                                   })
-                                 }
                                </div>
 
                                {/* Tiny project count label */}
@@ -1826,86 +1747,6 @@ export default function MasterScheduler() {
 	                               className={`absolute top-0 left-0 right-0 border-b-2 pointer-events-none ${isPermanent ? 'bg-amber-100/80 border-amber-200' : 'bg-slate-100/95 border-slate-300'} print:bg-white print:border-slate-300`}
 	                               style={{ height: `${headerStripHeight}px`, zIndex: 5 }}
 	                             />
-                              {(() => {
-                                const gMilestones = packMilestoneLabels<LocationMilestone & { xPos: number }>(
-                                  locationMilestones
-                                    .filter(m => m.gallery === g)
-                                    .map(m => ({ ...m, xPos: getPositionFromDate(m.date, monthWidth, viewMonths) }))
-                                ).items;
-                                return gMilestones.map((m) => {
-                                    return (
-                                      <div 
-                                        key={m.id} 
-                                        className="absolute flex items-center justify-center pointer-events-auto"
-                                        style={{ left: `${m.xPos}px`, top: `${MILESTONE_ICON_BAND_HEIGHT / 2}px`, transform: 'translate(-50%, -50%)', zIndex: 35 }}
-                                      >
-                                        <div
-                                          className="transform hover:scale-125 transition-transform cursor-pointer flex items-center justify-center relative z-20"
-                                          title={m.date}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setEditMilestoneDraft(m);
-                                          }}
-                                          onDoubleClick={(e) => e.stopPropagation()}
-                                        >
-                                          {(() => {
-                                            const c = m.color || '#dc2626';
-                                            switch (m.icon) {
-                                              case 'flag':
-                                                return (
-                                                  <div className="relative flex items-center justify-center pointer-events-none mt-1">
-                                                    <Flag size={16} fill={c} stroke="black" strokeWidth={2} className="drop-shadow-[1px_1px_0_rgba(0,0,0,1)]" />
-                                                  </div>
-                                                );
-                                              case 'team':
-                                                return (
-                                                  <div className="w-4 h-4 flex items-center justify-center rounded-full border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] pointer-events-none" style={{ backgroundColor: c }}>
-                                                    <Users size={10} stroke="white" strokeWidth={2.5} />
-                                                  </div>
-                                                );
-                                              case 'approval':
-                                                return (
-                                                  <div className="w-4 h-4 flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }}>
-                                                    <BadgeCheck size={16} fill={c} stroke="black" strokeWidth={2} />
-                                                  </div>
-                                                );
-                                              case 'delivery':
-                                                return (
-                                                  <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] pointer-events-none" style={{ backgroundColor: c }}>
-                                                    <Truck size={10} stroke="white" strokeWidth={2.5} />
-                                                  </div>
-                                                );
-                                              case 'event':
-                                                return (
-                                                  <div className="flex items-center justify-center pointer-events-none" style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }}>
-                                                    <Star size={16} fill={c} stroke="black" strokeWidth={2} />
-                                                  </div>
-                                                );
-                                              default:
-                                                return (
-                                                  <div className="w-3.5 h-3.5 bg-white border-[1.5px] border-slate-300 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center pointer-events-none">
-                                                    <div className="w-[4px] h-[4px]" style={{ backgroundColor: c }} />
-                                                  </div>
-                                                );
-                                            }
-                                          })()}
-                                        </div>
-                                        <div
-                                          className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-md opacity-95 transition-all hover:bg-slate-50 hover:opacity-100 z-30 pointer-events-none min-w-0 ${m.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
-                                          style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (m.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${m.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
-                                        >
-                                          <MilestoneLabel
-                                            title={m.title}
-                                            date={m.date}
-                                            labelFontSize={m.labelFontSize}
-                                            dateFontSize={m.dateFontSize}
-                                            isTwoLine={m.isTwoLine}
-                                          />
-                                        </div>
-                                      </div>
-                                  );
-                                });
-                              })()}
 
                               {galleryProjects.map(ex => {
                                 const trackIndex = galleryLayouts[g]!.tracks[ex.id];
@@ -1966,15 +1807,13 @@ export default function MasterScheduler() {
                                     return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypes.find(t => t.id === p.typeId), i, isPost: false };
                                   });
 
-                                  // Milestone projects have no main bar — the diamond replaces it.
-                                  // Align it with the last pre-phase row so the dependency arrow flows straight into it
-                                  // instead of dropping down to a wasted row below the phases.
-                                  const mainBarY = ex.isMilestone && prePhasesRaw.length > 0
+                                  const isSingleDateProject = ex.scheduleMode === 'single-date';
+                                  const mainBarY = isSingleDateProject && prePhasesRaw.length > 0
                                     ? projectRowTop(prePhasesRaw.length - 1) + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2
                                     : projectRowTop(prePhasesRaw.length) + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2;
 
                                   let postOffset = PHASE_GAP;
-                                  const renderedPost = ex.isMilestone ? [] : postPhasesRaw.map((p, i) => {
+                                  const renderedPost = isSingleDateProject ? [] : postPhasesRaw.map((p, i) => {
                                     const pWidth = phaseDurationFor(p) * monthWidth;
                                     const pStart = endPos + postOffset;
                                     const pEnd = pStart + pWidth;
@@ -1985,6 +1824,55 @@ export default function MasterScheduler() {
                                   });
 
                                   const renderedPhases = [...renderedPre, ...renderedPost];
+                                  const phaseLabelBoxes: TimelineRect[] = renderedPhases.map((phase) => {
+                                    const labelY = phase.y + PHASE_BAR_HEIGHT / 2 - 7;
+                                    return phase.isPost
+                                      ? { x: phase.endX + 6, y: labelY, width: 132, height: 14 }
+                                      : { x: phase.startX - 138, y: labelY, width: 132, height: 14 };
+                                  });
+                                  const placedMilestoneLabelBoxes: TimelineRect[] = [];
+                                  const milestoneLabelRows = [mainBarY - 30, mainBarY - 50, mainBarY - 70];
+                                  const isSelectedMilestoneProject = selectedProjectId === ex.id;
+                                  const milestoneLayouts = (ex.checkpoints || []).map((checkpoint) => {
+                                    const isDraggingThisMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.checkpointId === checkpoint.id;
+                                    const effectiveMilestoneDate = isDraggingThisMilestone ? draggingMilestone.tempDate : checkpoint.date;
+                                    const checkpointX = getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths);
+                                    const fullLabelWidth = Math.min(
+                                      260,
+                                      Math.max(142, (checkpoint.title.length * 5.8) + 58)
+                                    );
+                                    const fullLabelHeight = 20;
+                                    const findRow = (labelWidth: number) => milestoneLabelRows.find((candidateY) => {
+                                      const candidateBox = {
+                                        x: checkpointX - (labelWidth / 2),
+                                        y: candidateY,
+                                        width: labelWidth,
+                                        height: fullLabelHeight,
+                                      };
+                                      return ![...phaseLabelBoxes, ...placedMilestoneLabelBoxes].some(box => timelineRectsOverlap(candidateBox, box));
+                                    });
+                                    const fullRow = findRow(fullLabelWidth);
+                                    const shouldCompact = fullRow === undefined && !isSelectedMilestoneProject;
+                                    const labelWidth = shouldCompact ? 74 : fullLabelWidth;
+                                    const labelTop = fullRow ?? findRow(labelWidth) ?? milestoneLabelRows[milestoneLabelRows.length - 1];
+                                    const labelBox = {
+                                      x: checkpointX - (labelWidth / 2),
+                                      y: labelTop,
+                                      width: labelWidth,
+                                      height: fullLabelHeight,
+                                    };
+                                    placedMilestoneLabelBoxes.push(labelBox);
+                                    return {
+                                      checkpoint,
+                                      isDraggingThisMilestone,
+                                      effectiveMilestoneDate,
+                                      checkpointX,
+                                      milestoneKind: MILESTONE_KIND_META[checkpoint.kind] || MILESTONE_KIND_META.other,
+                                      labelWidth,
+                                      labelTop,
+                                      isCompact: shouldCompact,
+                                    };
+                                  });
 
                                   return (
                                     <React.Fragment key={ex.id}>
@@ -2096,9 +1984,9 @@ export default function MasterScheduler() {
                                         })()}
                                       </div>
 
-                                      {ex.isMilestone ? (
+                                      {isSingleDateProject ? (
                                         <div
-                                          aria-label={`Project: ${ex.title} (${ex.status}). Completion milestone on ${formatBarDate(effStartDate)}. Click to view details.`}
+                                          aria-label={`Project: ${ex.title} (${ex.status}). Single date on ${formatBarDate(effStartDate)}. Click to view details.`}
                                           role="button"
                                           tabIndex={0}
                                           onMouseDown={(e) => onBarMouseDown(e, ex)}
@@ -2177,10 +2065,8 @@ export default function MasterScheduler() {
                                       </div>
                                       )}
 
-                                      {/* External title pill — renders just past the post-phases when the bar is too
-                                          narrow to display the title legibly inside. Mirrors the milestone label style
-                                          so narrow bars stay readable at any preset zoom level. */}
-                                      {!ex.isMilestone && width < 80 && (() => {
+                                      {/* External title pill for bars too narrow to display a readable title. */}
+                                      {!isSingleDateProject && width < 80 && (() => {
                                         const lastPostEndX = renderedPost.length > 0
                                           ? renderedPost[renderedPost.length - 1].endX
                                           : endPos;
@@ -2200,101 +2086,62 @@ export default function MasterScheduler() {
                                         );
                                       })()}
 
-                                      {/* Per-project milestones — rendered in a dynamically sized reserved
-                                          band beneath the project track. Labels pack into as many rows as needed
-                                          at the current zoom level instead of spilling into neighbouring tracks. */}
-                                      {(ex.milestones || []).length > 0 && (() => {
-                                        // Project occupies one track per pre-phase plus a main-bar track; post-phases
-                                        // render on those allocated rows. Resolve through galleryTrackLayouts so a
-                                        // milestone band always starts below the project's actual last allocated row.
-                                        const lastAllocatedTrackIndex = getProjectLastAllocatedTrackIndex(ex, trackIndex, maxTracks);
-                                        const lastAllocatedTrackTop = mhFor(g) + LANE_TOP_PADDING + (trackTops[lastAllocatedTrackIndex] ?? (ownerTrackTop + ((lastAllocatedTrackIndex - trackIndex) * currentTrackHeight)));
-                                        const bandTop = lastAllocatedTrackTop + currentTrackHeight;
-                                        const iconCenterY = bandTop + MILESTONE_ICON_BAND_HEIGHT / 2;
-
-                                        const { items: projectMilestones } = packMilestoneLabels<ProjectMilestone & { xPos: number }>(
-                                          (ex.milestones || []).map(pm => ({ ...pm, xPos: getPositionFromDate(pm.date, monthWidth, viewMonths) }))
-                                        );
-
+                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelTop, isCompact }) => {
+                                        const MilestoneKindIcon = milestoneKind.Icon;
+                                        const markerCenterY = mainBarY + STANDARD_BAR_HEIGHT / 2;
+                                        const markerTop = markerCenterY - labelTop;
                                         return (
-                                          <React.Fragment>
-                                            {projectMilestones.map((pm) => {
-                                              const isDraggingMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.milestoneId === pm.id;
-                                              const effectiveMilestoneDate = isDraggingMilestone ? draggingMilestone.tempDate : pm.date;
-                                              const effectiveMilestoneX = isDraggingMilestone
-                                                ? getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths)
-                                                : pm.xPos;
-                                              const c = pm.color || '#dc2626';
-                                              const icon = pm.icon || 'diamond';
-                                              return (
-                                                <div
-                                                  key={`pm-${pm.id}`}
-                                                  className="absolute pointer-events-auto flex items-center justify-center"
-                                                  style={{
-                                                    left: `${effectiveMilestoneX}px`,
-                                                    top: `${iconCenterY}px`,
-                                                    transform: 'translate(-50%, -50%)',
-                                                    zIndex: 28,
-                                                  }}
-                                                  onMouseDown={(e) => onMilestoneMouseDown(e, ex.id, pm)}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (suppressMilestoneClickRef.current) {
-                                                      suppressMilestoneClickRef.current = false;
-                                                      return;
-                                                    }
-                                                    setSelectedProjectId(ex.id);
-                                                  }}
-                                                  title={`${pm.title} — ${formatBarDate(effectiveMilestoneDate)}`}
-                                                >
-                                                  <div className="cursor-pointer relative z-10 flex items-center justify-center">
-                                                    {(() => {
-                                                      switch (icon) {
-                                                        case 'flag':
-                                                          return <Flag size={14} fill={c} stroke="black" strokeWidth={2} className="drop-shadow-[1px_1px_0_rgba(0,0,0,1)]" />;
-                                                        case 'team':
-                                                          return (
-                                                            <div className="w-3.5 h-3.5 flex items-center justify-center rounded-full border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)]" style={{ backgroundColor: c }}>
-                                                              <Users size={9} stroke="white" strokeWidth={2.5} />
-                                                            </div>
-                                                          );
-                                                        case 'approval':
-                                                          return <BadgeCheck size={14} fill={c} stroke="black" strokeWidth={2} style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }} />;
-                                                        case 'delivery':
-                                                          return (
-                                                            <div className="px-1 py-0.5 flex items-center justify-center border-[1.5px] border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)]" style={{ backgroundColor: c }}>
-                                                              <Truck size={9} stroke="white" strokeWidth={2.5} />
-                                                            </div>
-                                                          );
-                                                        case 'event':
-                                                          return <Star size={14} fill={c} stroke="black" strokeWidth={2} style={{ filter: 'drop-shadow(1px 1px 0 rgba(0,0,0,1))' }} />;
-                                                        default:
-                                                          return (
-                                                            <div className="w-3.5 h-3.5 bg-white border-[1.5px] border-slate-300 rotate-45 shadow-[1px_1px_0_0_rgba(0,0,0,1)] flex items-center justify-center">
-                                                              <div className="w-[4px] h-[4px]" style={{ backgroundColor: c }} />
-                                                            </div>
-                                                          );
-                                                      }
-                                                    })()}
-                                                  </div>
-                                                  <div
-                                                    className={`absolute left-1/2 -translate-x-1/2 bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm opacity-95 hover:bg-slate-50 hover:opacity-100 transition-all z-20 min-w-0 ${pm.isTwoLine ? 'flex items-center justify-center' : 'inline-flex items-center gap-1.5'}`}
-                                                    style={{ top: `${MILESTONE_ICON_BAND_HEIGHT / 2 + 1 + (pm.labelRow * MILESTONE_LABEL_ROW_HEIGHT)}px`, width: `${pm.labelWidth}px`, maxWidth: `${MILESTONE_LABEL_MAX_WIDTH}px` }}
-                                                  >
-                                                    <MilestoneLabel
-                                                      title={pm.title}
-                                                      date={effectiveMilestoneDate}
-                                                      labelFontSize={pm.labelFontSize}
-                                                      dateFontSize={pm.dateFontSize}
-                                                      isTwoLine={pm.isTwoLine}
-                                                    />
-                                                  </div>
-                                                </div>
-                                              );
-                                            })}
-                                          </React.Fragment>
+                                          <div
+                                            key={`milestone-${checkpoint.id}`}
+                                            className={`absolute pointer-events-auto ${isDraggingThisMilestone ? 'cursor-grabbing' : 'cursor-grab'}`}
+                                            style={{
+                                              left: `${checkpointX - (labelWidth / 2)}px`,
+                                              top: `${labelTop}px`,
+                                              width: `${labelWidth}px`,
+                                              height: `${markerTop + 12}px`,
+                                              zIndex: isSelectedMilestoneProject || isDraggingThisMilestone ? 36 : 31,
+                                            }}
+                                            title={`${checkpoint.title} - ${milestoneKind.label} - ${formatBarDate(effectiveMilestoneDate)}`}
+                                            role="button"
+                                            aria-label={`Drag milestone ${checkpoint.title}`}
+                                            onMouseDown={(e) => onMilestoneMouseDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <div
+                                              className={`absolute left-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] print:shadow-none ${milestoneKind.markerClass}`}
+                                              style={{ top: `${markerTop}px` }}
+                                              aria-hidden="true"
+                                            />
+                                            <div
+                                              className="absolute left-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white"
+                                              style={{ top: `${markerTop}px` }}
+                                              aria-hidden="true"
+                                            />
+                                            <div
+                                              className={`absolute left-0 top-0 pointer-events-auto bg-white/95 border px-1.5 py-[2px] shadow-sm print:bg-white print:shadow-none ${isSelectedMilestoneProject ? 'border-slate-500' : milestoneKind.labelBorderClass}`}
+                                              style={{ width: `${labelWidth}px`, zIndex: 32 }}
+                                              onMouseDown={(e) => onMilestoneMouseDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
+                                            >
+                                              <div
+                                                className={`absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[5px] rotate-45 border-b border-r bg-white ${isSelectedMilestoneProject ? 'border-slate-500' : milestoneKind.labelBorderClass}`}
+                                                aria-hidden="true"
+                                              />
+                                              <div className="flex min-w-0 items-center gap-1 leading-none">
+                                                <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${milestoneKind.iconClass}`} title={milestoneKind.label}>
+                                                  <MilestoneKindIcon size={9} strokeWidth={2.25} />
+                                                </span>
+                                                {!isCompact && (
+                                                  <>
+                                                    <span className="truncate text-[8px] font-semibold uppercase tracking-[0.04em] text-slate-800">{checkpoint.title}</span>
+                                                    <span className="h-2 w-px shrink-0 bg-slate-300" />
+                                                  </>
+                                                )}
+                                                <span className="shrink-0 text-[8px] font-medium uppercase tracking-[0.04em] text-slate-500">{formatMilestoneDate(effectiveMilestoneDate)}</span>
+                                              </div>
+                                            </div>
+                                          </div>
                                         );
-                                      })()}
+                                      })}
 
                                     </React.Fragment>
                                   );
@@ -2365,14 +2212,14 @@ export default function MasterScheduler() {
                                           ))}
                                         </div>
                                       )}
-                                      {(ex.milestones || []).length > 0 && (
+                                      {(ex.checkpoints || []).length > 0 && (
                                         <div className="bg-slate-50 p-2 border border-slate-100 rounded-sm">
                                           <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Key Milestones</div>
                                           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                            {ex.milestones?.map(m => (
-                                              <div key={m.id} className="flex justify-between items-baseline gap-2">
-                                                <span className="text-[9px] text-slate-700 truncate">{m.label}</span>
-                                                <span className="text-[8px] font-mono text-slate-400 shrink-0">{formatBarDate(m.date)}</span>
+                                            {ex.checkpoints?.map(checkpoint => (
+                                              <div key={checkpoint.id} className="flex justify-between items-baseline gap-2">
+                                                <span className="text-[9px] text-slate-700 truncate">{checkpoint.title}</span>
+                                                <span className="text-[8px] font-mono text-slate-400 shrink-0">{formatBarDate(checkpoint.date)}</span>
                                               </div>
                                             ))}
                                           </div>

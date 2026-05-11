@@ -15,7 +15,7 @@ const getDateWithMonthDuration = (startDateStr: string, months: number): Date =>
 
 /**
  * Exports exhibition data to a CSV file.
- * Generates a row per project, phase, and milestone for a "flat" robust log.
+ * Generates a row per project, phase, and checkpoint for a "flat" robust log.
  */
 export function exportExhibitionsToCSV(exhibitions: Exhibition[], phaseTypes: PhaseType[]) {
   const headers = [
@@ -114,19 +114,19 @@ export function exportExhibitionsToCSV(exhibitions: Exhibition[], phaseTypes: Ph
       currentPostStart = pEnd;
     });
 
-    // 3. Add Milestone Rows
-    (ex.milestones || []).forEach(m => {
+    // 3. Add Checkpoint Rows
+    (ex.checkpoints || []).forEach(checkpoint => {
       allRows.push([
         escapeCSV(ex.exhibitionId),
         escapeCSV(ex.title),
         escapeCSV(ex.status),
         escapeCSV(ex.gallery),
-        escapeCSV('Milestone'),
-        escapeCSV(m.title),
-        escapeCSV(m.date),
-        escapeCSV(m.date),
+        escapeCSV('Checkpoint'),
+        escapeCSV(checkpoint.title),
+        escapeCSV(checkpoint.date),
+        escapeCSV(checkpoint.date),
         escapeCSV(0),
-        escapeCSV('')
+        escapeCSV(checkpoint.kind)
       ]);
     });
   });

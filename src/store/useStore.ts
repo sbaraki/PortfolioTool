@@ -1,12 +1,11 @@
 import { create } from 'zustand';
-import { Exhibition, Gallery, PhaseType, LocationMilestone, ExhibitionStatus } from '../types';
+import { Exhibition, Gallery, PhaseType, ExhibitionStatus } from '../types';
 import { DEFAULT_GALLERIES, DEFAULT_PHASE_TYPES } from '../constants';
 
 interface HistoryFrame {
   exhibitions: Exhibition[];
   galleries: Gallery[];
   phaseTypes: PhaseType[];
-  locationMilestones: LocationMilestone[];
   museumName: string;
 }
 
@@ -18,7 +17,6 @@ interface AppState {
 
   // Timeline State
   exhibitions: Exhibition[];
-  locationMilestones: LocationMilestone[];
 
   // History State
   historyPast: HistoryFrame[];
@@ -37,7 +35,6 @@ interface AppState {
   setExhibitions: (exhibitions: Exhibition[] | ((prev: Exhibition[]) => Exhibition[])) => void;
   setGalleries: (galleries: Gallery[] | ((prev: Gallery[]) => Gallery[])) => void;
   setPhaseTypes: (types: PhaseType[] | ((prev: PhaseType[]) => PhaseType[])) => void;
-  setLocationMilestones: (milestones: LocationMilestone[] | ((prev: LocationMilestone[]) => LocationMilestone[])) => void;
 
   setMonthWidth: (width: number | ((prev: number) => number)) => void;
   setTimelineStartDate: (date: string) => void;
@@ -58,7 +55,6 @@ export const useStore = create<AppState>((set, get) => ({
   phaseTypes: DEFAULT_PHASE_TYPES,
   
   exhibitions: [],
-  locationMilestones: [],
 
   historyPast: [],
   historyFuture: [],
@@ -80,9 +76,6 @@ export const useStore = create<AppState>((set, get) => ({
   setPhaseTypes: (updater) => set((state) => ({ 
     phaseTypes: typeof updater === 'function' ? updater(state.phaseTypes) : updater 
   })),
-  setLocationMilestones: (updater) => set((state) => ({ 
-    locationMilestones: typeof updater === 'function' ? updater(state.locationMilestones) : updater 
-  })),
   
   setMonthWidth: (updater) => set((state) => ({ 
     monthWidth: typeof updater === 'function' ? updater(state.monthWidth) : updater 
@@ -94,19 +87,19 @@ export const useStore = create<AppState>((set, get) => ({
   setShowConflicts: (show) => set({ showConflicts: show }),
 
   commitHistory: () => {
-    const { exhibitions, galleries, phaseTypes, locationMilestones, museumName, historyPast } = get();
+    const { exhibitions, galleries, phaseTypes, museumName, historyPast } = get();
     set({
-      historyPast: [...historyPast, { exhibitions, galleries, phaseTypes, locationMilestones, museumName }],
+      historyPast: [...historyPast, { exhibitions, galleries, phaseTypes, museumName }],
       historyFuture: []
     });
   },
 
   undo: () => {
-    const { historyPast, historyFuture, exhibitions, galleries, phaseTypes, locationMilestones, museumName } = get();
+    const { historyPast, historyFuture, exhibitions, galleries, phaseTypes, museumName } = get();
     if (historyPast.length === 0) return;
     
     const prevFrame = historyPast[historyPast.length - 1];
-    const currentFrame = { exhibitions, galleries, phaseTypes, locationMilestones, museumName };
+    const currentFrame = { exhibitions, galleries, phaseTypes, museumName };
     
     set({
       historyPast: historyPast.slice(0, -1),
@@ -114,17 +107,16 @@ export const useStore = create<AppState>((set, get) => ({
       exhibitions: prevFrame.exhibitions,
       galleries: prevFrame.galleries,
       phaseTypes: prevFrame.phaseTypes,
-      locationMilestones: prevFrame.locationMilestones,
       museumName: prevFrame.museumName
     });
   },
 
   redo: () => {
-    const { historyPast, historyFuture, exhibitions, galleries, phaseTypes, locationMilestones, museumName } = get();
+    const { historyPast, historyFuture, exhibitions, galleries, phaseTypes, museumName } = get();
     if (historyFuture.length === 0) return;
 
     const nextFrame = historyFuture[0];
-    const currentFrame = { exhibitions, galleries, phaseTypes, locationMilestones, museumName };
+    const currentFrame = { exhibitions, galleries, phaseTypes, museumName };
 
     set({
       historyPast: [...historyPast, currentFrame],
@@ -132,7 +124,6 @@ export const useStore = create<AppState>((set, get) => ({
       exhibitions: nextFrame.exhibitions,
       galleries: nextFrame.galleries,
       phaseTypes: nextFrame.phaseTypes,
-      locationMilestones: nextFrame.locationMilestones,
       museumName: nextFrame.museumName
     });
   }

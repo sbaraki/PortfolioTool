@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../store/useStore';
-import { CONFIG_STORAGE_KEY, LEGACY_CONFIG_STORAGE_KEYS, MILESTONES_STORAGE_KEY, STORAGE_KEY, LEGACY_STORAGE_KEYS, DEFAULT_PHASE_TYPES, DEFAULT_GALLERIES } from '../constants';
-import { Exhibition, Gallery, LocationMilestone, MilestoneIcon, PhaseType, ProjectMilestone } from '../types';
+import { CONFIG_STORAGE_KEY, LEGACY_CONFIG_STORAGE_KEYS, LEGACY_MILESTONES_STORAGE_KEYS, STORAGE_KEY, LEGACY_STORAGE_KEYS, DEFAULT_PHASE_TYPES, DEFAULT_GALLERIES } from '../constants';
+import { Exhibition, Gallery, PhaseType } from '../types';
 import { getGistData, updateGistData } from '../lib/githubGist';
 
 const galleryIdFromName = (name: string) => `gal_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || Math.random().toString(36).slice(2, 8)}`;
@@ -41,31 +41,21 @@ export interface GithubUser {
   email: string;
 }
 
-const VALID_MILESTONE_ICONS: MilestoneIcon[] = ['diamond', 'flag', 'team', 'approval', 'delivery', 'event'];
-
-const normalizeProjectMilestones = (raw: unknown): ProjectMilestone[] => {
-  if (!Array.isArray(raw)) return [];
-  const result: ProjectMilestone[] = [];
-  raw.forEach((entry) => {
-    if (!entry || typeof entry !== 'object') return;
-    const obj = entry as Partial<ProjectMilestone> & { gallery?: string };
-    const title = (obj.title ?? '').toString().trim();
-    const date = (obj.date ?? '').toString().trim();
-    if (!title || !date) return;
-    const id = obj.id?.toString().trim() || Math.random().toString(36).slice(2, 11);
-    const icon = VALID_MILESTONE_ICONS.includes(obj.icon as MilestoneIcon) ? (obj.icon as MilestoneIcon) : 'diamond';
-    const color = typeof obj.color === 'string' ? obj.color : undefined;
-    result.push({ id, title, date, icon, ...(color ? { color } : {}) });
-  });
-  return result;
-};
-
 const normalizeExhibitions = (raw: unknown): Exhibition[] => {
   if (!Array.isArray(raw)) return [];
-  return raw.map((ex: any) => ({
-    ...ex,
-    milestones: normalizeProjectMilestones(ex?.milestones)
-  }));
+  return raw.map((ex: any) => {
+    const scheduleMode = ex?.scheduleMode === 'single-date' || ex?.isMilestone === true ? 'single-date' : 'range';
+    const startDate = (ex?.startDate || '').toString();
+    const endDate = scheduleMode === 'single-date' ? startDate : (ex?.endDate || startDate).toString();
+    const { milestones: _milestones, isMilestone: _isMilestone, locationMilestones: _locationMilestones, checkpoints: _checkpoints, ...rest } = ex || {};
+    return {
+      ...rest,
+      startDate,
+      endDate,
+      scheduleMode,
+      checkpoints: []
+    };
+  });
 };
 
 // Saved colors that should be reset to the current default rather than honored.
@@ -117,8 +107,7 @@ export const useMuseumSync = () => {
     exhibitions, setExhibitions,
     museumName, setMuseumName,
     galleries, setGalleries,
-    phaseTypes, setPhaseTypes,
-    locationMilestones, setLocationMilestones
+    phaseTypes, setPhaseTypes
   } = useStore();
 
   // 1. Initial Load from LocalStorage
@@ -132,9 +121,8 @@ export const useMuseumSync = () => {
         }
       }
       if (savedEx) setExhibitions(normalizeExhibitions(JSON.parse(savedEx)));
-      
-      const savedMs = localStorage.getItem(MILESTONES_STORAGE_KEY);
-      if (savedMs) setLocationMilestones(JSON.parse(savedMs));
+
+      LEGACY_MILESTONES_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
 
       let savedCfg = localStorage.getItem(CONFIG_STORAGE_KEY);
       if (!savedCfg) {
@@ -170,11 +158,10 @@ export const useMuseumSync = () => {
     if (isInitialLoad) return;
     const timeout = setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(exhibitions));
-      localStorage.setItem(MILESTONES_STORAGE_KEY, JSON.stringify(locationMilestones));
       localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify({ museumName, galleries, phaseTypes }));
     }, 300);
     return () => clearTimeout(timeout);
-  }, [exhibitions, locationMilestones, museumName, galleries, phaseTypes, isInitialLoad]);
+  }, [exhibitions, museumName, galleries, phaseTypes, isInitialLoad]);
 
   // 3. GitHub Gist Initial Data Pull
   useEffect(() => {
@@ -193,15 +180,13 @@ export const useMuseumSync = () => {
           museumName: data.museumName || 'NATIONAL HERITAGE TRUST',
           galleries: normalizeGalleries(data.galleries),
           phaseTypes: normalizePhaseTypes(data.phaseTypes || []),
-          exhibitions: normalizeExhibitions(data.exhibitions),
-          locationMilestones: Array.isArray(data.locationMilestones) ? data.locationMilestones : []
+          exhibitions: normalizeExhibitions(data.exhibitions)
         };
 
         setMuseumName(normalizedState.museumName);
         setGalleries(normalizedState.galleries);
         setPhaseTypes(normalizedState.phaseTypes);
         setExhibitions(normalizedState.exhibitions);
-        setLocationMilestones(normalizedState.locationMilestones);
 
         lastSyncedStateRef.current = JSON.stringify(normalizedState);
         hasCompletedInitialGistPullRef.current = true;
@@ -226,8 +211,7 @@ export const useMuseumSync = () => {
       museumName,
       galleries,
       phaseTypes,
-      exhibitions,
-      locationMilestones
+      exhibitions
     };
     const serializedState = JSON.stringify(currentState);
     
@@ -247,7 +231,7 @@ export const useMuseumSync = () => {
     }, 1500); // 1.5s debounce to avoid spamming GitHub API
 
     return () => clearTimeout(timeout);
-  }, [currentUser, museumName, galleries, phaseTypes, exhibitions, locationMilestones, isInitialLoad]);
+  }, [currentUser, museumName, galleries, phaseTypes, exhibitions, isInitialLoad]);
 
   return {
     currentUser,

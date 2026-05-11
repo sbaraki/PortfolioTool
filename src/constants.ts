@@ -1,11 +1,10 @@
 import { Gallery, PhaseType } from './types';
 
 // Storage version: bump when the corresponding data shape changes in a non-back-compatible way.
-// EXHIBITIONS bumped to v5 — Exhibition.milestones is now a typed ProjectMilestone[] (was unused any[]).
-// Migration accepts the v4 payload and coerces stray entries.
-export const STORAGE_KEY = 'exhibition_planner_brutalist_v5';
-export const LEGACY_STORAGE_KEYS = ['exhibition_planner_brutalist_v4'];
-export const MILESTONES_STORAGE_KEY = 'exhibition_planner_milestones_v4';
+// v6 resets old milestone data and introduces scheduleMode + empty checkpoints.
+export const STORAGE_KEY = 'exhibition_planner_brutalist_v6';
+export const LEGACY_STORAGE_KEYS = ['exhibition_planner_brutalist_v5', 'exhibition_planner_brutalist_v4'];
+export const LEGACY_MILESTONES_STORAGE_KEYS = ['exhibition_planner_milestones_v4'];
 export const CONFIG_STORAGE_KEY = 'exhibition_planner_config_v6';
 export const LEGACY_CONFIG_STORAGE_KEYS = ['exhibition_planner_config_v5'];
 
@@ -22,16 +21,6 @@ export const DEFAULT_PHASE_TYPES: PhaseType[] = [
   { id: 'pt3', label: 'Design Dev', color: '#a3cc39' },
   { id: 'pt4', label: 'Implementation', color: '#facc15', isActive: true },
   { id: 'pt5', label: 'Deinstall', color: '#dc2626', isPost: true },
-];
-
-export const MILESTONE_COLORS = [
-  { value: '#dc2626', label: 'CRITICAL / DEFAULT' },
-  { value: '#94a3b8', label: 'IDEA / PLANNING' },
-  { value: '#3b82f6', label: 'CONTENT / REVIEW' },
-  { value: '#22c55e', label: 'DESIGN / APPROVAL' },
-  { value: '#f97316', label: 'EXECUTION / BUILD' },
-  { value: '#000000', label: 'FINAL / OPENING' },
-  { value: '#64748b', label: 'SECONDARY / HOLIDAY' }
 ];
 
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -111,7 +100,6 @@ export const PRINT_COLUMN_GAP = 0;
 
 export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export const FY_QUARTERS = ['Q4', 'Q1', 'Q2', 'Q3'];
-export const MILESTONE_ROW_HEIGHT = 26;
 export const LANE_TOP_PADDING = 4;
 export const LANE_BOTTOM_PADDING = 14;
 export const BASE_LANE_HEIGHT = 76;
@@ -128,26 +116,10 @@ export const PHASE_GAP = 0;
 export const WEEKLY_GRID_THRESHOLD = 100;
 // Hit zone (px) on each edge of project bars and right edge of phase bars for resize.
 export const EDGE_HIT_ZONE = 6;
-// In the v2 design every lane reserves a uniform 26px strip at the top so the sidebar
-// gallery-header row and timeline milestone strip stay vertically aligned (project tracks
-// start at the same Y in both columns regardless of whether the gallery has milestones).
-export const EMPTY_MILESTONE_ROW_HEIGHT = 26;
-// Minimum vertical strip reserved at the top of every gallery lane for the
-// sidebar gallery-name header AND the timeline location-milestone strip. Both
-// columns offset their content by this amount so the project tracks line up
-// horizontally regardless of whether the gallery has milestones.
 export const GALLERY_HEADER_HEIGHT = 38;
-// Reserved band (px) added below a project's last allocated phase/main-bar track
-// when that project carries milestones. The project-first milestone layout uses a
-// compact icon strip plus two-line label pills, so each packed label row needs
-// enough vertical room for title + date without bleeding into the next track.
-export const PROJECT_MILESTONE_ROW_HEIGHT = 48;
-export const MILESTONE_ICON_BAND_HEIGHT = 20;
-export const MILESTONE_LABEL_ROW_HEIGHT = 24;
-export const MILESTONE_LABEL_MAX_WIDTH = 112;
 
 // Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
-// the rest of the app palette — phase fills, milestone colours, status pill
+// the rest of the app palette — phase fills, status pill
 // backgrounds, and the bar reds — so the strip reads as a distinct visual
 // channel that signals status at a glance.
 //   TBC            → violet  #a78bfa

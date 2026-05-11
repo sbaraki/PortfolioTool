@@ -74,8 +74,7 @@ export function GithubAuthModal({ onClose }: Props) {
             museumName: state.museumName,
             galleries: state.galleries,
             phaseTypes: state.phaseTypes,
-            exhibitions: state.exhibitions,
-            locationMilestones: state.locationMilestones
+            exhibitions: state.exhibitions
           };
           finalGistId = await createGist(trimmedPat, initialData);
         }

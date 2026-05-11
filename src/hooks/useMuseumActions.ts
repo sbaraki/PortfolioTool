@@ -69,6 +69,7 @@ export const useMuseumActions = () => {
       ...source,
       id: createId(),
       title: `${source.title} (COPY)`,
+      checkpoints: [...(source.checkpoints || []).map(c => ({ ...c, id: createId() }))],
       phases: [...source.phases.map(p => ({ ...p, id: createId() }))]
     };
     setExhibitions([...exhibitions, copy]);

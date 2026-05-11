@@ -31,8 +31,7 @@ export const getGistData = async (gistId: string, pat: string) => {
 const getPortfolioDataScore = (data: any) => {
   if (!data || typeof data !== 'object') return 0;
   const exhibitions = Array.isArray(data.exhibitions) ? data.exhibitions.length : 0;
-  const locationMilestones = Array.isArray(data.locationMilestones) ? data.locationMilestones.length : 0;
-  return exhibitions * 10 + locationMilestones;
+  return exhibitions * 10;
 };
 
 export const findExistingPortfolioGist = async (pat: string) => {
