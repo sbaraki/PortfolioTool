@@ -23,23 +23,15 @@ export interface ProjectPhase {
   typeId: string;
 }
 
-export type MilestoneIcon = 'diamond' | 'flag' | 'team' | 'approval' | 'delivery' | 'event';
+export type ProjectScheduleMode = 'range' | 'single-date';
 
-export interface LocationMilestone {
-  id: string;
-  gallery: string;
+export type CheckpointKind = 'kickoff' | 'review' | 'approval' | 'install' | 'opening' | 'close' | 'other';
+
+export interface ProjectCheckpoint {
   title: string;
   date: string;
-  color?: string;
-  icon?: MilestoneIcon;
-}
-
-export interface ProjectMilestone {
   id: string;
-  title: string;
-  date: string;
-  color?: string;
-  icon?: MilestoneIcon;
+  kind: CheckpointKind;
 }
 
 export interface Exhibition {
@@ -50,10 +42,10 @@ export interface Exhibition {
   startDate: string;
   endDate: string;
   gallery: string;
-  milestones: ProjectMilestone[];
+  scheduleMode: ProjectScheduleMode;
+  checkpoints: ProjectCheckpoint[];
   phases: ProjectPhase[];
   description?: string;
-  isMilestone?: boolean;
 }
 
 

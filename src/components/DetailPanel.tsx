@@ -1,18 +1,30 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Check, Edit2, X, Trash2, ChevronUp, ChevronDown, Copy, Plus, Flag, Users, BadgeCheck, Truck, Star } from 'lucide-react';
-import { Exhibition, Gallery, ProjectPhase, PhaseType, ProjectMilestone, MilestoneIcon } from '../types';
-import { getDateWithMonthDuration, getDurationMonths } from '../lib/dateUtils';
-import { getStatusStyles, MILESTONE_COLORS } from '../constants';
+import { Check, Edit2, X, Trash2, ChevronUp, ChevronDown, Copy, Plus, Flag } from 'lucide-react';
+import { CheckpointKind, Exhibition, Gallery, ProjectCheckpoint, ProjectPhase, PhaseType } from '../types';
+import { getDateWithMonthDuration, getDurationMonths, toISODate } from '../lib/dateUtils';
+import { getStatusStyles } from '../constants';
 import { DatePicker } from './DatePicker';
 
-const MILESTONE_ICON_OPTIONS: { key: MilestoneIcon; label: string; preview: React.ReactNode }[] = [
-  { key: 'diamond', label: 'Diamond', preview: <div className="w-2.5 h-2.5 bg-white border border-slate-300 rotate-45" /> },
-  { key: 'flag', label: 'Flag', preview: <Flag size={12} fill="white" stroke="black" strokeWidth={2} /> },
-  { key: 'team', label: 'Team', preview: <Users size={12} stroke="black" strokeWidth={2} /> },
-  { key: 'approval', label: 'Approval', preview: <BadgeCheck size={12} stroke="black" strokeWidth={2} /> },
-  { key: 'delivery', label: 'Delivery', preview: <Truck size={12} stroke="black" strokeWidth={2} /> },
-  { key: 'event', label: 'Event', preview: <Star size={12} fill="white" stroke="black" strokeWidth={2} /> },
+const CHECKPOINT_PRESETS: { kind: CheckpointKind; label: string; title: string }[] = [
+  { kind: 'kickoff', label: 'Kickoff', title: 'KICKOFF' },
+  { kind: 'review', label: 'Review', title: 'REVIEW' },
+  { kind: 'approval', label: 'Approval', title: 'APPROVAL' },
+  { kind: 'install', label: 'Install', title: 'INSTALL' },
+  { kind: 'opening', label: 'Opening', title: 'OPENING' },
+  { kind: 'close', label: 'Close', title: 'CLOSE' },
 ];
+
+const CHECKPOINT_KIND_LABELS: Record<CheckpointKind, string> = {
+  kickoff: 'Kickoff',
+  review: 'Review',
+  approval: 'Approval',
+  install: 'Install',
+  opening: 'Opening',
+  close: 'Close',
+  other: 'Other',
+};
+
+const sortCheckpoints = (checkpoints: ProjectCheckpoint[]) => [...checkpoints].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
 
 export const DetailPanel = ({
   exhibition,
@@ -35,8 +47,8 @@ export const DetailPanel = ({
   const [editedEx, setEditedEx] = useState<Exhibition>(exhibition);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [localPhaseDraft, setLocalPhaseDraft] = useState<ProjectPhase | null>(null);
-  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
-  const [localMilestoneDraft, setLocalMilestoneDraft] = useState<ProjectMilestone | null>(null);
+  const [editingCheckpointId, setEditingCheckpointId] = useState<string | null>(null);
+  const [localCheckpointDraft, setLocalCheckpointDraft] = useState<ProjectCheckpoint | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,8 +64,8 @@ export const DetailPanel = ({
     setEditedEx(exhibition);
     setIsEditing(false);
     setEditingPhaseId(null);
-    setEditingMilestoneId(null);
-    setLocalMilestoneDraft(null);
+    setEditingCheckpointId(null);
+    setLocalCheckpointDraft(null);
   }, [exhibition]);
 
   const handleSaveAll = () => {
@@ -66,13 +78,13 @@ export const DetailPanel = ({
       setEditingPhaseId(null);
       setLocalPhaseDraft(null);
     }
-    if (editingMilestoneId && localMilestoneDraft) {
+    if (editingCheckpointId && localCheckpointDraft) {
       next = {
         ...next,
-        milestones: (next.milestones || []).map(m => m.id === localMilestoneDraft.id ? localMilestoneDraft : m)
+        checkpoints: sortCheckpoints((next.checkpoints || []).map(c => c.id === localCheckpointDraft.id ? localCheckpointDraft : c))
       };
-      setEditingMilestoneId(null);
-      setLocalMilestoneDraft(null);
+      setEditingCheckpointId(null);
+      setLocalCheckpointDraft(null);
     }
     setEditedEx(next);
     onUpdate(next);
@@ -84,7 +96,7 @@ export const DetailPanel = ({
     setEditedEx(prev => ({
       ...prev,
       startDate: value,
-      endDate: !prev.isMilestone && prev.endDate && prev.endDate < value ? value : prev.endDate
+      endDate: prev.scheduleMode !== 'single-date' && prev.endDate && prev.endDate < value ? value : prev.endDate
     }));
   };
 
@@ -172,84 +184,54 @@ export const DetailPanel = ({
     handleFieldChange('phases', newPhases);
   };
 
-  const handleAddMilestone = () => {
-    const newMilestone: ProjectMilestone = {
+  const handleAddCheckpoint = (preset?: (typeof CHECKPOINT_PRESETS)[number]) => {
+    const newCheckpoint: ProjectCheckpoint = {
       id: Math.random().toString(36).slice(2, 11),
-      title: 'NEW MILESTONE',
-      date: editedEx.startDate,
-      icon: 'diamond',
-      color: '#dc2626'
+      title: preset?.title || 'NEW MILESTONE',
+      date: toISODate(new Date()),
+      kind: preset?.kind || 'other'
     };
-    const updated = [...(editedEx.milestones || []), newMilestone];
-    setEditedEx(prev => ({ ...prev, milestones: updated }));
-    setEditingMilestoneId(newMilestone.id);
-    setLocalMilestoneDraft(newMilestone);
+    const updated = sortCheckpoints([...(editedEx.checkpoints || []), newCheckpoint]);
+    setEditedEx(prev => ({ ...prev, checkpoints: updated }));
+    setEditingCheckpointId(newCheckpoint.id);
+    setLocalCheckpointDraft(newCheckpoint);
   };
 
-  const handleRemoveMilestone = (id: string) => {
+  const handleRemoveCheckpoint = (id: string) => {
     setEditedEx(prev => ({
       ...prev,
-      milestones: (prev.milestones || []).filter(m => m.id !== id)
+      checkpoints: (prev.checkpoints || []).filter(c => c.id !== id)
     }));
-    if (editingMilestoneId === id) {
-      setEditingMilestoneId(null);
-      setLocalMilestoneDraft(null);
+    if (editingCheckpointId === id) {
+      setEditingCheckpointId(null);
+      setLocalCheckpointDraft(null);
     }
   };
 
-  const handleStartEditMilestone = (m: ProjectMilestone) => {
-    setEditingMilestoneId(m.id);
-    setLocalMilestoneDraft({ ...m });
+  const handleStartEditCheckpoint = (checkpoint: ProjectCheckpoint) => {
+    setEditingCheckpointId(checkpoint.id);
+    setLocalCheckpointDraft({ ...checkpoint });
   };
 
-  const handleSaveMilestoneLocal = () => {
-    if (!localMilestoneDraft) return;
-    const trimmedTitle = localMilestoneDraft.title.trim();
+  const handleSaveCheckpointLocal = () => {
+    if (!localCheckpointDraft) return;
+    const trimmedTitle = localCheckpointDraft.title.trim();
     if (!trimmedTitle) {
-      handleRemoveMilestone(localMilestoneDraft.id);
+      handleRemoveCheckpoint(localCheckpointDraft.id);
       return;
     }
-    const next = (editedEx.milestones || []).map(m =>
-      m.id === localMilestoneDraft.id ? { ...localMilestoneDraft, title: trimmedTitle } : m
+    const next = sortCheckpoints((editedEx.checkpoints || []).map(c =>
+      c.id === localCheckpointDraft.id ? { ...localCheckpointDraft, title: trimmedTitle } : c
+    )
     );
-    handleFieldChange('milestones', next);
-    setEditingMilestoneId(null);
-    setLocalMilestoneDraft(null);
+    handleFieldChange('checkpoints', next);
+    setEditingCheckpointId(null);
+    setLocalCheckpointDraft(null);
   };
 
-  const handleCancelMilestoneLocal = () => {
-    setEditingMilestoneId(null);
-    setLocalMilestoneDraft(null);
-  };
-
-  const renderMilestoneIcon = (icon: MilestoneIcon | undefined, color: string | undefined) => {
-    const c = color || '#dc2626';
-    switch (icon) {
-      case 'flag':
-        return <Flag size={12} fill={c} stroke="black" strokeWidth={2} />;
-      case 'team':
-        return (
-          <div className="w-3.5 h-3.5 flex items-center justify-center rounded-full border border-slate-900" style={{ backgroundColor: c }}>
-            <Users size={8} stroke="white" strokeWidth={2.5} />
-          </div>
-        );
-      case 'approval':
-        return <BadgeCheck size={12} fill={c} stroke="black" strokeWidth={2} />;
-      case 'delivery':
-        return (
-          <div className="px-0.5 py-0.5 flex items-center justify-center border border-slate-900" style={{ backgroundColor: c }}>
-            <Truck size={8} stroke="white" strokeWidth={2.5} />
-          </div>
-        );
-      case 'event':
-        return <Star size={12} fill={c} stroke="black" strokeWidth={2} />;
-      default:
-        return (
-          <div className="w-3 h-3 bg-white border border-slate-300 rotate-45 flex items-center justify-center">
-            <div className="w-[3px] h-[3px]" style={{ backgroundColor: c }} />
-          </div>
-        );
-    }
+  const handleCancelCheckpointLocal = () => {
+    setEditingCheckpointId(null);
+    setLocalCheckpointDraft(null);
   };
 
   const totalProjectDuration = useMemo(() => {
@@ -296,8 +278,8 @@ export const DetailPanel = ({
                   {getStatusStyles(exhibition.status).label}
                 </span>
                 <span className="px-1.5 py-0.5 border border-slate-200 bg-white text-[10px] font-medium uppercase tracking-tight text-slate-600 leading-none">{exhibition.gallery}</span>
-                {exhibition.isMilestone ? (
-                  <span className="px-1.5 py-0.5 bg-slate-900 text-[10px] font-medium uppercase tracking-tight text-white leading-none">Milestone</span>
+                {exhibition.scheduleMode === 'single-date' ? (
+                  <span className="px-1.5 py-0.5 bg-slate-900 text-[10px] font-medium uppercase tracking-tight text-white leading-none">Single date</span>
                 ) : (
                   <span className="px-1.5 py-0.5 border border-slate-200 bg-white text-[10px] font-medium uppercase tracking-tight text-slate-600 leading-none">{totalProjectDuration} mo</span>
                 )}
@@ -388,17 +370,7 @@ export const DetailPanel = ({
                 id="ex-gallery"
                 className={inputCls}
                 value={editedEx.gallery}
-                onChange={(e) => {
-                  const nextGalleryName = e.target.value;
-                  const nextGallery = galleries.find(g => g.name === nextGalleryName);
-                  const shouldBeMilestone = nextGallery?.kind === 'permanent';
-                  setEditedEx(prev => ({
-                    ...prev,
-                    gallery: nextGalleryName,
-                    isMilestone: shouldBeMilestone,
-                    endDate: shouldBeMilestone ? prev.startDate : prev.endDate
-                  }));
-                }}
+                onChange={(e) => handleFieldChange('gallery', e.target.value)}
               >
                 {galleries.map(g => (
                   <option key={g.id} value={g.name}>
@@ -411,48 +383,50 @@ export const DetailPanel = ({
             )}
           </div>
 
-          <div className="flex items-start justify-between gap-2 pt-2 border-t border-slate-100">
-            <div className="flex-1 min-w-0">
-              <span className={labelCls}>Track as completion milestone</span>
-            </div>
+          <div className="space-y-1 pt-2 border-t border-slate-100">
+            <span className={labelCls}>Schedule type</span>
             {isEditing ? (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={!!editedEx.isMilestone}
-                aria-label="Toggle milestone mode"
-                onClick={() => {
-                  const next = !editedEx.isMilestone;
-                  setEditedEx(prev => ({
-                    ...prev,
-                    isMilestone: next,
-                    endDate: next
-                      ? prev.startDate
-                      : (prev.endDate <= prev.startDate
-                          ? getDateWithMonthDuration(prev.startDate, 3)
-                          : prev.endDate)
-                  }));
-                }}
-                className={`relative shrink-0 inline-flex items-center w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-slate-400 ${editedEx.isMilestone ? 'bg-slate-900' : 'bg-slate-300'}`}
-              >
-                <span
-                  className={`absolute top-1/2 -translate-y-1/2 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${editedEx.isMilestone ? 'translate-x-[16px]' : 'translate-x-0'}`}
-                />
-              </button>
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  { value: 'range', label: 'Date range' },
+                  { value: 'single-date', label: 'Single date' },
+                ].map(option => {
+                  const active = editedEx.scheduleMode === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setEditedEx(prev => {
+                        const scheduleMode = option.value as Exhibition['scheduleMode'];
+                        return {
+                          ...prev,
+                          scheduleMode,
+                          endDate: scheduleMode === 'single-date'
+                            ? prev.startDate
+                            : (prev.endDate <= prev.startDate ? getDateWithMonthDuration(prev.startDate, 3) : prev.endDate)
+                        };
+                      })}
+                      className={`px-2 py-1.5 text-[10px] font-medium uppercase tracking-tight border transition-colors ${active ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
             ) : (
-              <span className={`shrink-0 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-tight leading-none ${exhibition.isMilestone ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-600'}`}>
-                {exhibition.isMilestone ? 'On' : 'Off'}
-              </span>
+              <p className="text-[12px] font-medium text-slate-700 uppercase tracking-tight">
+                {exhibition.scheduleMode === 'single-date' ? 'Single date' : 'Date range'}
+              </p>
             )}
           </div>
 
-          {editedEx.isMilestone ? (
+          {editedEx.scheduleMode === 'single-date' ? (
             <div className="space-y-1">
               {isEditing ? (
                 <DatePicker
                   value={editedEx.startDate}
-                  onChange={(val) => handleFieldChange('startDate', val)}
-                  label="Completion Date"
+                  onChange={(val) => setEditedEx(prev => ({ ...prev, startDate: val, endDate: val }))}
+                  label="Date"
                 />
               ) : (
                 <p className="text-[12px] font-medium text-slate-700">{exhibition.startDate}</p>
@@ -647,33 +621,47 @@ export const DetailPanel = ({
           </div>
         )}
 
-        {/* Project Milestones */}
+        {/* Key Milestones */}
         <div className={sectionCls}>
           <div className="flex items-center justify-between">
             <div className="min-w-0">
-              <span className={sectionHeaderCls}>Milestones</span>
+              <span className={sectionHeaderCls}>Key milestones</span>
             </div>
             {isEditing && (
               <button
                 aria-label="Add milestone"
-                onClick={handleAddMilestone}
+                onClick={() => handleAddCheckpoint()}
                 className="px-2 py-1 bg-slate-900 text-white text-[10px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none shrink-0"
               >
                 <Plus size={10} strokeWidth={2.5} /> Add
               </button>
             )}
           </div>
-          {((isEditing ? editedEx.milestones : exhibition.milestones) || []).length === 0 && (
+          {isEditing && (
+            <div className="flex flex-wrap gap-1">
+              {CHECKPOINT_PRESETS.map(preset => (
+                <button
+                  key={preset.kind}
+                  type="button"
+                  onClick={() => handleAddCheckpoint(preset)}
+                  className="px-1.5 py-1 border border-slate-200 bg-white text-[9px] font-medium uppercase tracking-tight text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {((isEditing ? editedEx.checkpoints : exhibition.checkpoints) || []).length === 0 && (
             <p className="text-[10px] text-slate-400 italic">
               {isEditing ? "No milestones yet." : "No milestones. Click edit to add one."}
             </p>
           )}
           <div className="space-y-1.5">
-            {((isEditing ? editedEx.milestones : exhibition.milestones) || []).map((m, idx) => {
-              const isMsEditing = editingMilestoneId === m.id;
+            {((isEditing ? editedEx.checkpoints : exhibition.checkpoints) || []).map((checkpoint, idx) => {
+              const isCheckpointEditing = editingCheckpointId === checkpoint.id;
               return (
-                <div key={m.id} className={`border border-slate-200 p-2 bg-white transition-colors ${isMsEditing ? 'bg-slate-50' : ''}`}>
-                  {isMsEditing && localMilestoneDraft ? (
+                <div key={checkpoint.id} className={`border border-slate-200 p-2 bg-white transition-colors ${isCheckpointEditing ? 'bg-slate-50' : ''}`}>
+                  {isCheckpointEditing && localCheckpointDraft ? (
                     <div className="space-y-2">
                       <div className="space-y-1">
                         <label className={labelCls}>Title</label>
@@ -681,65 +669,36 @@ export const DetailPanel = ({
                           autoFocus
                           aria-label={`Milestone ${idx + 1} title`}
                           className={inputCls + ' uppercase'}
-                          value={localMilestoneDraft.title}
-                          onChange={(e) => setLocalMilestoneDraft(prev => prev ? { ...prev, title: e.target.value.toUpperCase() } : null)}
+                          value={localCheckpointDraft.title}
+                          onChange={(e) => setLocalCheckpointDraft(prev => prev ? { ...prev, title: e.target.value.toUpperCase() } : null)}
                         />
                       </div>
                       <DatePicker
-                        value={localMilestoneDraft.date}
-                        onChange={(val) => setLocalMilestoneDraft(prev => prev ? { ...prev, date: val } : null)}
+                        value={localCheckpointDraft.date}
+                        onChange={(val) => setLocalCheckpointDraft(prev => prev ? { ...prev, date: val } : null)}
                         label="Date"
                       />
                       <div className="space-y-1">
-                        <label className={labelCls}>Icon</label>
-                        <div className="grid grid-cols-3 gap-1">
-                          {MILESTONE_ICON_OPTIONS.map(opt => {
-                            const currentIcon = localMilestoneDraft.icon || 'diamond';
-                            const isActive = currentIcon === opt.key;
-                            return (
-                              <button
-                                key={opt.key}
-                                type="button"
-                                onClick={() => setLocalMilestoneDraft(prev => prev ? { ...prev, icon: opt.key } : null)}
-                                className={`flex items-center gap-1.5 px-1.5 py-1 border transition-colors ${isActive ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'}`}
-                              >
-                                {opt.preview}
-                                <span className="text-[9px] font-medium uppercase tracking-tight">{opt.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className={labelCls}>Color</label>
-                        <div className="flex flex-wrap gap-1">
-                          {MILESTONE_COLORS.map(c => {
-                            const currentColor = localMilestoneDraft.color || '#dc2626';
-                            const isActive = currentColor === c.value;
-                            return (
-                              <button
-                                key={c.value}
-                                type="button"
-                                onClick={() => setLocalMilestoneDraft(prev => prev ? { ...prev, color: c.value } : null)}
-                                title={c.label}
-                                className={`flex items-center gap-1.5 px-1.5 py-1 border transition-colors ${isActive ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:bg-slate-50'}`}
-                              >
-                                <div className="w-2.5 h-2.5 border border-slate-300" style={{ backgroundColor: c.value }} />
-                                <span className="text-[9px] font-medium uppercase tracking-tight">{c.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
+                        <label className={labelCls}>Kind</label>
+                        <select
+                          className={inputCls}
+                          value={localCheckpointDraft.kind}
+                          onChange={(e) => setLocalCheckpointDraft(prev => prev ? { ...prev, kind: e.target.value as CheckpointKind } : null)}
+                        >
+                          {Object.entries(CHECKPOINT_KIND_LABELS).map(([value, label]) => (
+                            <option key={value} value={value}>{label.toUpperCase()}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="flex items-center gap-1 pt-1">
                         <button
-                          onClick={handleSaveMilestoneLocal}
+                          onClick={handleSaveCheckpointLocal}
                           className="px-2 py-1 bg-slate-900 text-white text-[10px] font-medium uppercase tracking-tight hover:bg-slate-800 transition-colors flex items-center gap-1 leading-none"
                         >
                           <Check size={10} strokeWidth={2.5} /> Confirm
                         </button>
                         <button
-                          onClick={handleCancelMilestoneLocal}
+                          onClick={handleCancelCheckpointLocal}
                           className="px-2 py-1 border border-slate-200 bg-white text-slate-700 text-[10px] font-medium uppercase tracking-tight hover:bg-slate-50 transition-colors leading-none"
                         >
                           Cancel
@@ -750,23 +709,24 @@ export const DetailPanel = ({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="shrink-0 w-4 flex items-center justify-center">
-                          {renderMilestoneIcon(m.icon, m.color)}
+                          <Flag size={12} strokeWidth={2} className="text-slate-500" />
                         </div>
-                        <span className="text-[11px] font-medium uppercase tracking-tight text-slate-900 truncate">{m.title}</span>
-                        <span className="text-[10px] font-mono text-slate-400 shrink-0">{m.date}</span>
+                        <span className="text-[11px] font-medium uppercase tracking-tight text-slate-900 truncate">{checkpoint.title}</span>
+                        <span className="text-[9px] text-slate-400 uppercase tracking-tight shrink-0">{CHECKPOINT_KIND_LABELS[checkpoint.kind]}</span>
+                        <span className="text-[10px] font-mono text-slate-400 shrink-0">{checkpoint.date}</span>
                       </div>
                       {isEditing && (
                         <div className="flex items-center gap-0.5 shrink-0">
                           <button
                             aria-label={`Edit milestone ${idx + 1}`}
-                            onClick={() => handleStartEditMilestone(m)}
+                            onClick={() => handleStartEditCheckpoint(checkpoint)}
                             className="p-1 text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
                           >
                             <Edit2 size={11} />
                           </button>
                           <button
                             aria-label={`Remove milestone ${idx + 1}`}
-                            onClick={() => handleRemoveMilestone(m.id)}
+                            onClick={() => handleRemoveCheckpoint(checkpoint.id)}
                             className="p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
                           >
                             <Trash2 size={11} />
