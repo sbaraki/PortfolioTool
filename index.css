@@ -1,0 +1,232 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@media print {
+  @page {
+    size: var(--print-page-width, 17in) var(--print-page-height, 11in);
+    /* Tightened margins to recover ~0.12in of usable area per edge on 11x17. */
+    margin: 0.12in;
+  }
+
+  html, body {
+    width: var(--print-page-width, 17in) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: #ffffff !important;
+    /* Push body text to near-black for maximum contrast on paper. */
+    color: #0b1220 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    /* Crisp text rendering for laser/inkjet. */
+    -webkit-font-smoothing: antialiased !important;
+    text-rendering: geometricPrecision !important;
+    font-synthesis-weight: none !important;
+  }
+
+  #root {
+    width: var(--print-page-width, 17in) !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+
+  [data-print-shell] {
+    overflow: visible !important;
+    width: max-content !important;
+    height: max-content !important;
+    flex: none !important;
+    padding: 0 !important;
+    /* Eliminate inter-column gap so the timeline gets every available pixel. */
+    gap: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  [data-print-sidebar] {
+    position: relative !important;
+    height: auto !important;
+    /* Stronger sidebar/timeline divider for unambiguous column separation. */
+    border-right: 2.5px solid #0f172a !important;
+    flex-shrink: 0 !important;
+    z-index: 30 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+
+  [data-print-timeline] {
+    position: relative !important;
+    z-index: 1 !important;
+    flex: none !important;
+    width: max-content !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  [data-print-header] {
+    gap: 0.04in !important;
+    padding-top: 0.05in !important;
+    padding-bottom: 0.05in !important;
+    /* Solid black underline anchors the header on the page. */
+    border-bottom: 1.5px solid #0f172a !important;
+    color: #000 !important;
+  }
+
+  [data-print-header] h1 {
+    letter-spacing: 0.1em !important;
+    line-height: 1.05 !important;
+    color: #000 !important;
+    font-weight: 800 !important;
+  }
+
+  [data-print-status-key] {
+    color: #0b1220 !important;
+    line-height: 1.15 !important;
+    font-weight: 600 !important;
+  }
+
+  [data-print-phase-label] {
+    /* Phase labels go true black + heavier weight so they read on top of phase fills. */
+    color: #000 !important;
+    font-weight: 700 !important;
+    font-size: calc(10.5px * var(--print-font-multiplier, 1)) !important;
+    letter-spacing: 0.02em !important;
+    line-height: 1 !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    /* Subtle white stroke so labels stay readable against any phase color. */
+    paint-order: stroke fill;
+    -webkit-text-stroke: 0.4px #ffffff;
+  }
+
+  [data-print-sidebar] span,
+  [data-print-sidebar] div {
+    line-height: 1.08 !important;
+    color: #0b1220 !important;
+  }
+
+  .timeline-container,
+  .custom-scrollbar {
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .no-print,
+  .no-print-lane {
+    display: none !important;
+  }
+
+  .fixed.inset-0.no-print {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Prevent bars and labels from splitting across pages if multiple pages are used */
+  .gallery-lane-bg,
+  [role="button"],
+  .project-bar {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Stronger, darker board grid lines for unambiguous month/quarter separation. */
+  .timeline-container div[style*="border-r"] {
+    border-right-color: #475569 !important; /* slate-600 */
+  }
+
+  /* Darken small metadata text for print readability — push to slate-900. */
+  [data-print-shell] .text-slate-500,
+  [data-print-shell] .text-slate-400,
+  [data-print-shell] .text-slate-600 {
+    color: #0f172a !important;
+  }
+
+  /* Force common slate text colors to maximum contrast. */
+  [data-print-shell] .text-slate-700,
+  [data-print-shell] .text-slate-800,
+  [data-print-shell] .text-slate-900,
+  [data-print-shell] .text-slate-950 {
+    color: #000 !important;
+  }
+
+  /* Strengthen all slate borders so structure is visible on print. */
+  [data-print-shell] .border-slate-100,
+  [data-print-shell] .border-slate-200,
+  [data-print-shell] .border-slate-300 {
+    border-color: #475569 !important; /* slate-600 */
+  }
+
+  [data-print-shell] .border-slate-400,
+  [data-print-shell] .border-slate-500 {
+    border-color: #1e293b !important; /* slate-800 */
+  }
+
+  /* Bump every "small text" tier by ~1px and apply consistent multiplier — gains legibility
+     without changing layout math because the shell is scaled by a JS-computed transform. */
+  [data-print-shell] .text-\[8px\]    { font-size: calc(9px  * var(--print-font-multiplier, 1)) !important; font-weight: 600 !important; }
+  [data-print-shell] .text-\[8\.5px\] { font-size: calc(9.5px * var(--print-font-multiplier, 1)) !important; font-weight: 600 !important; }
+  [data-print-shell] .text-\[9px\]    { font-size: calc(10px * var(--print-font-multiplier, 1)) !important; font-weight: 600 !important; }
+  [data-print-shell] .text-\[10px\]   { font-size: calc(10.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[11px\]   { font-size: calc(11.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[12px\]   { font-size: calc(12.5px * var(--print-font-multiplier, 1)) !important; }
+  [data-print-shell] .text-\[13px\]   { font-size: calc(13.5px * var(--print-font-multiplier, 1)) !important; }
+
+  /* Project bar text/icons: hard contrast. Bars print with crisp 1px black outline. */
+  [data-print-shell] .project-bar,
+  [data-print-shell] [role="button"].project-bar {
+    border: 1px solid #000 !important;
+  }
+
+  /* Diamond milestone markers and their label boxes: bold black borders, dense fills. */
+  [data-print-shell] .border-slate-900 {
+    border-color: #000 !important;
+  }
+
+  /* Gallery row separators darken so lanes are clearly walled off on paper. */
+  [data-print-shell] .border-b-2.border-slate-300,
+  [data-print-shell] .border-b-2.border-slate-400 {
+    border-bottom-color: #1e293b !important;
+  }
+
+  /* Year/quarter/month header rows: max-contrast text + solid divider. */
+  [data-print-shell] [class*="tracking-["] {
+    color: #000 !important;
+  }
+
+  /* Holiday/FY band: keep the orange identity but darken text for print legibility. */
+  [data-print-shell] .print\:text-orange-900 {
+    color: #7c2d12 !important; /* orange-900 */
+    font-weight: 700 !important;
+  }
+  [data-print-shell] .print\:bg-orange-50 {
+    background-color: #fff7ed !important; /* orange-50 */
+  }
+  [data-print-shell] .print\:border-orange-300 {
+    border-color: #c2410c !important; /* orange-700 */
+  }
+
+  /* Footer note: dark, right-aligned, slightly larger. */
+  [data-print-shell] .hidden.print\:block {
+    color: #0b1220 !important;
+  }
+
+  /* Summary block (second page when included): tighter and darker. */
+  .break-before-page {
+    page-break-before: always !important;
+  }
+}
