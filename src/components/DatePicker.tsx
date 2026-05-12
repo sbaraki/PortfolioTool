@@ -6,15 +6,22 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-reac
 interface DatePickerProps {
   value: string; // ISO date format yyyy-MM-dd
   onChange: (value: string) => void;
+  onBlur?: (value: string) => void;
   label?: string;
   className?: string;
+  error?: string;
 }
 
-export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label, className = "" }) => {
+export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur, label, className = "", error }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedDate = value ? parseISO(value) : undefined;
+
+  useEffect(() => {
+    setInputValue(value);
+  }, [value]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -37,22 +44,41 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, label, 
     }
   };
 
+  const commitTypedValue = () => {
+    onBlur?.(inputValue);
+  };
+
   return (
     <div className={`relative ${className}`} ref={containerRef}>
       {label && <label className="text-[10px] font-medium uppercase tracking-tight text-slate-600 mb-1 block">{label}</label>}
       <div className="relative">
         <input
           type="text"
-          value={value}
-          readOnly
+          value={inputValue}
+          placeholder="YYYY-MM-DD"
+          onChange={(event) => setInputValue(event.target.value)}
+          onBlur={commitTypedValue}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commitTypedValue();
+              event.currentTarget.blur();
+            }
+          }}
+          className={`w-full bg-white border px-2 py-1.5 pr-8 text-[12px] text-slate-900 outline-none focus:border-slate-400 transition-colors ${error ? 'border-red-300 bg-red-50/40' : 'border-slate-200'}`}
+        />
+        <button
+          type="button"
+          aria-label="Open calendar"
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full bg-white border border-slate-200 px-2 py-1.5 pr-8 text-[12px] text-slate-900 outline-none focus:border-slate-400 cursor-pointer transition-colors"
-        />
-        <CalendarIcon 
-          size={14} 
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" 
-        />
+          className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+        >
+          <CalendarIcon 
+            size={14} 
+          />
+        </button>
       </div>
+      {error && <p className="mt-1 text-[10px] font-medium text-red-600">{error}</p>}
 
       {isOpen && (
         <div className="absolute z-[110] mt-1 bg-white border border-slate-200 shadow-xl p-3 left-0 sm:left-auto sm:right-0">

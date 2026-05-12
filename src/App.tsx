@@ -2,12 +2,13 @@ import { useStore } from './store/useStore';
 import { useMuseumSync } from './hooks/useMuseumSync';
 import { useMuseumActions } from './hooks/useMuseumActions';
 import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, GALLERY_HEADER_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './constants';
-import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, snapDate } from './lib/dateUtils';
+import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, getDurationMonths, snapDate } from './lib/dateUtils';
 import { calculateTracks } from './lib/layoutEngine';
 import { calculatePrintScale } from './lib/printLayout';
 import { exportExhibitionsToCSV } from './lib/exportUtils';
-import { CheckpointKind, Exhibition, Gallery, GalleryKind, ProjectPhase, ExhibitionStatus, PrintSettings } from './types';
+import { CheckpointKind, Exhibition, Gallery, GalleryKind, ProjectCheckpoint, ProjectPhase, PhaseType, ExhibitionStatus, PrintSettings } from './types';
 import { DetailPanel } from './components/DetailPanel';
+import { DatePicker } from './components/DatePicker';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -150,10 +151,14 @@ const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   grayscale: false,
   showPhases: true,
   showDescription: false,
-  fontSizeMultiplier: 1.08,
+  fontSizeMultiplier: 1,
   projectRowGap: 16,
   footerNote: '',
 };
+
+const PRINT_MILESTONE_BAND_HEIGHT = 96;
+const PRINT_MILESTONE_LABEL_HEIGHT = 24;
+const PRINT_MILESTONE_LABEL_ROWS = [8, 38, 68];
 
 const formatPrintDateTime = (date: Date | null) => {
   if (!date) return 'Preparing print';
@@ -164,6 +169,416 @@ const formatPrintDateTime = (date: Date | null) => {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
+};
+
+type QuickPopoverState =
+  | { mode: 'project'; projectId: string; x: number; y: number }
+  | { mode: 'add-project'; galleryName: string; date: string; x: number; y: number }
+  | { mode: 'milestone'; projectId: string; checkpointId?: string; date: string; x: number; y: number };
+
+const POPOVER_WIDTH = 320;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const createLocalId = () => Math.random().toString(36).slice(2, 11);
+const clampPopoverPosition = (x: number, y: number) => ({
+  left: Math.max(8, Math.min(x + 10, window.innerWidth - POPOVER_WIDTH - 8)),
+  top: Math.max(48, Math.min(y + 10, window.innerHeight - 360)),
+});
+const isValidDateInput = (value: string) => {
+  if (!DATE_RE.test(value)) return false;
+  const date = new Date(`${value}T12:00:00`);
+  return !Number.isNaN(date.getTime()) && toISODate(date) === value;
+};
+const sortProjectCheckpoints = (checkpoints: Exhibition['checkpoints']) => (
+  [...(checkpoints || [])].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title))
+);
+
+const QuickProjectPopover = ({
+  project,
+  galleries,
+  anchor,
+  onUpdate,
+  onClose,
+  onOpenMilestone,
+}: {
+  project: Exhibition;
+  galleries: Gallery[];
+  anchor: { x: number; y: number };
+  onUpdate: (project: Exhibition) => void;
+  onClose: () => void;
+  onOpenMilestone: (date: string) => void;
+}) => {
+  const [draft, setDraft] = useState(project);
+  const [dateError, setDateError] = useState('');
+  const saveTimerRef = useRef<number | null>(null);
+  const draftRef = useRef(project);
+  const onUpdateRef = useRef(onUpdate);
+  const position = clampPopoverPosition(anchor.x, anchor.y);
+  const duration = getDurationMonths(draft.startDate, draft.endDate);
+
+  useEffect(() => {
+    setDraft(project);
+    draftRef.current = project;
+  }, [project]);
+
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
+  useEffect(() => () => {
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      onUpdateRef.current(draftRef.current);
+    }
+  }, []);
+
+  const save = (next: Exhibition, immediate = false) => {
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    if (immediate) {
+      onUpdate(next);
+      return;
+    }
+    saveTimerRef.current = window.setTimeout(() => onUpdate(next), 500);
+  };
+
+  const updateDraft = (updater: Exhibition | ((prev: Exhibition) => Exhibition), immediate = false) => {
+    const next = typeof updater === 'function' ? updater(draftRef.current) : updater;
+    draftRef.current = next;
+    setDraft(next);
+    save(next, immediate);
+  };
+
+  const applyDate = (field: 'startDate' | 'endDate', value: string) => {
+    if (!isValidDateInput(value)) {
+      setDateError('Use YYYY-MM-DD');
+      return;
+    }
+    setDateError('');
+    updateDraft(prev => {
+      if (field === 'startDate') {
+        return {
+          ...prev,
+          startDate: value,
+          endDate: prev.scheduleMode === 'single-date' ? value : (prev.endDate < value ? value : prev.endDate),
+        };
+      }
+      return { ...prev, endDate: value < prev.startDate ? prev.startDate : value };
+    }, true);
+  };
+
+  return (
+    <div
+      data-quick-popover
+      className="fixed z-[160] w-[320px] border border-slate-300 bg-white shadow-2xl no-print"
+      style={position}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-800">Quick edit</span>
+        <button aria-label="Close quick edit" onClick={onClose} className="p-1 text-slate-500 hover:bg-slate-50 hover:text-slate-900">
+          <X size={13} />
+        </button>
+      </div>
+      <div className="space-y-2 p-3">
+        <label className="block space-y-1">
+          <span className="text-[10px] font-medium uppercase tracking-tight text-slate-600">Title</span>
+          <input
+            autoFocus
+            value={draft.title}
+            onChange={(e) => updateDraft(prev => ({ ...prev, title: e.target.value.toUpperCase() }))}
+            onBlur={() => onUpdate(draftRef.current)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onUpdate(draftRef.current);
+                e.currentTarget.blur();
+              }
+            }}
+            className="w-full border border-slate-200 px-2 py-1.5 text-[12px] font-semibold uppercase outline-none focus:border-slate-500"
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block space-y-1">
+            <span className="text-[10px] font-medium uppercase tracking-tight text-slate-600">Status</span>
+            <select
+              value={draft.status}
+              onChange={(e) => updateDraft(prev => ({ ...prev, status: e.target.value as ExhibitionStatus }), true)}
+              className="w-full border border-slate-200 px-2 py-1.5 text-[12px] bg-white outline-none focus:border-slate-500"
+            >
+              {ALL_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[10px] font-medium uppercase tracking-tight text-slate-600">Gallery</span>
+            <select
+              value={draft.gallery}
+              onChange={(e) => updateDraft(prev => ({ ...prev, gallery: e.target.value }), true)}
+              className="w-full border border-slate-200 px-2 py-1.5 text-[12px] bg-white outline-none focus:border-slate-500"
+            >
+              {galleries.map(gallery => <option key={gallery.id} value={gallery.name}>{gallery.name}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          {[
+            { value: 'range', label: 'Date range' },
+            { value: 'single-date', label: 'Single date' },
+          ].map(option => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => updateDraft(prev => {
+                const scheduleMode = option.value as Exhibition['scheduleMode'];
+                return {
+                  ...prev,
+                  scheduleMode,
+                  endDate: scheduleMode === 'single-date'
+                    ? prev.startDate
+                    : (prev.endDate <= prev.startDate ? getDateWithMonthDuration(prev.startDate, 3) : prev.endDate)
+                };
+              }, true)}
+              className={`border px-2 py-1.5 text-[10px] font-semibold uppercase tracking-tight ${draft.scheduleMode === option.value ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {draft.scheduleMode === 'single-date' ? (
+          <DatePicker value={draft.startDate} onChange={(value) => applyDate('startDate', value)} onBlur={(value) => applyDate('startDate', value)} error={dateError} label="Date" />
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <DatePicker value={draft.startDate} onChange={(value) => applyDate('startDate', value)} onBlur={(value) => applyDate('startDate', value)} error={dateError} label="Start" />
+            <DatePicker value={draft.endDate} onChange={(value) => applyDate('endDate', value)} onBlur={(value) => applyDate('endDate', value)} error={dateError} label="End" />
+          </div>
+        )}
+        {draft.scheduleMode !== 'single-date' && (
+          <label className="flex items-center gap-2 border-t border-slate-100 pt-2">
+            <span className="text-[10px] font-medium uppercase tracking-tight text-slate-600">Duration</span>
+            <input
+              type="number"
+              min="0.1"
+              step="0.1"
+              value={duration}
+              onChange={(e) => {
+                const months = parseFloat(e.target.value);
+                if (!Number.isNaN(months)) updateDraft(prev => ({ ...prev, endDate: getDateWithMonthDuration(prev.startDate, Math.max(0.1, months)) }));
+              }}
+              onBlur={() => onUpdate(draftRef.current)}
+              className="w-20 border border-slate-200 px-2 py-1 text-[12px] outline-none focus:border-slate-500"
+            />
+            <span className="text-[10px] uppercase text-slate-500">months</span>
+          </label>
+        )}
+        <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+          <span className="text-[10px] font-medium uppercase tracking-tight text-emerald-700">Auto-saves</span>
+          <button
+            type="button"
+            onClick={() => onOpenMilestone(draft.startDate)}
+            className="inline-flex items-center gap-1 border border-slate-200 px-2 py-1 text-[10px] font-semibold uppercase tracking-tight text-slate-700 hover:bg-slate-50"
+          >
+            <Flag size={10} /> Milestone
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const QuickAddProjectPopover = ({
+  anchor,
+  galleryName,
+  date,
+  phaseTypes,
+  onCreate,
+  onClose,
+}: {
+  anchor: { x: number; y: number };
+  galleryName: string;
+  date: string;
+  phaseTypes: PhaseType[];
+  onCreate: (project: Exhibition) => void;
+  onClose: () => void;
+}) => {
+  const [title, setTitle] = useState('NEW PROJECT');
+  const [status, setStatus] = useState<ExhibitionStatus>('TBC');
+  const [scheduleMode, setScheduleMode] = useState<Exhibition['scheduleMode']>('range');
+  const [startDate, setStartDate] = useState(date);
+  const [endDate, setEndDate] = useState(getDateWithMonthDuration(date, 3));
+  const [dateError, setDateError] = useState('');
+  const position = clampPopoverPosition(anchor.x, anchor.y);
+
+  const createProject = () => {
+    if (!isValidDateInput(startDate) || !isValidDateInput(endDate)) {
+      setDateError('Use YYYY-MM-DD');
+      return;
+    }
+    const id = createLocalId();
+    onCreate({
+      id,
+      exhibitionId: '',
+      title: title.trim().toUpperCase() || 'NEW PROJECT',
+      status,
+      startDate,
+      endDate: scheduleMode === 'single-date' ? startDate : (endDate < startDate ? startDate : endDate),
+      gallery: galleryName,
+      scheduleMode,
+      checkpoints: [],
+      phases: phaseTypes.map(pt => ({
+        id: createLocalId(),
+        label: pt.label,
+        durationMonths: pt.isPost ? 1 : 3,
+        typeId: pt.id,
+      })),
+      description: '',
+    });
+    onClose();
+  };
+
+  return (
+    <div data-quick-popover className="fixed z-[160] w-[320px] border border-slate-300 bg-white shadow-2xl no-print" style={position} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-800">Quick add</span>
+        <button aria-label="Close quick add" onClick={onClose} className="p-1 text-slate-500 hover:bg-slate-50 hover:text-slate-900"><X size={13} /></button>
+      </div>
+      <div className="space-y-2 p-3">
+        <div className="text-[10px] font-semibold uppercase tracking-tight text-slate-500">{galleryName}</div>
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value.toUpperCase())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              createProject();
+            }
+          }}
+          className="w-full border border-slate-200 px-2 py-1.5 text-[12px] font-semibold uppercase outline-none focus:border-slate-500"
+        />
+        <select value={status} onChange={(e) => setStatus(e.target.value as ExhibitionStatus)} className="w-full border border-slate-200 px-2 py-1.5 text-[12px] bg-white outline-none focus:border-slate-500">
+          {ALL_STATUSES.map(option => <option key={option} value={option}>{option}</option>)}
+        </select>
+        <div className="grid grid-cols-2 gap-1">
+          <button type="button" onClick={() => setScheduleMode('range')} className={`border px-2 py-1.5 text-[10px] font-semibold uppercase ${scheduleMode === 'range' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-600'}`}>Range</button>
+          <button type="button" onClick={() => setScheduleMode('single-date')} className={`border px-2 py-1.5 text-[10px] font-semibold uppercase ${scheduleMode === 'single-date' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 text-slate-600'}`}>Single</button>
+        </div>
+        {scheduleMode === 'single-date' ? (
+          <DatePicker value={startDate} onChange={setStartDate} onBlur={setStartDate} error={dateError} label="Date" />
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <DatePicker value={startDate} onChange={(value) => { setStartDate(value); if (endDate < value) setEndDate(value); }} onBlur={(value) => { setStartDate(value); if (endDate < value) setEndDate(value); }} error={dateError} label="Start" />
+            <DatePicker value={endDate} onChange={(value) => setEndDate(value < startDate ? startDate : value)} onBlur={(value) => setEndDate(value < startDate ? startDate : value)} error={dateError} label="End" />
+          </div>
+        )}
+        <button type="button" onClick={createProject} className="w-full bg-slate-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-tight text-white hover:bg-slate-800">
+          Create project
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const QuickMilestonePopover = ({
+  anchor,
+  project,
+  checkpoint,
+  date,
+  onUpdate,
+  onClose,
+}: {
+  anchor: { x: number; y: number };
+  project: Exhibition;
+  checkpoint?: Exhibition['checkpoints'][number];
+  date: string;
+  onUpdate: (project: Exhibition) => void;
+  onClose: () => void;
+}) => {
+  const [title, setTitle] = useState(checkpoint?.title || 'NEW MILESTONE');
+  const [kind, setKind] = useState<CheckpointKind>(checkpoint?.kind || 'other');
+  const [milestoneDate, setMilestoneDate] = useState(checkpoint?.date || date);
+  const [dateError, setDateError] = useState('');
+  const checkpointIdRef = useRef(checkpoint?.id || createLocalId());
+  const position = clampPopoverPosition(anchor.x, anchor.y);
+
+  const saveMilestone = (closeAfter = false, overrides: Partial<ProjectCheckpoint> = {}) => {
+    const nextDate = overrides.date || milestoneDate;
+    const nextTitle = overrides.title || title;
+    const nextKind = overrides.kind || kind;
+    if (!isValidDateInput(nextDate)) {
+      setDateError('Use YYYY-MM-DD');
+      return;
+    }
+    const nextCheckpoint = {
+      id: checkpointIdRef.current,
+      title: nextTitle.trim().toUpperCase() || 'NEW MILESTONE',
+      kind: nextKind,
+      date: nextDate,
+    };
+    const exists = (project.checkpoints || []).some(item => item.id === checkpointIdRef.current);
+    const checkpoints = exists
+      ? project.checkpoints.map(item => item.id === checkpointIdRef.current ? nextCheckpoint : item)
+      : [...(project.checkpoints || []), nextCheckpoint];
+    onUpdate({ ...project, checkpoints: sortProjectCheckpoints(checkpoints) });
+    if (closeAfter) onClose();
+  };
+
+  return (
+    <div data-quick-popover className="fixed z-[160] w-[320px] border border-slate-300 bg-white shadow-2xl no-print" style={position} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-800">{checkpoint ? 'Edit milestone' : 'Add milestone'}</span>
+        <button aria-label="Close milestone editor" onClick={onClose} className="p-1 text-slate-500 hover:bg-slate-50 hover:text-slate-900"><X size={13} /></button>
+      </div>
+      <div className="space-y-2 p-3">
+        <div className="truncate text-[10px] font-semibold uppercase tracking-tight text-slate-500" title={project.title}>{project.title}</div>
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value.toUpperCase())}
+          onBlur={() => {
+            if (checkpoint) saveMilestone(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              saveMilestone(true);
+            }
+          }}
+          className="w-full border border-slate-200 px-2 py-1.5 text-[12px] font-semibold uppercase outline-none focus:border-slate-500"
+        />
+        <div className="grid grid-cols-2 gap-2">
+                  <DatePicker
+                    value={milestoneDate}
+                    onChange={(value) => {
+                      setMilestoneDate(value);
+                      if (checkpoint) saveMilestone(false, { date: value });
+                    }}
+                    onBlur={(value) => {
+                      setMilestoneDate(value);
+                      if (checkpoint) saveMilestone(false, { date: value });
+                    }}
+                    error={dateError}
+                    label="Date"
+                  />
+          <label className="block space-y-1">
+            <span className="text-[10px] font-medium uppercase tracking-tight text-slate-600">Kind</span>
+            <select
+              value={kind}
+              onChange={(e) => {
+                const nextKind = e.target.value as CheckpointKind;
+                setKind(nextKind);
+                if (checkpoint) saveMilestone(false, { kind: nextKind });
+              }}
+              className="w-full border border-slate-200 px-2 py-1.5 text-[12px] bg-white outline-none focus:border-slate-500"
+            >
+              {Object.entries(MILESTONE_KIND_META).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <button type="button" onClick={() => saveMilestone(true)} className="w-full bg-slate-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-tight text-white hover:bg-slate-800">
+          {checkpoint ? 'Save milestone' : 'Add milestone'}
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default function MasterScheduler() {
@@ -191,6 +606,7 @@ export default function MasterScheduler() {
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [printSettings, setPrintSettings] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS);
   const [isPrintMode, setIsPrintMode] = useState(false);
+  const [quickPopover, setQuickPopover] = useState<QuickPopoverState | null>(null);
   
   const currentTrackHeight = isPrintMode 
     ? (Math.max(STANDARD_BAR_HEIGHT, (printSettings.showDescription ? 34 : 0)) + printSettings.projectRowGap) 
@@ -230,9 +646,8 @@ export default function MasterScheduler() {
     initialDate: string;
     tempDate: string;
   } | null>(null);
-  const longPressTimerRef = useRef<number | null>(null);
 
-  // Edge-drag resize state — separate from long-press move so resize starts instantly.
+  // Edge-drag resize state stays separate from bar movement so resize starts instantly.
   const [resizingEdge, setResizingEdge] = useState<{ id: string; edge: 'left' | 'right' } | null>(null);
   const resizeInitialMouseXRef = useRef(0);
   const resizeInitialStartDateRef = useRef('');
@@ -243,15 +658,33 @@ export default function MasterScheduler() {
   const phaseResizeInitialMouseXRef = useRef(0);
   const phaseResizeInitialDurationRef = useRef(0);
   const [phaseResizeTempDuration, setPhaseResizeTempDuration] = useState<number | null>(null);
+  const timelineRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
+      if (timelineRafRef.current) {
+        cancelAnimationFrame(timelineRafRef.current);
+        timelineRafRef.current = null;
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!quickPopover) return;
+    const closeOnOutside = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest('[data-quick-popover]')) setQuickPopover(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setQuickPopover(null);
+    };
+    window.addEventListener('pointerdown', closeOnOutside);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('pointerdown', closeOnOutside);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [quickPopover]);
 
   const viewMonths = useMemo(() => {
     let start = new Date(timelineStartDate + 'T12:00:00');
@@ -356,6 +789,11 @@ export default function MasterScheduler() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+      if (e.key === 'Escape' && (draggingBarId || resizingEdge || resizingPhase || draggingMilestone || isDraggingScroll)) {
+        e.preventDefault();
+        cancelTimelineInteraction();
+        return;
+      }
       if (e.key === 'Escape') { setSelectedProjectId(null); return; }
       if (isTyping) return;
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'z') { e.preventDefault(); redo(); return; }
@@ -363,7 +801,7 @@ export default function MasterScheduler() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]);
+  }, [undo, redo, draggingBarId, resizingEdge, resizingPhase, draggingMilestone, isDraggingScroll]);
 
   // Scroll the timeline so todayPos is centred in the viewport.
   const scrollToToday = () => {
@@ -419,12 +857,36 @@ export default function MasterScheduler() {
     );
   }, [exhibitions, effectiveStatuses, portfolioGalleries]);
 
+  const projectById = useMemo(() => new Map(exhibitions.map(ex => [ex.id, ex])), [exhibitions]);
+  const phaseTypeById = useMemo(() => new Map(phaseTypes.map(type => [type.id, type])), [phaseTypes]);
+  const filteredProjectsByGallery = useMemo(() => {
+    const grouped = new Map<string, Exhibition[]>();
+    portfolioGalleries.forEach(gallery => grouped.set(gallery.name, []));
+    filteredExhibitions.forEach(ex => {
+      const bucket = grouped.get(ex.gallery);
+      if (bucket) bucket.push(ex);
+    });
+    return grouped;
+  }, [filteredExhibitions, portfolioGalleries]);
+
+  const galleryHasMilestones = useMemo(() => {
+    const result = new Map<string, boolean>();
+    portfolioGalleries.forEach(gallery => {
+      result.set(gallery.name, (filteredProjectsByGallery.get(gallery.name) || []).some(ex => (ex.checkpoints || []).length > 0));
+    });
+    return result;
+  }, [filteredProjectsByGallery, portfolioGalleries]);
+
+  const milestoneBandHeightFor = (galleryName: string) => (
+    isPrintMode && galleryHasMilestones.get(galleryName) ? PRINT_MILESTONE_BAND_HEIGHT : 0
+  );
+
   // ── Conflict detection ─────────────────────────────────────────────────
   // A Set of exhibition IDs that overlap with at least one peer in the same gallery.
   const conflictingIds = useMemo(() => {
     const ids = new Set<string>();
     portfolioGalleries.forEach(gallery => {
-      const exs = filteredExhibitions.filter(ex => ex.gallery === gallery.name && ex.scheduleMode !== 'single-date');
+      const exs = (filteredProjectsByGallery.get(gallery.name) || []).filter(ex => ex.scheduleMode !== 'single-date');
       for (let i = 0; i < exs.length; i++) {
         for (let j = i + 1; j < exs.length; j++) {
           const a = exs[i], b = exs[j];
@@ -437,7 +899,7 @@ export default function MasterScheduler() {
       }
     });
     return ids;
-  }, [filteredExhibitions, portfolioGalleries]);
+  }, [filteredProjectsByGallery, portfolioGalleries]);
 
   const printProjectCheckpointCount = filteredExhibitions.reduce((sum, ex) => sum + (ex.checkpoints?.length || 0), 0);
 
@@ -509,20 +971,19 @@ export default function MasterScheduler() {
   const galleryLayouts = useMemo(() => {
     const layouts: { [galleryName: string]: { tracks: { [id: string]: number }, maxTracks: number } } = {};
     portfolioGalleries.forEach(gallery => {
-      const galleryProjects = filteredExhibitions
-        .filter(ex => ex.gallery === gallery.name)
+      const galleryProjects = (filteredProjectsByGallery.get(gallery.name) || [])
         .map(ex => ({ ...ex, phases: getEffPhases(ex) }));
       const layoutInfo = calculateTracks(galleryProjects, monthWidth, viewMonths, phaseTypes);
       layouts[gallery.name] = { tracks: layoutInfo.tracks, maxTracks: layoutInfo.maxTracks };
     });
     return layouts;
-  }, [filteredExhibitions, portfolioGalleries, monthWidth, viewMonths, phaseTypes]);
+  }, [filteredProjectsByGallery, portfolioGalleries, monthWidth, viewMonths, phaseTypes, isPrintMode, printSettings.showPhases]);
 
   const mhFor = (_galleryName: string) => GALLERY_HEADER_HEIGHT;
 
 
   const getProjectPhaseRows = (project: Exhibition) => {
-    const prePhasesCount = getEffPhases(project).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost).length;
+    const prePhasesCount = getEffPhases(project).filter(p => !phaseTypeById.get(p.typeId)?.isPost).length;
     return Math.max(1, prePhasesCount + 1);
   };
 
@@ -554,13 +1015,14 @@ export default function MasterScheduler() {
       }
       const tracksTotal = galleryTrackLayouts[gallery.name]?.total || currentTrackHeight;
       const topStrip = mhFor(gallery.name);
+      const milestoneBandHeight = milestoneBandHeightFor(gallery.name);
       acc[gallery.name] = Math.max(
         BASE_LANE_HEIGHT,
-        topStrip + LANE_TOP_PADDING + tracksTotal + LANE_BOTTOM_PADDING
+        topStrip + milestoneBandHeight + LANE_TOP_PADDING + tracksTotal + LANE_BOTTOM_PADDING
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds]);
+  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, isPrintMode, galleryHasMilestones]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -598,34 +1060,65 @@ export default function MasterScheduler() {
       }
     : null;
 
-  const onBarMouseDown = (e: React.MouseEvent, project: Exhibition) => {
-    if (e.button !== 0) return;
-    const projectX = getPositionFromDate(project.startDate, monthWidth, viewMonths);
-    const durationDays = getDurationDays(project.startDate, project.endDate);
-    const mouseX = e.clientX;
-
-    longPressTimerRef.current = window.setTimeout(() => {
-      dragStartMouseXRef.current = mouseX;
-      dragStartProjectXRef.current = projectX;
-      dragDurationDaysRef.current = durationDays;
-      setDragTempStartDate(project.startDate);
-      setDragTempEndDate(project.endDate);
-      setDraggingBarId(project.id);
-    }, 400);
+  const openProjectQuickEdit = (event: React.MouseEvent | React.PointerEvent, project: Exhibition) => {
+    event.stopPropagation();
+    setQuickPopover({ mode: 'project', projectId: project.id, x: event.clientX, y: event.clientY });
   };
 
-  const clearLongPress = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
+  const openMilestoneQuickEdit = (
+    event: React.MouseEvent | React.PointerEvent,
+    project: Exhibition,
+    date: string,
+    checkpointId?: string
+  ) => {
+    event.stopPropagation();
+    setQuickPopover({ mode: 'milestone', projectId: project.id, checkpointId, date, x: event.clientX, y: event.clientY });
   };
 
-  const onEdgeMouseDown = (e: React.MouseEvent, project: Exhibition, edge: 'left' | 'right') => {
+  const openQuickAddProject = (event: React.MouseEvent<HTMLElement>, gallery: Gallery) => {
+    if (event.button !== 0 || effectiveCollapsedGalleryIds.has(gallery.id)) return;
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const xInTimeline = event.clientX - rect.left;
+    const date = getDateFromPosition(xInTimeline, monthWidth, viewMonths);
+    setQuickPopover({ mode: 'add-project', galleryName: gallery.name, date, x: event.clientX, y: event.clientY });
+  };
+
+  const createQuickProject = (project: Exhibition) => {
+    commitHistory();
+    setExhibitions(prev => [...prev, project]);
+  };
+
+  const scheduleTimelineFrame = (callback: () => void) => {
+    if (timelineRafRef.current) cancelAnimationFrame(timelineRafRef.current);
+    timelineRafRef.current = requestAnimationFrame(() => {
+      timelineRafRef.current = null;
+      callback();
+    });
+  };
+
+  const onBarDragPointerDown = (e: React.PointerEvent, project: Exhibition) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
-    clearLongPress();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const projectX = getPositionFromDate(project.startDate, monthWidth, viewMonths);
+    const durationDays = getDurationDays(project.startDate, project.endDate);
+    dragStartMouseXRef.current = e.clientX;
+    dragStartProjectXRef.current = projectX;
+    dragDurationDaysRef.current = durationDays;
+    setIsDraggingScroll(false);
+    setDragTempStartDate(project.startDate);
+    setDragTempEndDate(project.endDate);
+    setDraggingBarId(project.id);
+  };
+
+  const onEdgePointerDown = (e: React.PointerEvent, project: Exhibition, edge: 'left' | 'right') => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDraggingScroll(false);
     resizeInitialMouseXRef.current = e.clientX;
     resizeInitialStartDateRef.current = project.startDate;
     resizeInitialEndDateRef.current = project.endDate;
@@ -634,22 +1127,23 @@ export default function MasterScheduler() {
     setDragTempEndDate(project.endDate);
   };
 
-  const onPhaseHandleMouseDown = (e: React.MouseEvent, projectId: string, phase: ProjectPhase) => {
+  const onPhaseHandlePointerDown = (e: React.PointerEvent, projectId: string, phase: ProjectPhase) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
-    clearLongPress();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setIsDraggingScroll(false);
     phaseResizeInitialMouseXRef.current = e.clientX;
     phaseResizeInitialDurationRef.current = phase.durationMonths;
     setResizingPhase({ projectId, phaseId: phase.id });
     setPhaseResizeTempDuration(phase.durationMonths);
   };
 
-  const onMilestoneMouseDown = (e: React.MouseEvent, project: Exhibition, checkpointId: string, date: string) => {
+  const onMilestonePointerDown = (e: React.PointerEvent, project: Exhibition, checkpointId: string, date: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
-    clearLongPress();
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDraggingScroll(false);
     setDraggingMilestone({
       projectId: project.id,
@@ -661,10 +1155,23 @@ export default function MasterScheduler() {
     });
   };
 
+  const commitBarDrag = () => {
+    if (draggingBarId && dragTempStartDate && dragTempEndDate) {
+      const ex = projectById.get(draggingBarId);
+      if (ex && (ex.startDate !== dragTempStartDate || ex.endDate !== dragTempEndDate)) {
+        handleUpdateExhibition({
+          ...ex,
+          startDate: dragTempStartDate,
+          endDate: dragTempEndDate
+        });
+      }
+    }
+  };
+
   const commitResize = () => {
     if (resizingEdge && dragTempStartDate && dragTempEndDate) {
-      const ex = exhibitions.find(p => p.id === resizingEdge.id);
-      if (ex) {
+      const ex = projectById.get(resizingEdge.id);
+      if (ex && (ex.startDate !== dragTempStartDate || ex.endDate !== dragTempEndDate)) {
         handleUpdateExhibition({ ...ex, startDate: dragTempStartDate, endDate: dragTempEndDate });
       }
     }
@@ -677,8 +1184,9 @@ export default function MasterScheduler() {
 
   const commitPhaseResize = () => {
     if (resizingPhase && phaseResizeTempDuration !== null) {
-      const ex = exhibitions.find(p => p.id === resizingPhase.projectId);
-      if (ex) {
+      const ex = projectById.get(resizingPhase.projectId);
+      const phase = ex?.phases.find(p => p.id === resizingPhase.phaseId);
+      if (ex && phase && phase.durationMonths !== phaseResizeTempDuration) {
         const updated: Exhibition = {
           ...ex,
           phases: ex.phases.map(p => p.id === resizingPhase.phaseId
@@ -692,9 +1200,31 @@ export default function MasterScheduler() {
     setPhaseResizeTempDuration(null);
   };
 
+  const finishTimelineInteraction = () => {
+    setIsDraggingScroll(false);
+    commitBarDrag();
+    if (resizingEdge) commitResize();
+    if (resizingPhase) commitPhaseResize();
+    if (draggingMilestone) commitMilestoneDrag();
+    setDraggingBarId(null);
+    setDragTempStartDate(null);
+    setDragTempEndDate(null);
+  };
+
+  const cancelTimelineInteraction = () => {
+    setIsDraggingScroll(false);
+    setDraggingBarId(null);
+    setResizingEdge(null);
+    setResizingPhase(null);
+    setDraggingMilestone(null);
+    setDragTempStartDate(null);
+    setDragTempEndDate(null);
+    setPhaseResizeTempDuration(null);
+  };
+
   const commitMilestoneDrag = () => {
     if (draggingMilestone) {
-      const ex = exhibitions.find(p => p.id === draggingMilestone.projectId);
+      const ex = projectById.get(draggingMilestone.projectId);
       if (ex && draggingMilestone.tempDate !== draggingMilestone.initialDate) {
         handleUpdateExhibition({
           ...ex,
@@ -708,28 +1238,6 @@ export default function MasterScheduler() {
     }
     setDraggingMilestone(null);
   };
-
-  useEffect(() => {
-    if (!draggingMilestone) return;
-
-    const handleMilestoneWindowMove = (e: MouseEvent) => {
-      const deltaX = e.clientX - draggingMilestone.initialMouseX;
-      let nextDate = getDateFromPosition(draggingMilestone.initialX + deltaX, monthWidth, viewMonths);
-      if (showWeeklyGrid && !e.altKey) nextDate = snapDate(nextDate, 'week');
-      setDraggingMilestone(prev => prev ? { ...prev, tempDate: nextDate } : null);
-    };
-
-    const handleMilestoneWindowUp = () => {
-      commitMilestoneDrag();
-    };
-
-    window.addEventListener('mousemove', handleMilestoneWindowMove);
-    window.addEventListener('mouseup', handleMilestoneWindowUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMilestoneWindowMove);
-      window.removeEventListener('mouseup', handleMilestoneWindowUp);
-    };
-  }, [draggingMilestone, monthWidth, viewMonths, showWeeklyGrid, exhibitions]);
 
   return (
     <div
@@ -1033,7 +1541,7 @@ export default function MasterScheduler() {
 
       {(() => {
         const selectedExhibition = selectedProjectId
-          ? exhibitions.find(p => p.id === selectedProjectId)
+          ? projectById.get(selectedProjectId)
           : null;
         if (!selectedExhibition) return null;
         return (
@@ -1058,6 +1566,54 @@ export default function MasterScheduler() {
               phaseTypes={phaseTypes}
             />
           </>
+        );
+      })()}
+
+      {quickPopover?.mode === 'project' && (() => {
+        const project = projectById.get(quickPopover.projectId);
+        if (!project) return null;
+        return (
+          <QuickProjectPopover
+            project={project}
+            galleries={galleries}
+            anchor={{ x: quickPopover.x, y: quickPopover.y }}
+            onUpdate={handleUpdateExhibition}
+            onClose={() => setQuickPopover(null)}
+            onOpenMilestone={(date) => setQuickPopover({
+              mode: 'milestone',
+              projectId: project.id,
+              date,
+              x: quickPopover.x + 20,
+              y: quickPopover.y + 20,
+            })}
+          />
+        );
+      })()}
+
+      {quickPopover?.mode === 'add-project' && (
+        <QuickAddProjectPopover
+          anchor={{ x: quickPopover.x, y: quickPopover.y }}
+          galleryName={quickPopover.galleryName}
+          date={quickPopover.date}
+          phaseTypes={phaseTypes}
+          onCreate={createQuickProject}
+          onClose={() => setQuickPopover(null)}
+        />
+      )}
+
+      {quickPopover?.mode === 'milestone' && (() => {
+        const project = projectById.get(quickPopover.projectId);
+        const checkpoint = project?.checkpoints?.find(item => item.id === quickPopover.checkpointId);
+        if (!project) return null;
+        return (
+          <QuickMilestonePopover
+            project={project}
+            checkpoint={checkpoint}
+            date={quickPopover.date}
+            anchor={{ x: quickPopover.x, y: quickPopover.y }}
+            onUpdate={handleUpdateExhibition}
+            onClose={() => setQuickPopover(null)}
+          />
         );
       })()}
 
@@ -1301,7 +1857,7 @@ export default function MasterScheduler() {
                     <div className="flex flex-col flex-1 bg-white relative z-10 print:pt-2" ref={sidebarListRef}>
                   {portfolioGalleries.map((gallery) => {
                     const laneHeight = galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT;
-                    const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
+                    const galleryProjects = filteredProjectsByGallery.get(gallery.name) || [];
                     const isPermanent = gallery.kind === 'permanent';
                     const isCollapsed = effectiveCollapsedGalleryIds.has(gallery.id);
                     // Keep the gallery header and project tracks aligned across the
@@ -1312,9 +1868,9 @@ export default function MasterScheduler() {
 	                        <div
 	                          key={gallery.id}
 	                          style={{ height: `${laneHeight}px` }}
-	                          className={`relative border-b-2 border-slate-300 overflow-hidden flex items-center pl-4 pr-2.5 gap-1.5 ${isPermanent ? 'bg-amber-50' : 'bg-slate-50'} print:bg-white`}
+	                          className="relative border-b-2 border-slate-300 overflow-hidden flex items-center pl-4 pr-2.5 gap-1.5 bg-slate-50 print:bg-white"
                         >
-                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
+                          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-slate-500" />
                           <button
                             type="button"
                             aria-label={`Expand ${gallery.name}`}
@@ -1325,18 +1881,18 @@ export default function MasterScheduler() {
                           </button>
 	                          <span className="font-bold text-[12px] text-slate-900 truncate flex-1 uppercase tracking-[0.03em] leading-tight" title={gallery.name}>{gallery.name}</span>
                           {isPermanent && (
-                            <Star size={11} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
+                            <Star size={11} className="shrink-0 text-slate-600 fill-slate-600" strokeWidth={1.5} aria-label="Permanent gallery" />
                           )}
                           <span className="shrink-0 text-[10px] font-mono font-semibold text-slate-500 px-1.5 py-0.5 bg-white border border-slate-200">{galleryProjects.length}</span>
                         </div>
                       );
                     }
                     return (
-	                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className={`relative border-b-2 border-slate-300 overflow-hidden ${isPermanent ? 'bg-amber-50' : 'bg-white'}`}>
-	                        <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-10 ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
+	                      <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="relative border-b-2 border-slate-300 overflow-hidden bg-white">
+	                        <div className="absolute left-0 top-0 bottom-0 w-[3px] z-10 bg-slate-500" />
 	                        <div
 	                          style={{ height: `${headerHeight}px` }}
-	                          className={`absolute top-0 left-0 w-full border-b-2 flex items-center gap-2 pl-4 pr-2.5 z-20 ${isPermanent ? 'bg-amber-100 border-amber-200' : 'bg-slate-100 border-slate-300'} print:bg-white print:border-slate-300`}
+	                          className="absolute top-0 left-0 w-full border-b-2 flex items-center gap-2 pl-4 pr-2.5 z-20 bg-slate-100 border-slate-300 print:bg-white print:border-slate-300"
 	                          title={isPermanent ? 'Permanent gallery' : 'Temporary exhibition space'}
 	                        >
                           <button
@@ -1350,7 +1906,7 @@ export default function MasterScheduler() {
 	                          <span className="font-bold text-[12px] text-slate-950 flex-1 uppercase tracking-[0.03em] leading-[1.05] whitespace-normal break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]" title={gallery.name}>{gallery.name}</span>
 	                          <div className="shrink-0 flex items-center gap-1">
 	                            {isPermanent && (
-	                              <Star size={11} className="shrink-0 text-amber-600 fill-amber-600" strokeWidth={1.5} aria-label="Permanent gallery" />
+	                              <Star size={11} className="shrink-0 text-slate-600 fill-slate-600" strokeWidth={1.5} aria-label="Permanent gallery" />
 	                            )}
 	                            <span className="shrink-0 text-[10px] font-mono font-semibold text-slate-600 px-1.5 py-0.5 bg-white border border-slate-200 leading-none">{galleryProjects.length}</span>
 	                          </div>
@@ -1361,6 +1917,7 @@ export default function MasterScheduler() {
                           const layout = galleryTrackLayouts[gallery.name];
                           const trackTops = layout?.trackTops ?? [];
                           const trackTop = trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
+                          const milestoneBandHeight = milestoneBandHeightFor(gallery.name);
                           // A project owns prePhases.length + 1 consecutive tracks. Position the title
                           // on the LAST allocated track (where the main bar lives), not the first
                           // (which holds the topmost pre-phase). This keeps the sidebar title aligned
@@ -1370,7 +1927,7 @@ export default function MasterScheduler() {
                           // Mirror the timeline's project-bar Y offset: top strip +
                           // lane padding + track top. Without mhFor() the sidebar title
                           // floats above the timeline bar by ~28-48px.
-                          const topPos = mhFor(gallery.name) + LANE_TOP_PADDING + lastTrackTop;
+                          const topPos = mhFor(gallery.name) + milestoneBandHeight + LANE_TOP_PADDING + lastTrackTop;
 	                          const s = getStatusStyles(ex.status);
 	                          const shortStatus = ex.status === 'Open to Public' ? 'OPEN' : 
 	                            ex.status === 'In Development' ? 'DEV' : 
@@ -1423,8 +1980,9 @@ export default function MasterScheduler() {
                           const trackIndex = galleryLayouts[gallery.name]!.tracks[ex.id];
                           if (trackIndex === undefined || trackIndex === 0) return null;
                           const trackTop = galleryTrackLayouts[gallery.name]?.trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
+                          const milestoneBandHeight = milestoneBandHeightFor(gallery.name);
                           return (
-	                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-100 left-0" style={{ top: mhFor(gallery.name) + LANE_TOP_PADDING + trackTop }} />
+	                            <div key={`side-div-${ex.id}`} className="absolute w-full border-t border-slate-100 left-0" style={{ top: mhFor(gallery.name) + milestoneBandHeight + LANE_TOP_PADDING + trackTop }} />
                           );
                         })}
                       </div>
@@ -1436,54 +1994,17 @@ export default function MasterScheduler() {
               <main
                 data-print-timeline
                 className={`flex-1 flex flex-col relative cursor-grab active:cursor-grabbing ${isDraggingScroll || draggingMilestone ? '!cursor-grabbing' : ''}`} 
-                onMouseDown={(e) => {
-                  if (e.button === 0 && !longPressTimerRef.current && !draggingBarId && !draggingMilestone) {
+                onPointerDown={(e) => {
+                  if (e.button === 0 && !draggingBarId && !draggingMilestone && !resizingEdge && !resizingPhase) {
+                    e.currentTarget.setPointerCapture(e.pointerId);
                     setIsDraggingScroll(true);
                     startXRef.current = e.pageX - timelineRef.current!.offsetLeft;
                     scrollLeftRef.current = timelineRef.current!.scrollLeft;
                   }
                 }}
-                onMouseUp={() => {
-                  setIsDraggingScroll(false);
-                  if (draggingBarId && dragTempStartDate && dragTempEndDate) {
-                    const ex = exhibitions.find(e => e.id === draggingBarId);
-                    if (ex) {
-                      handleUpdateExhibition({
-                        ...ex,
-                        startDate: dragTempStartDate,
-                        endDate: dragTempEndDate
-                      });
-                    }
-                  }
-                  if (resizingEdge) commitResize();
-                  if (resizingPhase) commitPhaseResize();
-                  setDraggingBarId(null);
-                  setDragTempStartDate(null);
-                  setDragTempEndDate(null);
-                  clearLongPress();
-                }}
-                onMouseLeave={() => {
-                  setIsDraggingScroll(false);
-                  if (draggingBarId && dragTempStartDate && dragTempEndDate) {
-                    const ex = exhibitions.find(e => e.id === draggingBarId);
-                    if (ex) {
-                      handleUpdateExhibition({
-                        ...ex,
-                        startDate: dragTempStartDate,
-                        endDate: dragTempEndDate
-                      });
-                    }
-                  }
-                  if (resizingEdge) commitResize();
-                  if (resizingPhase) commitPhaseResize();
-                  setDraggingBarId(null);
-                  setDragTempStartDate(null);
-                  setDragTempEndDate(null);
-                  clearLongPress();
-                }}
-                onMouseMove={(e) => {
-                  clearLongPress();
-
+                onPointerUp={finishTimelineInteraction}
+                onPointerCancel={cancelTimelineInteraction}
+                onPointerMove={(e) => {
                   if (resizingEdge) {
                     const deltaX = e.clientX - resizeInitialMouseXRef.current;
                     const dayPxRatio = (365.25 / 12) / monthWidth; // days per pixel
@@ -1499,8 +2020,10 @@ export default function MasterScheduler() {
                       if (newStart > minEnd) return;
                       let iso = toISODate(newStart);
                       if (showWeeklyGrid && !e.altKey) iso = snapDate(iso, 'week');
-                      setDragTempStartDate(iso);
-                      setDragTempEndDate(resizeInitialEndDateRef.current);
+                      scheduleTimelineFrame(() => {
+                        setDragTempStartDate(iso);
+                        setDragTempEndDate(resizeInitialEndDateRef.current);
+                      });
                     } else {
                       const initStart = new Date(resizeInitialStartDateRef.current + 'T12:00:00');
                       const initEnd = new Date(resizeInitialEndDateRef.current + 'T12:00:00');
@@ -1511,8 +2034,10 @@ export default function MasterScheduler() {
                       if (newEnd < minStart) return;
                       let iso = toISODate(newEnd);
                       if (showWeeklyGrid && !e.altKey) iso = snapDate(iso, 'week');
-                      setDragTempStartDate(resizeInitialStartDateRef.current);
-                      setDragTempEndDate(iso);
+                      scheduleTimelineFrame(() => {
+                        setDragTempStartDate(resizeInitialStartDateRef.current);
+                        setDragTempEndDate(iso);
+                      });
                     }
                     return;
                   }
@@ -1523,7 +2048,7 @@ export default function MasterScheduler() {
                     // Snap to quarter-month (~weekly) granularity.
                     const raw = phaseResizeInitialDurationRef.current + deltaMonths;
                     const snapped = Math.max(0.25, Math.round(raw * 4) / 4);
-                    setPhaseResizeTempDuration(snapped);
+                    scheduleTimelineFrame(() => setPhaseResizeTempDuration(snapped));
                     return;
                   }
 
@@ -1531,7 +2056,7 @@ export default function MasterScheduler() {
                     const deltaX = e.clientX - draggingMilestone.initialMouseX;
                     let nextDate = getDateFromPosition(draggingMilestone.initialX + deltaX, monthWidth, viewMonths);
                     if (showWeeklyGrid && !e.altKey) nextDate = snapDate(nextDate, 'week');
-                    setDraggingMilestone(prev => prev ? { ...prev, tempDate: nextDate } : null);
+                    scheduleTimelineFrame(() => setDraggingMilestone(prev => prev ? { ...prev, tempDate: nextDate } : null));
                     return;
                   }
 
@@ -1545,8 +2070,10 @@ export default function MasterScheduler() {
 	                    draggedEnd.setDate(draggedEnd.getDate() + dragDurationDaysRef.current);
 	                    const newEndDate = toISODate(draggedEnd);
 
-                    setDragTempStartDate(newStartDate);
-                    setDragTempEndDate(newEndDate);
+                    scheduleTimelineFrame(() => {
+                      setDragTempStartDate(newStartDate);
+                      setDragTempEndDate(newEndDate);
+                    });
                     return;
                   }
 
@@ -1685,11 +2212,12 @@ export default function MasterScheduler() {
 	                      {portfolioGalleries.map((gallery) => {
 	                         const g = gallery.name;
 	                         const laneHeight = galleryLaneHeights[g] || BASE_LANE_HEIGHT;
-	                         const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === g);
+	                         const galleryProjects = filteredProjectsByGallery.get(g) || [];
 	                         const isCollapsed = effectiveCollapsedGalleryIds.has(gallery.id);
 
 	                         const isPermanent = gallery.kind === 'permanent';
 	                         const headerStripHeight = mhFor(g);
+	                         const milestoneBandHeight = milestoneBandHeightFor(g);
 
                          if (isCollapsed) {
                            return (
@@ -1699,7 +2227,7 @@ export default function MasterScheduler() {
                                className="border-b-2 border-slate-300 relative overflow-hidden bg-white print:bg-slate-100 print:bg-none"
                              >
                                <div className="absolute inset-0 opacity-[0.03] bg-[repeating-linear-gradient(45deg,#000_0px,#000_2px,transparent_2px,transparent_6px)]" />
-                               <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-10 ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
+                               <div className="absolute left-0 top-0 bottom-0 w-[3px] z-10 bg-slate-500" />
                                
                                {/* Projects Preview */}
                                <div className="absolute inset-0 pointer-events-none">
@@ -1737,29 +2265,42 @@ export default function MasterScheduler() {
                          }
 
                          return (
-		                           <div key={gallery.id} style={{ height: `${laneHeight}px` }} className="border-b-2 border-slate-300 gallery-lane-bg relative overflow-hidden print:overflow-visible shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-white print:bg-white">
-	                             <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-30 pointer-events-none ${isPermanent ? 'bg-amber-600' : 'bg-slate-500'}`} />
+		                           <div
+                               key={gallery.id}
+                               style={{ height: `${laneHeight}px` }}
+                               className="border-b-2 border-slate-300 gallery-lane-bg relative overflow-hidden print:overflow-visible shadow-[inset_0_2px_4px_rgba(0,0,0,0.01)] bg-white print:bg-white"
+                               onDoubleClick={(event) => openQuickAddProject(event, gallery)}
+                             >
+	                             <div className="absolute left-0 top-0 bottom-0 w-[3px] z-30 pointer-events-none bg-slate-500" />
 	                             <div
-	                               className={`${isPermanent ? 'bg-amber-50/20' : 'bg-white'} absolute left-0 right-0 bottom-0 pointer-events-none`}
+	                               className="absolute left-0 right-0 bottom-0 pointer-events-none bg-white"
 	                               style={{ top: `${headerStripHeight}px`, zIndex: 0 }}
 	                             />
 	                             <div
-	                               className={`absolute top-0 left-0 right-0 border-b-2 pointer-events-none ${isPermanent ? 'bg-amber-100/80 border-amber-200' : 'bg-slate-100/95 border-slate-300'} print:bg-white print:border-slate-300`}
+	                               className="absolute top-0 left-0 right-0 border-b-2 pointer-events-none bg-slate-100/95 border-slate-300 print:bg-white print:border-slate-300"
 	                               style={{ height: `${headerStripHeight}px`, zIndex: 5 }}
 	                             />
+                               {milestoneBandHeight > 0 && (
+                                 <div
+                                   className="absolute left-0 right-0 hidden border-b border-slate-200 bg-white print:block"
+                                   style={{ top: `${headerStripHeight}px`, height: `${milestoneBandHeight}px`, zIndex: 4 }}
+                                 />
+                               )}
 
                               {galleryProjects.map(ex => {
                                 const trackIndex = galleryLayouts[g]!.tracks[ex.id];
                                 if (trackIndex === undefined || trackIndex === 0) return null;
                                 const trackTop = galleryTrackLayouts[g]?.trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
                                 return (
-	                                  <div key={`line-${ex.id}`} className="absolute w-full border-t border-slate-200 z-10 pointer-events-none" style={{ top: mhFor(g) + LANE_TOP_PADDING + trackTop }} />
+	                                  <div key={`line-${ex.id}`} className="absolute w-full border-t border-slate-200 z-10 pointer-events-none" style={{ top: mhFor(g) + milestoneBandHeight + LANE_TOP_PADDING + trackTop }} />
                                 );
                               })}
 
                               {/* In-Lane Project Bars: Fixes print alignment and swimlane bleeding */}
                               <div className="absolute inset-0 pointer-events-none z-20">
-                                {galleryProjects.map(ex => {
+                                {(() => {
+                                  const printMilestoneLabelBoxes: TimelineRect[] = [];
+                                  return galleryProjects.map(ex => {
                                   const trackIndex = galleryLayouts[g]?.tracks[ex.id] || 0;
                                   const isDraggingThis = draggingBarId === ex.id;
                                   const statusStyle = getStatusStyles(ex.status);
@@ -1775,11 +2316,11 @@ export default function MasterScheduler() {
                                   const trackTops = trackLayout?.trackTops ?? [];
                                   const maxTracks = Math.max(1, galleryLayouts[g]?.maxTracks || trackTops.length || 1);
                                   const ownerTrackTop = trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
-                                  const trackTop = mhFor(g) + LANE_TOP_PADDING + ownerTrackTop;
+                                  const trackTop = mhFor(g) + milestoneBandHeight + LANE_TOP_PADDING + ownerTrackTop;
                                   const projectRowTop = (rowOffset: number) => {
                                     const absoluteTrackIndex = Math.min(trackIndex + rowOffset, maxTracks - 1);
                                     const fallback = ownerTrackTop + (rowOffset * currentTrackHeight);
-                                    return mhFor(g) + LANE_TOP_PADDING + (trackTops[absoluteTrackIndex] ?? fallback);
+                                    return mhFor(g) + milestoneBandHeight + LANE_TOP_PADDING + (trackTops[absoluteTrackIndex] ?? fallback);
                                   };
 
                                   // When resizing a phase belonging to this project, swap in the temp duration
@@ -1789,8 +2330,8 @@ export default function MasterScheduler() {
                                     isResizingPhaseHere && p.id === resizingPhase!.phaseId
                                       ? phaseResizeTempDuration!
                                       : p.durationMonths;
-                                  const prePhasesRaw = getEffPhases(ex).filter(p => !phaseTypes.find(t => t.id === p.typeId)?.isPost);
-                                  const postPhasesRaw = getEffPhases(ex).filter(p => phaseTypes.find(t => t.id === p.typeId)?.isPost);
+                                  const prePhasesRaw = getEffPhases(ex).filter(p => !phaseTypeById.get(p.typeId)?.isPost);
+                                  const postPhasesRaw = getEffPhases(ex).filter(p => phaseTypeById.get(p.typeId)?.isPost);
 
                                   const totalPrePhaseWidthOnly = prePhasesRaw.reduce((acc, p) => acc + phaseDurationFor(p) * monthWidth, 0);
                                   const totalPreGaps = prePhasesRaw.length * PHASE_GAP;
@@ -1804,7 +2345,7 @@ export default function MasterScheduler() {
                                     const pEnd = pStart + pWidth;
                                     const pY = projectRowTop(i) + (currentTrackHeight - PHASE_BAR_HEIGHT) / 2;
                                     preOffset += pWidth + PHASE_GAP;
-                                    return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypes.find(t => t.id === p.typeId), i, isPost: false };
+                                    return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypeById.get(p.typeId), i, isPost: false };
                                   });
 
                                   const isSingleDateProject = ex.scheduleMode === 'single-date';
@@ -1820,7 +2361,7 @@ export default function MasterScheduler() {
                                     const targetYIndex = prePhasesRaw.length > 0 ? prePhasesRaw.length - 1 : 0;
                                     const pY = projectRowTop(targetYIndex) + (currentTrackHeight - PHASE_BAR_HEIGHT) / 2;
                                     postOffset += pWidth + PHASE_GAP;
-                                    return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypes.find(t => t.id === p.typeId), i: i, isPost: true };
+                                    return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypeById.get(p.typeId), i: i, isPost: true };
                                   });
 
                                   const renderedPhases = [...renderedPre, ...renderedPost];
@@ -1831,17 +2372,27 @@ export default function MasterScheduler() {
                                       : { x: phase.startX - 138, y: labelY, width: 132, height: 14 };
                                   });
                                   const placedMilestoneLabelBoxes: TimelineRect[] = [];
-                                  const milestoneLabelRows = [mainBarY - 30, mainBarY - 50, mainBarY - 70];
+                                  const usePrintMilestoneBand = isPrintMode && milestoneBandHeight > 0;
+                                  const milestoneLabelRows = usePrintMilestoneBand
+                                    ? PRINT_MILESTONE_LABEL_ROWS.map(offset => mhFor(g) + offset)
+                                    : [mainBarY - 30, mainBarY - 50, mainBarY - 70];
                                   const isSelectedMilestoneProject = selectedProjectId === ex.id;
                                   const milestoneLayouts = (ex.checkpoints || []).map((checkpoint) => {
                                     const isDraggingThisMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.checkpointId === checkpoint.id;
                                     const effectiveMilestoneDate = isDraggingThisMilestone ? draggingMilestone.tempDate : checkpoint.date;
                                     const checkpointX = getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths);
-                                    const fullLabelWidth = Math.min(
+                                    const screenFullLabelWidth = Math.min(
                                       260,
                                       Math.max(142, (checkpoint.title.length * 5.8) + 58)
                                     );
-                                    const fullLabelHeight = 20;
+                                    const printFullLabelWidth = Math.min(
+                                      320,
+                                      Math.max(190, (checkpoint.title.length * 7.2) + 76)
+                                    );
+                                    const fullLabelWidth = usePrintMilestoneBand ? printFullLabelWidth : screenFullLabelWidth;
+                                    const compactLabelWidth = usePrintMilestoneBand ? 172 : 74;
+                                    const fullLabelHeight = usePrintMilestoneBand ? PRINT_MILESTONE_LABEL_HEIGHT : 20;
+                                    const occupiedMilestoneBoxes = usePrintMilestoneBand ? printMilestoneLabelBoxes : placedMilestoneLabelBoxes;
                                     const findRow = (labelWidth: number) => milestoneLabelRows.find((candidateY) => {
                                       const candidateBox = {
                                         x: checkpointX - (labelWidth / 2),
@@ -1849,11 +2400,12 @@ export default function MasterScheduler() {
                                         width: labelWidth,
                                         height: fullLabelHeight,
                                       };
-                                      return ![...phaseLabelBoxes, ...placedMilestoneLabelBoxes].some(box => timelineRectsOverlap(candidateBox, box));
+                                      const blockers = usePrintMilestoneBand ? occupiedMilestoneBoxes : [...phaseLabelBoxes, ...occupiedMilestoneBoxes];
+                                      return !blockers.some(box => timelineRectsOverlap(candidateBox, box, usePrintMilestoneBand ? 8 : 4));
                                     });
                                     const fullRow = findRow(fullLabelWidth);
-                                    const shouldCompact = fullRow === undefined && !isSelectedMilestoneProject;
-                                    const labelWidth = shouldCompact ? 74 : fullLabelWidth;
+                                    const shouldCompact = fullRow === undefined && (usePrintMilestoneBand || !isSelectedMilestoneProject);
+                                    const labelWidth = shouldCompact ? compactLabelWidth : fullLabelWidth;
                                     const labelTop = fullRow ?? findRow(labelWidth) ?? milestoneLabelRows[milestoneLabelRows.length - 1];
                                     const labelBox = {
                                       x: checkpointX - (labelWidth / 2),
@@ -1861,7 +2413,7 @@ export default function MasterScheduler() {
                                       width: labelWidth,
                                       height: fullLabelHeight,
                                     };
-                                    placedMilestoneLabelBoxes.push(labelBox);
+                                    occupiedMilestoneBoxes.push(labelBox);
                                     return {
                                       checkpoint,
                                       isDraggingThisMilestone,
@@ -1871,6 +2423,7 @@ export default function MasterScheduler() {
                                       labelWidth,
                                       labelTop,
                                       isCompact: shouldCompact,
+                                      usePrintMilestoneBand,
                                     };
                                   });
 
@@ -1935,9 +2488,9 @@ export default function MasterScheduler() {
 	                                                style={{ left: `${phase.startX}px`, top: `${phase.y}px`, width: `${Math.max(phase.width - 2, 0)}px`, height: `${PHASE_BAR_HEIGHT}px`, backgroundColor: phase.type?.color || '#eee' }}
 	                                                title={`${phaseLabel} — drag right edge to resize`}
 	                                              />
-	                                              <div
-	                                                aria-label={`Resize phase ${phaseLabel}`}
-	                                                className="absolute cursor-ew-resize pointer-events-auto hover:bg-slate-900/30 transition-colors no-print"
+                                              <div
+                                                aria-label={`Resize phase ${phaseLabel}`}
+                                                className="absolute cursor-ew-resize pointer-events-auto bg-slate-900/10 hover:bg-slate-900/30 transition-colors no-print"
                                                 style={{
                                                   left: `${phase.endX - EDGE_HIT_ZONE}px`,
                                                   top: `${phase.y}px`,
@@ -1945,7 +2498,7 @@ export default function MasterScheduler() {
                                                   height: `${PHASE_BAR_HEIGHT}px`,
                                                   zIndex: 27
                                                 }}
-                                                onMouseDown={(e) => onPhaseHandleMouseDown(e, ex.id, phase as ProjectPhase)}
+                                                onPointerDown={(e) => onPhaseHandlePointerDown(e, ex.id, phase as ProjectPhase)}
                                               />
                                               {hasNext && (
                                                 <svg className="absolute overflow-visible pointer-events-none z-0" style={{ left: 0, top: 0, width: 1, height: 1 }}>
@@ -1989,8 +2542,9 @@ export default function MasterScheduler() {
                                           aria-label={`Project: ${ex.title} (${ex.status}). Single date on ${formatBarDate(effStartDate)}. Click to view details.`}
                                           role="button"
                                           tabIndex={0}
-                                          onMouseDown={(e) => onBarMouseDown(e, ex)}
+                                          onPointerDown={(e) => e.stopPropagation()}
                                           onClick={() => { if (!draggingBarId) setSelectedProjectId(ex.id); }}
+                                          onDoubleClick={(e) => e.stopPropagation()}
                                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
                                           className={`absolute pointer-events-auto cursor-pointer flex items-center focus:outline-none focus:ring-1 focus:ring-blue-500/50 ${isDraggingThis ? 'project-bar-dragging ring-1 ring-blue-500' : ''}`}
                                           style={{
@@ -2012,16 +2566,47 @@ export default function MasterScheduler() {
                                             <span className="w-px h-2 bg-slate-300" />
                                             <span className="text-[9px] font-medium uppercase tracking-[0.04em] text-slate-600 whitespace-nowrap">{formatBarDate(effStartDate)}</span>
                                           </div>
+                                          <button
+                                            type="button"
+                                            aria-label={`Quick edit ${ex.title}`}
+                                            title="Quick edit"
+                                            onPointerDown={(event) => event.stopPropagation()}
+                                            onClick={(event) => openProjectQuickEdit(event, ex)}
+                                            className="ml-1 flex h-5 w-5 items-center justify-center border border-slate-300 bg-white text-slate-500 shadow-sm hover:bg-slate-50 hover:text-slate-900 no-print"
+                                          >
+                                            <Edit2 size={11} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            aria-label={`Add milestone to ${ex.title}`}
+                                            title="Add milestone"
+                                            onPointerDown={(event) => event.stopPropagation()}
+                                            onClick={(event) => openMilestoneQuickEdit(event, ex, effStartDate)}
+                                            className="ml-1 flex h-5 w-5 items-center justify-center border border-slate-300 bg-white text-slate-500 shadow-sm hover:bg-slate-50 hover:text-slate-900 no-print"
+                                          >
+                                            <Flag size={11} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            aria-label={`Move ${ex.title}`}
+                                            title="Drag to move"
+                                            onPointerDown={(event) => onBarDragPointerDown(event, ex)}
+                                            onClick={(event) => event.stopPropagation()}
+                                            className="ml-1 flex h-5 w-5 items-center justify-center border border-slate-300 bg-white text-slate-500 shadow-sm hover:bg-slate-50 hover:text-slate-900 cursor-grab active:cursor-grabbing no-print"
+                                          >
+                                            <GripVertical size={12} />
+                                          </button>
                                         </div>
                                       ) : (
                                       <div
-                                        aria-label={`Project: ${ex.title} (${ex.status}). Click to view details, long-press to drag.`}
+                                        aria-label={`Project: ${ex.title} (${ex.status}). Click to view details, use the grip handle to drag.`}
                                         role="button"
                                         tabIndex={0}
-                                        onMouseDown={(e) => onBarMouseDown(e, ex)}
+                                        onPointerDown={(e) => e.stopPropagation()}
                                         onClick={() => { if (!draggingBarId) setSelectedProjectId(ex.id); }}
+                                        onDoubleClick={(e) => e.stopPropagation()}
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedProjectId(ex.id); }}
-                                        className={`absolute pointer-events-auto shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50 print:shadow-none ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
+                                        className={`group absolute pointer-events-auto shadow-sm hover:shadow-md transition-shadow cursor-pointer flex items-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50 print:shadow-none ${isDraggingThis ? 'project-bar-dragging ring-2 ring-blue-500' : ''}`}
                                         style={{
                                           left: `${startPos}px`,
                                           width: `${width}px`,
@@ -2032,17 +2617,65 @@ export default function MasterScheduler() {
                                         }}
                                         title={`${ex.title} · ${ex.status} · ${formatBarDate(effStartDate)}–${formatBarDate(effEndDate)}`}
                                       >
-                                          <div className="flex-1 min-w-0 flex items-center pl-2.5 pr-1.5">
+                                          <div
+                                            className="flex min-w-0 flex-1 flex-col justify-center gap-[3px] py-1 pl-3"
+                                            style={{ paddingRight: width >= 170 ? '76px' : width >= 95 ? '52px' : '8px' }}
+                                          >
                                             <span 
-                                              className="font-semibold text-[11px] truncate block leading-none"
+                                              className="block truncate text-[11px] font-semibold leading-none"
                                               style={{ color: statusStyle.barText }}
                                             >
                                               {ex.title}
                                             </span>
+                                            {width >= 126 && (
+                                              <span 
+                                                className="block truncate font-mono text-[9px] font-bold leading-none opacity-90"
+                                                style={{ color: statusStyle.barText }}
+                                              >
+                                                {formatBarDate(effStartDate)}–{formatBarDate(effEndDate)}
+                                              </span>
+                                            )}
                                           </div>
-                                          {width >= 130 && (
+                                          <div
+                                            className="absolute right-0 top-0 bottom-0 z-[32] flex items-center justify-center gap-1 border-l border-white/35 bg-white/20 px-1.5 no-print backdrop-blur-[1px]"
+                                            style={{ width: width >= 170 ? '72px' : width >= 95 ? '48px' : '0px', display: width >= 95 ? 'flex' : 'none' }}
+                                            onClick={(event) => event.stopPropagation()}
+                                            onPointerDown={(event) => event.stopPropagation()}
+                                          >
+                                            <button
+                                              type="button"
+                                              aria-label={`Quick edit ${ex.title}`}
+                                              title="Quick edit"
+                                              onClick={(event) => openProjectQuickEdit(event, ex)}
+                                              className="flex h-[18px] w-[18px] shrink-0 items-center justify-center border border-white/50 bg-white/45 text-slate-900/75 hover:bg-white/70 hover:text-slate-950"
+                                            >
+                                              <Edit2 size={11} />
+                                            </button>
+                                            {width >= 170 && (
+                                              <button
+                                                type="button"
+                                                aria-label={`Add milestone to ${ex.title}`}
+                                                title="Add milestone"
+                                                onClick={(event) => openMilestoneQuickEdit(event, ex, effStartDate)}
+                                                className="flex h-[18px] w-[18px] shrink-0 items-center justify-center border border-white/50 bg-white/45 text-slate-900/75 hover:bg-white/70 hover:text-slate-950"
+                                              >
+                                                <Flag size={11} />
+                                              </button>
+                                            )}
+                                            <button
+                                              type="button"
+                                              aria-label={`Move ${ex.title}`}
+                                              title="Drag to move"
+                                              onPointerDown={(event) => onBarDragPointerDown(event, ex)}
+                                              onClick={(event) => event.stopPropagation()}
+                                              className="flex h-[18px] w-[18px] shrink-0 cursor-grab items-center justify-center border border-white/50 bg-white/45 text-slate-900/75 hover:bg-white/70 hover:text-slate-950 active:cursor-grabbing"
+                                            >
+                                              <GripVertical size={12} />
+                                            </button>
+                                          </div>
+                                          {width < 126 && width >= 80 && (
                                             <span 
-                                              className="shrink-0 font-mono font-bold text-[9px] pr-2.5 pl-1.5 leading-none whitespace-nowrap"
+                                              className="pointer-events-none absolute left-3 bottom-[5px] block max-w-[calc(100%-62px)] truncate font-mono text-[8px] font-bold leading-none opacity-85"
                                               style={{ color: statusStyle.barText }}
                                             >
                                               {formatBarDate(effStartDate)}–{formatBarDate(effEndDate)}
@@ -2050,16 +2683,16 @@ export default function MasterScheduler() {
                                           )}
                                           <div
                                             aria-label="Resize start date"
-                                            className="absolute left-0 top-0 bottom-0 cursor-ew-resize hover:bg-white/30 transition-colors no-print"
+                                            className="absolute left-0 top-0 bottom-0 cursor-ew-resize bg-white/10 hover:bg-white/35 transition-colors no-print"
                                             style={{ width: `${EDGE_HIT_ZONE}px`, zIndex: 27 }}
-                                            onMouseDown={(e) => onEdgeMouseDown(e, ex, 'left')}
+                                            onPointerDown={(e) => onEdgePointerDown(e, ex, 'left')}
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                           <div
                                             aria-label="Resize end date"
-                                            className="absolute right-0 top-0 bottom-0 cursor-ew-resize hover:bg-white/30 transition-colors no-print"
+                                            className="absolute right-0 top-0 bottom-0 cursor-ew-resize bg-white/10 hover:bg-white/35 transition-colors no-print"
                                             style={{ width: `${EDGE_HIT_ZONE}px`, zIndex: 27 }}
-                                            onMouseDown={(e) => onEdgeMouseDown(e, ex, 'right')}
+                                            onPointerDown={(e) => onEdgePointerDown(e, ex, 'right')}
                                             onClick={(e) => e.stopPropagation()}
                                           />
                                       </div>
@@ -2072,7 +2705,7 @@ export default function MasterScheduler() {
                                           : endPos;
                                         return (
                                           <div
-                                            className="absolute pointer-events-none whitespace-nowrap inline-flex items-center bg-white px-1.5 py-[3px] leading-none border border-slate-200 shadow-sm"
+                                            className="absolute pointer-events-none inline-flex max-w-[180px] flex-col gap-[3px] bg-white px-1.5 py-[4px] leading-none border border-slate-200 shadow-sm"
                                             style={{
                                               left: `${lastPostEndX + 6}px`,
                                               top: `${mainBarY + STANDARD_BAR_HEIGHT / 2}px`,
@@ -2081,15 +2714,20 @@ export default function MasterScheduler() {
                                             }}
                                             title={ex.title}
                                           >
-                                            <span className="text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-800">{ex.title}</span>
+                                            <span className="truncate text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-800">{ex.title}</span>
+                                            <span className="truncate font-mono text-[8px] font-semibold uppercase tracking-[0.02em] text-slate-500">
+                                              {formatBarDate(effStartDate)}–{formatBarDate(effEndDate)}
+                                            </span>
                                           </div>
                                         );
                                       })()}
 
-                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelTop, isCompact }) => {
+                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelTop, isCompact, usePrintMilestoneBand }) => {
                                         const MilestoneKindIcon = milestoneKind.Icon;
                                         const markerCenterY = mainBarY + STANDARD_BAR_HEIGHT / 2;
                                         const markerTop = markerCenterY - labelTop;
+                                        const connectorTop = usePrintMilestoneBand ? PRINT_MILESTONE_LABEL_HEIGHT - 1 : 20;
+                                        const connectorHeight = Math.max(0, markerTop - connectorTop - 7);
                                         return (
                                           <div
                                             key={`milestone-${checkpoint.id}`}
@@ -2104,9 +2742,17 @@ export default function MasterScheduler() {
                                             title={`${checkpoint.title} - ${milestoneKind.label} - ${formatBarDate(effectiveMilestoneDate)}`}
                                             role="button"
                                             aria-label={`Drag milestone ${checkpoint.title}`}
-                                            onMouseDown={(e) => onMilestoneMouseDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
+                                            onPointerDown={(e) => onMilestonePointerDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
                                             onClick={(e) => e.stopPropagation()}
+                                            onDoubleClick={(e) => e.stopPropagation()}
                                           >
+                                            {usePrintMilestoneBand && connectorHeight > 0 && (
+                                              <div
+                                                className="absolute left-1/2 hidden w-px -translate-x-1/2 bg-slate-400 print:block"
+                                                style={{ top: `${connectorTop}px`, height: `${connectorHeight}px` }}
+                                                aria-hidden="true"
+                                              />
+                                            )}
                                             <div
                                               className={`absolute left-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] print:shadow-none ${milestoneKind.markerClass}`}
                                               style={{ top: `${markerTop}px` }}
@@ -2120,23 +2766,33 @@ export default function MasterScheduler() {
                                             <div
                                               className={`absolute left-0 top-0 pointer-events-auto bg-white/95 border px-1.5 py-[2px] shadow-sm print:bg-white print:shadow-none ${isSelectedMilestoneProject ? 'border-slate-500' : milestoneKind.labelBorderClass}`}
                                               style={{ width: `${labelWidth}px`, zIndex: 32 }}
-                                              onMouseDown={(e) => onMilestoneMouseDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
+                                              onPointerDown={(e) => onMilestonePointerDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
                                             >
                                               <div
-                                                className={`absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[5px] rotate-45 border-b border-r bg-white ${isSelectedMilestoneProject ? 'border-slate-500' : milestoneKind.labelBorderClass}`}
+                                                className={`absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[5px] rotate-45 border-b border-r bg-white ${usePrintMilestoneBand ? 'print:hidden' : ''} ${isSelectedMilestoneProject ? 'border-slate-500' : milestoneKind.labelBorderClass}`}
                                                 aria-hidden="true"
                                               />
-                                              <div className="flex min-w-0 items-center gap-1 leading-none">
-                                                <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${milestoneKind.iconClass}`} title={milestoneKind.label}>
-                                                  <MilestoneKindIcon size={9} strokeWidth={2.25} />
+                                              <div className={`flex min-w-0 items-center leading-none ${usePrintMilestoneBand ? 'gap-1.5' : 'gap-1'}`}>
+                                                <span className={`flex shrink-0 items-center justify-center border ${usePrintMilestoneBand ? 'h-4 w-4' : 'h-3.5 w-3.5'} ${milestoneKind.iconClass}`} title={milestoneKind.label}>
+                                                  <MilestoneKindIcon size={usePrintMilestoneBand ? 10 : 9} strokeWidth={2.25} />
                                                 </span>
                                                 {!isCompact && (
                                                   <>
-                                                    <span className="truncate text-[8px] font-semibold uppercase tracking-[0.04em] text-slate-800">{checkpoint.title}</span>
-                                                    <span className="h-2 w-px shrink-0 bg-slate-300" />
+                                                    <span className={`truncate font-semibold uppercase tracking-[0.04em] text-slate-800 ${usePrintMilestoneBand ? 'text-[10px]' : 'text-[8px]'}`}>{checkpoint.title}</span>
+                                                    <span className={`${usePrintMilestoneBand ? 'h-3' : 'h-2'} w-px shrink-0 bg-slate-300`} />
                                                   </>
                                                 )}
-                                                <span className="shrink-0 text-[8px] font-medium uppercase tracking-[0.04em] text-slate-500">{formatMilestoneDate(effectiveMilestoneDate)}</span>
+                                                <span className={`shrink-0 font-medium uppercase tracking-[0.04em] text-slate-500 ${usePrintMilestoneBand ? 'text-[10px]' : 'text-[8px]'}`}>{formatMilestoneDate(effectiveMilestoneDate)}</span>
+                                                <button
+                                                  type="button"
+                                                  aria-label={`Edit milestone ${checkpoint.title}`}
+                                                  title="Edit milestone"
+                                                  onPointerDown={(event) => event.stopPropagation()}
+                                                  onClick={(event) => openMilestoneQuickEdit(event, ex, effectiveMilestoneDate, checkpoint.id)}
+                                                  className="no-print ml-auto flex h-3.5 w-3.5 shrink-0 items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                                                >
+                                                  <Edit2 size={8} />
+                                                </button>
                                               </div>
                                             </div>
                                           </div>
@@ -2145,7 +2801,8 @@ export default function MasterScheduler() {
 
                                     </React.Fragment>
                                   );
-                                })}
+                                  });
+                                })()}
                               </div>
                            </div>
                          );
@@ -2170,7 +2827,7 @@ export default function MasterScheduler() {
                   <h2 className="text-[14px] font-bold uppercase tracking-[0.2em] text-slate-900 mb-6 border-b border-slate-900 pb-2">Project Inventory & Phase Log</h2>
                   <div className="space-y-8">
                     {portfolioGalleries.map(gallery => {
-                      const galleryProjects = filteredExhibitions.filter(ex => ex.gallery === gallery.name);
+                      const galleryProjects = filteredProjectsByGallery.get(gallery.name) || [];
                       if (galleryProjects.length === 0) return null;
                       return (
                         <div key={`log-gal-${gallery.id}`} className="space-y-4">
@@ -2206,7 +2863,7 @@ export default function MasterScheduler() {
                                         <div className="flex flex-wrap gap-x-3 gap-y-1">
                                           {ex.phases?.map(p => (
                                             <div key={p.id} className="text-[9px] text-slate-600">
-                                              <span className="font-bold">{phaseTypes.find(t => t.id === p.typeId)?.label || p.label}:</span>
+                                              <span className="font-bold">{phaseTypeById.get(p.typeId)?.label || p.label}:</span>
                                               <span className="ml-1 text-slate-400">{p.durationMonths}m</span>
                                             </div>
                                           ))}

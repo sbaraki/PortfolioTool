@@ -105,9 +105,9 @@ export const LANE_BOTTOM_PADDING = 14;
 export const BASE_LANE_HEIGHT = 76;
 export const COLLAPSED_LANE_HEIGHT = 26;
 export const HOLIDAY_LANE_HEIGHT = 48;
-export const TRACK_HEIGHT = 34;
+export const TRACK_HEIGHT = 54;
 export const HEADER_HEIGHT = 70;
-export const STANDARD_BAR_HEIGHT = 22;
+export const STANDARD_BAR_HEIGHT = 40;
 export const PHASE_BAR_HEIGHT = 8;
 export const PHASE_GAP = 0;
 
@@ -115,7 +115,7 @@ export const PHASE_GAP = 0;
 // At the 1-year preset (132 px/month) and tighter zooms, weekly lines render between monthly dashes.
 export const WEEKLY_GRID_THRESHOLD = 100;
 // Hit zone (px) on each edge of project bars and right edge of phase bars for resize.
-export const EDGE_HIT_ZONE = 6;
+export const EDGE_HIT_ZONE = 10;
 export const GALLERY_HEADER_HEIGHT = 38;
 
 // Status icon strip colours (used on project bars). Picked deliberately OUTSIDE
