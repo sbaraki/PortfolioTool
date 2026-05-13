@@ -155,6 +155,7 @@ const MIN_OVERVIEW_MILESTONE_ROWS = 10;
 const COLLAPSED_RUN_HEIGHT = 9;
 const COLLAPSED_RUN_ROW_GAP = 13;
 const COLLAPSED_RUN_PADDING_Y = 9;
+const COLLAPSED_PRINT_MIN_SCALE = 0.1;
 const MIN_TIMELINE_MONTH_WIDTH = 24;
 const MAX_TIMELINE_MONTH_WIDTH = 180;
 const TIMELINE_ZOOM_FACTOR = 1.2;
@@ -734,6 +735,9 @@ export default function MasterScheduler() {
       const pageHeightIn = printSettings.orientation === 'landscape' ? paper.height : paper.width;
       const pageWidthPx = (pageWidthIn - (PRINT_MARGIN_IN * 2)) * PRINT_DPI;
       const pageHeightPx = (pageHeightIn - (PRINT_MARGIN_IN * 2)) * PRINT_DPI;
+      const isPrintingCollapsedOverview = printSettings.laneBehavior === 'current' &&
+        galleries.length > 0 &&
+        galleries.every(gallery => collapsedGalleryIds.has(gallery.id));
 
       const result = calculatePrintScale({
         pageWidthPx,
@@ -746,7 +750,7 @@ export default function MasterScheduler() {
         paddingX: PRINT_SHELL_PADDING_X,
         paddingY: PRINT_SHELL_PADDING_Y,
         columnGap: PRINT_COLUMN_GAP,
-        minScale: MIN_PRINT_SCALE,
+        minScale: isPrintingCollapsedOverview ? COLLAPSED_PRINT_MIN_SCALE : MIN_PRINT_SCALE,
       });
 
       if (printHeader) printHeader.style.display = prevDisplay || '';
@@ -781,7 +785,7 @@ export default function MasterScheduler() {
       window.removeEventListener('beforeprint', beforePrint);
       window.removeEventListener('afterprint', afterPrint);
     };
-  }, [SIDEBAR_WIDTH, printSettings, viewMonths.length, monthWidth]);
+  }, [SIDEBAR_WIDTH, printSettings, viewMonths.length, monthWidth, galleries, collapsedGalleryIds]);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const sidebarListRef = useRef<HTMLDivElement>(null);
