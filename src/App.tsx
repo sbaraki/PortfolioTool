@@ -148,10 +148,13 @@ const EXTRA_SCREEN_MILESTONE_ROWS = 1;
 const PHASE_TINT_HEIGHT = 5;
 const OVERVIEW_MILESTONE_LABEL_WIDTH = 190;
 const OVERVIEW_MILESTONE_LABEL_HEIGHT = 28;
-const OVERVIEW_MILESTONE_ROW_TOP = 54;
-const OVERVIEW_MILESTONE_ROW_GAP = 42;
-const OVERVIEW_MILESTONE_PADDING_BOTTOM = 32;
-const MIN_OVERVIEW_MILESTONE_ROWS = 6;
+const OVERVIEW_MILESTONE_ROW_TOP = 72;
+const OVERVIEW_MILESTONE_ROW_GAP = 58;
+const OVERVIEW_MILESTONE_PADDING_BOTTOM = 56;
+const MIN_OVERVIEW_MILESTONE_ROWS = 10;
+const COLLAPSED_RUN_HEIGHT = 9;
+const COLLAPSED_RUN_ROW_GAP = 13;
+const COLLAPSED_RUN_PADDING_Y = 9;
 const MIN_TIMELINE_MONTH_WIDTH = 24;
 const MAX_TIMELINE_MONTH_WIDTH = 180;
 const TIMELINE_ZOOM_FACTOR = 1.2;
@@ -1153,6 +1156,14 @@ export default function MasterScheduler() {
 
   const getProjectPhaseRows = (_project: Exhibition) => 1;
 
+  const collapsedLaneHeightFor = (galleryName: string) => {
+    const rowCount = Math.max(1, galleryLayouts[galleryName]?.maxTracks || 1);
+    return Math.max(
+      COLLAPSED_LANE_HEIGHT,
+      (COLLAPSED_RUN_PADDING_Y * 2) + COLLAPSED_RUN_HEIGHT + ((rowCount - 1) * COLLAPSED_RUN_ROW_GAP)
+    );
+  };
+
   const galleryTrackLayouts = useMemo(() => {
     const out: Record<string, { trackTops: number[]; total: number; trackHeights: number[] }> = {};
     portfolioGalleries.forEach(gallery => {
@@ -1176,7 +1187,7 @@ export default function MasterScheduler() {
   const galleryLaneHeights = useMemo(() => {
     return portfolioGalleries.reduce((acc, gallery) => {
       if (effectiveCollapsedGalleryIds.has(gallery.id)) {
-        acc[gallery.name] = COLLAPSED_LANE_HEIGHT;
+        acc[gallery.name] = collapsedLaneHeightFor(gallery.name);
         return acc;
       }
       const tracksTotal = galleryTrackLayouts[gallery.name]?.total || currentTrackHeight;
@@ -1188,7 +1199,7 @@ export default function MasterScheduler() {
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, isPrintMode, galleryHasMilestones, galleryMilestoneRowCounts]);
+  }, [portfolioGalleries, galleryLayouts, galleryTrackLayouts, effectiveCollapsedGalleryIds, isPrintMode, galleryHasMilestones, galleryMilestoneRowCounts]);
 
   const todayPos = useMemo(() => {
     return getPositionFromDate(toISODate(new Date()), monthWidth, viewMonths);
@@ -2552,22 +2563,23 @@ export default function MasterScheduler() {
                                    const startX = getPositionFromDate(ex.startDate, monthWidth, viewMonths);
                                    const endX = getPositionFromDate(ex.endDate, monthWidth, viewMonths);
                                    const w = Math.max(2, endX - startX);
-                                  const styles = getStatusStyles(ex.status);
-
-                                   // Scatter them slightly vertically to show overlap
-                                   const y = 8 + (i % 3) * 6;
+                                   const styles = getStatusStyles(ex.status);
+                                   const trackIndex = galleryLayouts[g]?.tracks[ex.id] ?? i;
+                                   const y = COLLAPSED_RUN_PADDING_Y + (trackIndex * COLLAPSED_RUN_ROW_GAP);
 
                                    return (
                                      <div
                                        key={ex.id}
-                                       className="absolute h-2.5 rounded-full ring-1 ring-white/50"
+                                       className="absolute rounded-full ring-1 ring-white/70"
                                        style={{
                                          left: `${startX}px`,
                                          width: `${w}px`,
                                          top: `${y}px`,
+                                         height: `${COLLAPSED_RUN_HEIGHT}px`,
                                          backgroundColor: styles.barBg,
-                                         opacity: 0.35
+                                         opacity: 0.62
                                        }}
+                                       title={`${ex.title} - ${ex.status} - ${formatBarDate(ex.startDate)} to ${formatBarDate(ex.endDate)}`}
                                      />
                                    );
                                  })}
