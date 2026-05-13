@@ -165,6 +165,7 @@ const SCREEN_MILESTONE_ROW_TOP = 7;
 const SCREEN_MILESTONE_ROW_GAP = 27;
 const SCREEN_MILESTONE_BAND_PADDING_BOTTOM = 9;
 const MIN_SCREEN_MILESTONE_ROWS = 3;
+const SCREEN_MILESTONE_COMPACT_LABEL_WIDTH = 88;
 const PHASE_TINT_HEIGHT = 5;
 
 const formatPrintDateTime = (date: Date | null) => {
@@ -902,7 +903,9 @@ export default function MasterScheduler() {
       projects.forEach(ex => {
         (ex.checkpoints || []).forEach(checkpoint => {
           const checkpointX = getPositionFromDate(checkpoint.date, monthWidth, viewMonths);
-          const labelWidth = milestoneLabelWidthFor(checkpoint.title, printMode);
+          const labelWidth = printMode
+            ? milestoneLabelWidthFor(checkpoint.title, true)
+            : SCREEN_MILESTONE_COMPACT_LABEL_WIDTH;
           const centeredLeft = checkpointX - (labelWidth / 2);
           const labelLeft = printMode
             ? Math.max(0, Math.min(centeredLeft, totalTimelineWidth - labelWidth))
@@ -2432,11 +2435,12 @@ export default function MasterScheduler() {
                               {/* In-Lane Project Bars: Fixes print alignment and swimlane bleeding */}
                               <div className="absolute inset-0 pointer-events-none z-20">
                                 {(() => {
-                                  const printMilestoneLabelBoxes: TimelineRect[] = [];
+                                  const galleryMilestoneLabelBoxes: TimelineRect[] = [];
                                   return galleryProjects.map(ex => {
                                   const trackIndex = galleryLayouts[g]?.tracks[ex.id] || 0;
                                   const isDraggingThis = draggingBarId === ex.id;
                                   const statusStyle = getStatusStyles(ex.status);
+                                  const ownerAccent = statusStyle.barBg;
                                   
                                   const effStartDate = isDraggingThis && dragTempStartDate ? dragTempStartDate : ex.startDate;
                                   const effEndDate = isDraggingThis && dragTempEndDate ? dragTempEndDate : ex.endDate;
@@ -2495,20 +2499,20 @@ export default function MasterScheduler() {
                                   });
 
                                   const renderedPhases = [...renderedPre, ...renderedPost];
-                                  const placedMilestoneLabelBoxes: TimelineRect[] = [];
                                   const useMilestoneBand = milestoneBandHeight > 0;
                                   const milestoneLabelRows = useMilestoneBand
                                     ? (isPrintMode ? printMilestoneRowsFor(g) : screenMilestoneRowsFor(g)).map(offset => mhFor(g) + offset)
                                     : [mainBarY - 30, mainBarY - 52, mainBarY - 74];
                                   const isSelectedMilestoneProject = selectedProjectId === ex.id;
+                                  const hasSelectedMilestoneProject = selectedProjectId !== null;
+                                  const dimUnselectedMilestones = hasSelectedMilestoneProject && !isSelectedMilestoneProject;
                                   const milestoneLayouts = (ex.checkpoints || []).map((checkpoint) => {
                                     const isDraggingThisMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.checkpointId === checkpoint.id;
                                     const effectiveMilestoneDate = isDraggingThisMilestone ? draggingMilestone.tempDate : checkpoint.date;
                                     const checkpointX = getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths);
                                     const fullLabelWidth = milestoneLabelWidthFor(checkpoint.title, isPrintMode);
-                                    const compactLabelWidth = isPrintMode ? 172 : 88;
+                                    const compactLabelWidth = isPrintMode ? 172 : SCREEN_MILESTONE_COMPACT_LABEL_WIDTH;
                                     const fullLabelHeight = isPrintMode ? PRINT_MILESTONE_LABEL_HEIGHT : SCREEN_MILESTONE_LABEL_HEIGHT;
-                                    const occupiedMilestoneBoxes = isPrintMode ? printMilestoneLabelBoxes : placedMilestoneLabelBoxes;
                                     const labelLeftFor = (labelWidth: number) => {
                                       const centeredLeft = checkpointX - (labelWidth / 2);
                                       if (!isPrintMode) return centeredLeft;
@@ -2521,10 +2525,14 @@ export default function MasterScheduler() {
                                         width: labelWidth,
                                         height: fullLabelHeight,
                                       };
-                                      return !occupiedMilestoneBoxes.some(box => timelineRectsOverlap(candidateBox, box, useMilestoneBand ? 8 : 5));
+                                      return !galleryMilestoneLabelBoxes.some(box => (
+                                        box.y === candidateY &&
+                                        candidateBox.x < box.x + box.width + (useMilestoneBand ? 8 : 5) &&
+                                        candidateBox.x + candidateBox.width + (useMilestoneBand ? 8 : 5) > box.x
+                                      ));
                                     });
                                     const fullRow = findRow(fullLabelWidth);
-                                    const shouldCompact = fullRow === undefined && !isPrintMode && !isSelectedMilestoneProject;
+                                    const shouldCompact = fullRow === undefined && !isPrintMode;
                                     const labelWidth = shouldCompact ? compactLabelWidth : fullLabelWidth;
                                     const labelTop = fullRow ?? findRow(labelWidth) ?? milestoneLabelRows[milestoneLabelRows.length - 1];
                                     const labelLeft = labelLeftFor(labelWidth);
@@ -2534,7 +2542,7 @@ export default function MasterScheduler() {
                                       width: labelWidth,
                                       height: fullLabelHeight,
                                     };
-                                    occupiedMilestoneBoxes.push(labelBox);
+                                    galleryMilestoneLabelBoxes.push(labelBox);
                                     return {
                                       checkpoint,
                                       isDraggingThisMilestone,
@@ -2547,6 +2555,8 @@ export default function MasterScheduler() {
                                       labelTop,
                                       isCompact: shouldCompact,
                                       useMilestoneBand,
+                                      ownerAccent,
+                                      dimUnselectedMilestones,
                                     };
                                   });
 
@@ -2771,11 +2781,13 @@ export default function MasterScheduler() {
                                         );
                                       })()}
 
-                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelLeft, markerLeft, labelTop, isCompact, useMilestoneBand }) => {
+                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelLeft, markerLeft, labelTop, isCompact, useMilestoneBand, ownerAccent, dimUnselectedMilestones }) => {
                                         const MilestoneKindIcon = milestoneKind.Icon;
                                         const markerTop = markerCenterY - labelTop;
                                         const connectorTop = isPrintMode ? PRINT_MILESTONE_LABEL_HEIGHT - 1 : SCREEN_MILESTONE_LABEL_HEIGHT - 1;
                                         const connectorHeight = Math.max(0, markerTop - connectorTop - 7);
+                                        const milestoneOpacity = dimUnselectedMilestones ? 0.46 : 1;
+                                        const connectorOpacity = dimUnselectedMilestones ? 0.22 : 0.7;
                                         return (
                                           <div
                                             key={`milestone-${checkpoint.id}`}
@@ -2786,6 +2798,7 @@ export default function MasterScheduler() {
                                               width: `${labelWidth}px`,
                                               height: `${markerTop + 12}px`,
                                               zIndex: isSelectedMilestoneProject || isDraggingThisMilestone ? 36 : 31,
+                                              opacity: milestoneOpacity,
                                             }}
                                             title={`${checkpoint.title} - ${milestoneKind.label} - ${formatBarDate(effectiveMilestoneDate)}`}
                                             role="button"
@@ -2796,14 +2809,21 @@ export default function MasterScheduler() {
                                           >
                                             {useMilestoneBand && connectorHeight > 0 && (
                                               <div
-                                                className="absolute block w-px -translate-x-1/2 bg-slate-400/80 print:bg-slate-500"
-                                                style={{ left: `${markerLeft}px`, top: `${connectorTop}px`, height: `${connectorHeight}px` }}
+                                                className="absolute block w-px -translate-x-1/2 print:bg-slate-500"
+                                                style={{ left: `${markerLeft}px`, top: `${connectorTop}px`, height: `${connectorHeight}px`, backgroundColor: ownerAccent, opacity: connectorOpacity }}
+                                                aria-hidden="true"
+                                              />
+                                            )}
+                                            {useMilestoneBand && (
+                                              <div
+                                                className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm print:shadow-none"
+                                                style={{ left: `${markerLeft}px`, top: `${markerTop}px`, backgroundColor: ownerAccent, opacity: dimUnselectedMilestones ? 0.45 : 0.9 }}
                                                 aria-hidden="true"
                                               />
                                             )}
                                             <div
-                                              className={`absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] print:shadow-none ${milestoneKind.markerClass}`}
-                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px` }}
+                                              className={`absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 shadow-[1px_1px_0_0_rgba(0,0,0,1)] print:shadow-none ${milestoneKind.markerClass}`}
+                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px`, borderColor: ownerAccent }}
                                               aria-hidden="true"
                                             />
                                             <div
@@ -2812,8 +2832,8 @@ export default function MasterScheduler() {
                                               aria-hidden="true"
                                             />
                                             <div
-                                              className={`absolute left-0 top-0 pointer-events-auto bg-white border px-1.5 py-[3px] shadow-sm print:bg-white print:shadow-none ${isSelectedMilestoneProject ? 'border-slate-600' : milestoneKind.labelBorderClass}`}
-                                              style={{ width: `${labelWidth}px`, zIndex: 32 }}
+                                              className={`absolute left-0 top-0 pointer-events-auto bg-white border py-[3px] pl-2 pr-1.5 shadow-sm print:bg-white print:shadow-none ${isSelectedMilestoneProject ? 'border-slate-700' : milestoneKind.labelBorderClass}`}
+                                              style={{ width: `${labelWidth}px`, zIndex: 32, borderLeftColor: ownerAccent, borderLeftWidth: '3px' }}
                                               onPointerDown={(e) => onMilestonePointerDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
                                             >
                                               <div
