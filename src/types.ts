@@ -32,6 +32,7 @@ export interface ProjectCheckpoint {
   date: string;
   id: string;
   kind: CheckpointKind;
+  color?: string;
 }
 
 export interface Exhibition {

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronUp, Copy, Flag, Plus, Trash2, X } from 'lucide-react';
 import { CheckpointKind, Exhibition, Gallery, ProjectCheckpoint, ProjectPhase, PhaseType } from '../types';
 import { getDateWithMonthDuration, getDurationMonths, toISODate } from '../lib/dateUtils';
-import { getStatusStyles } from '../constants';
+import { DEFAULT_MILESTONE_COLOR, getStatusStyles } from '../constants';
 import { DatePicker } from './DatePicker';
 
 const CHECKPOINT_PRESETS: { kind: CheckpointKind; label: string; title: string }[] = [
@@ -300,7 +300,8 @@ export const DetailPanel = ({
       id: createId(),
       title: preset?.title || 'NEW MILESTONE',
       date: toISODate(new Date()),
-      kind: preset?.kind || 'other'
+      kind: preset?.kind || 'other',
+      color: DEFAULT_MILESTONE_COLOR,
     };
     setFocusedCheckpointId(newCheckpoint.id);
     applyDraft(prev => ({ ...prev, checkpoints: sortCheckpoints([...(prev.checkpoints || []), newCheckpoint]) }), true);
@@ -624,7 +625,7 @@ export const DetailPanel = ({
                     <Trash2 size={11} />
                   </button>
                 </div>
-                <div className="grid grid-cols-[1fr_132px] gap-2">
+                <div className="grid grid-cols-[minmax(0,1fr)_132px_58px] gap-2">
                   <DatePicker
                     value={checkpoint.date}
                     onChange={(val) => {
@@ -656,6 +657,17 @@ export const DetailPanel = ({
                         <option key={value} value={value}>{label.toUpperCase()}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor={`milestone-color-${checkpoint.id}`} className={labelCls}>Color</label>
+                    <input
+                      id={`milestone-color-${checkpoint.id}`}
+                      type="color"
+                      aria-label={`Milestone ${idx + 1} color`}
+                      value={checkpoint.color || DEFAULT_MILESTONE_COLOR}
+                      onChange={(e) => updateCheckpoint(checkpoint.id, { color: e.target.value }, true)}
+                      className="h-[34px] w-full cursor-pointer border border-slate-200 bg-white p-1"
+                    />
                   </div>
                 </div>
               </div>

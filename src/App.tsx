@@ -1,7 +1,7 @@
 import { useStore } from './store/useStore';
 import { useMuseumSync } from './hooks/useMuseumSync';
 import { useMuseumActions } from './hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, GALLERY_HEADER_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, GALLERY_HEADER_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP, DEFAULT_MILESTONE_COLOR } from './constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, getDurationMonths, snapDate } from './lib/dateUtils';
 import { calculateTracks } from './lib/layoutEngine';
 import { calculatePrintScale } from './lib/printLayout';
@@ -166,6 +166,7 @@ const SCREEN_MILESTONE_ROW_GAP = 27;
 const SCREEN_MILESTONE_BAND_PADDING_BOTTOM = 9;
 const MIN_SCREEN_MILESTONE_ROWS = 3;
 const SCREEN_MILESTONE_COMPACT_LABEL_WIDTH = 88;
+const EXTRA_SCREEN_MILESTONE_ROWS = 1;
 const PHASE_TINT_HEIGHT = 5;
 
 const formatPrintDateTime = (date: Date | null) => {
@@ -502,6 +503,7 @@ const QuickMilestonePopover = ({
 }) => {
   const [title, setTitle] = useState(checkpoint?.title || 'NEW MILESTONE');
   const [kind, setKind] = useState<CheckpointKind>(checkpoint?.kind || 'other');
+  const [color] = useState(checkpoint?.color || DEFAULT_MILESTONE_COLOR);
   const [milestoneDate, setMilestoneDate] = useState(checkpoint?.date || date);
   const [dateError, setDateError] = useState('');
   const checkpointIdRef = useRef(checkpoint?.id || createLocalId());
@@ -511,6 +513,7 @@ const QuickMilestonePopover = ({
     const nextDate = overrides.date || milestoneDate;
     const nextTitle = overrides.title || title;
     const nextKind = overrides.kind || kind;
+    const nextColor = overrides.color || color;
     if (!isValidDateInput(nextDate)) {
       setDateError('Use YYYY-MM-DD');
       return;
@@ -520,6 +523,7 @@ const QuickMilestonePopover = ({
       title: nextTitle.trim().toUpperCase() || 'NEW MILESTONE',
       kind: nextKind,
       date: nextDate,
+      color: nextColor,
     };
     const exists = (project.checkpoints || []).some(item => item.id === checkpointIdRef.current);
     const checkpoints = exists
@@ -940,7 +944,7 @@ export default function MasterScheduler() {
   };
 
   const screenMilestoneRowsFor = (galleryName: string) => {
-    const rowCount = galleryMilestoneRowCounts.get(galleryName)?.screen || MIN_SCREEN_MILESTONE_ROWS;
+    const rowCount = (galleryMilestoneRowCounts.get(galleryName)?.screen || MIN_SCREEN_MILESTONE_ROWS) + EXTRA_SCREEN_MILESTONE_ROWS;
     return Array.from({ length: rowCount }, (_, index) => SCREEN_MILESTONE_ROW_TOP + (index * SCREEN_MILESTONE_ROW_GAP));
   };
 
@@ -2440,7 +2444,6 @@ export default function MasterScheduler() {
                                   const trackIndex = galleryLayouts[g]?.tracks[ex.id] || 0;
                                   const isDraggingThis = draggingBarId === ex.id;
                                   const statusStyle = getStatusStyles(ex.status);
-                                  const ownerAccent = statusStyle.barBg;
                                   
                                   const effStartDate = isDraggingThis && dragTempStartDate ? dragTempStartDate : ex.startDate;
                                   const effEndDate = isDraggingThis && dragTempEndDate ? dragTempEndDate : ex.endDate;
@@ -2509,6 +2512,7 @@ export default function MasterScheduler() {
                                   const milestoneLayouts = (ex.checkpoints || []).map((checkpoint) => {
                                     const isDraggingThisMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.checkpointId === checkpoint.id;
                                     const effectiveMilestoneDate = isDraggingThisMilestone ? draggingMilestone.tempDate : checkpoint.date;
+                                    const milestoneAccent = checkpoint.color || DEFAULT_MILESTONE_COLOR;
                                     const checkpointX = getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths);
                                     const fullLabelWidth = milestoneLabelWidthFor(checkpoint.title, isPrintMode);
                                     const compactLabelWidth = isPrintMode ? 172 : SCREEN_MILESTONE_COMPACT_LABEL_WIDTH;
@@ -2555,7 +2559,7 @@ export default function MasterScheduler() {
                                       labelTop,
                                       isCompact: shouldCompact,
                                       useMilestoneBand,
-                                      ownerAccent,
+                                      milestoneAccent,
                                       dimUnselectedMilestones,
                                     };
                                   });
@@ -2781,7 +2785,7 @@ export default function MasterScheduler() {
                                         );
                                       })()}
 
-                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelLeft, markerLeft, labelTop, isCompact, useMilestoneBand, ownerAccent, dimUnselectedMilestones }) => {
+                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelLeft, markerLeft, labelTop, isCompact, useMilestoneBand, milestoneAccent, dimUnselectedMilestones }) => {
                                         const MilestoneKindIcon = milestoneKind.Icon;
                                         const markerTop = markerCenterY - labelTop;
                                         const connectorTop = isPrintMode ? PRINT_MILESTONE_LABEL_HEIGHT - 1 : SCREEN_MILESTONE_LABEL_HEIGHT - 1;
@@ -2810,20 +2814,20 @@ export default function MasterScheduler() {
                                             {useMilestoneBand && connectorHeight > 0 && (
                                               <div
                                                 className="absolute block w-px -translate-x-1/2 print:bg-slate-500"
-                                                style={{ left: `${markerLeft}px`, top: `${connectorTop}px`, height: `${connectorHeight}px`, backgroundColor: ownerAccent, opacity: connectorOpacity }}
+                                                style={{ left: `${markerLeft}px`, top: `${connectorTop}px`, height: `${connectorHeight}px`, backgroundColor: milestoneAccent, opacity: connectorOpacity }}
                                                 aria-hidden="true"
                                               />
                                             )}
                                             {useMilestoneBand && (
                                               <div
                                                 className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm print:shadow-none"
-                                                style={{ left: `${markerLeft}px`, top: `${markerTop}px`, backgroundColor: ownerAccent, opacity: dimUnselectedMilestones ? 0.45 : 0.9 }}
+                                                style={{ left: `${markerLeft}px`, top: `${markerTop}px`, backgroundColor: milestoneAccent, opacity: dimUnselectedMilestones ? 0.45 : 0.9 }}
                                                 aria-hidden="true"
                                               />
                                             )}
                                             <div
                                               className={`absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 shadow-[1px_1px_0_0_rgba(0,0,0,1)] print:shadow-none ${milestoneKind.markerClass}`}
-                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px`, borderColor: ownerAccent }}
+                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px`, borderColor: milestoneAccent }}
                                               aria-hidden="true"
                                             />
                                             <div
@@ -2833,7 +2837,7 @@ export default function MasterScheduler() {
                                             />
                                             <div
                                               className={`absolute left-0 top-0 pointer-events-auto bg-white border py-[3px] pl-2 pr-1.5 shadow-sm print:bg-white print:shadow-none ${isSelectedMilestoneProject ? 'border-slate-700' : milestoneKind.labelBorderClass}`}
-                                              style={{ width: `${labelWidth}px`, zIndex: 32, borderLeftColor: ownerAccent, borderLeftWidth: '3px' }}
+                                              style={{ width: `${labelWidth}px`, zIndex: 32, borderLeftColor: milestoneAccent, borderLeftWidth: '3px' }}
                                               onPointerDown={(e) => onMilestonePointerDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
                                             >
                                               <div

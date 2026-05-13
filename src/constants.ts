@@ -23,6 +23,8 @@ export const DEFAULT_PHASE_TYPES: PhaseType[] = [
   { id: 'pt5', label: 'Deinstall', color: '#dc2626', isPost: true },
 ];
 
+export const DEFAULT_MILESTONE_COLOR = '#64748b';
+
 const pad = (value: number) => String(value).padStart(2, '0');
 const toDateString = (year: number, month: number, day: number) => `${year}-${pad(month + 1)}-${pad(day)}`;
 const nthWeekdayOfMonth = (year: number, month: number, weekday: number, occurrence: number) => {

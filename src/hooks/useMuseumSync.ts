@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../store/useStore';
-import { CONFIG_STORAGE_KEY, LEGACY_CONFIG_STORAGE_KEYS, LEGACY_MILESTONES_STORAGE_KEYS, STORAGE_KEY, LEGACY_STORAGE_KEYS, DEFAULT_PHASE_TYPES, DEFAULT_GALLERIES } from '../constants';
+import { CONFIG_STORAGE_KEY, LEGACY_CONFIG_STORAGE_KEYS, LEGACY_MILESTONES_STORAGE_KEYS, STORAGE_KEY, LEGACY_STORAGE_KEYS, DEFAULT_PHASE_TYPES, DEFAULT_GALLERIES, DEFAULT_MILESTONE_COLOR } from '../constants';
 import { CheckpointKind, Exhibition, Gallery, PhaseType } from '../types';
 import { getGistData, updateGistData } from '../lib/githubGist';
 
@@ -56,6 +56,9 @@ const normalizeExhibitions = (raw: unknown): Exhibition[] => {
             kind: (['kickoff', 'review', 'approval', 'install', 'opening', 'close', 'other'].includes(checkpoint?.kind)
               ? checkpoint.kind
               : 'other') as CheckpointKind,
+            color: /^#[0-9a-fA-F]{6}$/.test((checkpoint?.color || '').toString())
+              ? checkpoint.color.toString()
+              : DEFAULT_MILESTONE_COLOR,
           }))
           .filter((checkpoint) => checkpoint.date)
       : [];
