@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronUp, Copy, Flag, Plus, Trash2, X } from 'lucide-react';
 import { CheckpointKind, Exhibition, Gallery, ProjectCheckpoint, ProjectPhase, PhaseType } from '../types';
 import { getDateWithMonthDuration, getDurationMonths, toISODate } from '../lib/dateUtils';
-import { DEFAULT_MILESTONE_COLOR, getStatusStyles } from '../constants';
+import { DEFAULT_MILESTONE_COLOR, MILESTONE_COLOR_SWATCHES, getStatusStyles } from '../constants';
 import { DatePicker } from './DatePicker';
 
 const CHECKPOINT_PRESETS: { kind: CheckpointKind; label: string; title: string }[] = [
@@ -620,7 +620,7 @@ export const DetailPanel = ({
                     <Trash2 size={11} />
                   </button>
                 </div>
-                <div className="grid grid-cols-[minmax(0,1fr)_132px_58px] gap-2">
+                <div className="grid grid-cols-[minmax(0,1fr)_132px] gap-2">
                   <DatePicker
                     value={checkpoint.date}
                     onChange={(val) => {
@@ -653,16 +653,28 @@ export const DetailPanel = ({
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-1">
-                    <label htmlFor={`milestone-color-${checkpoint.id}`} className={labelCls}>Color</label>
-                    <input
-                      id={`milestone-color-${checkpoint.id}`}
-                      type="color"
-                      aria-label={`Milestone ${idx + 1} color`}
-                      value={checkpoint.color || DEFAULT_MILESTONE_COLOR}
-                      onChange={(e) => updateCheckpoint(checkpoint.id, { color: e.target.value }, true)}
-                      className="h-[34px] w-full cursor-pointer border border-slate-200 bg-white p-1"
-                    />
+                  <div className="col-span-2 space-y-1">
+                    <span className={labelCls}>Color</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {MILESTONE_COLOR_SWATCHES.map((swatch) => {
+                        const selected = (checkpoint.color || DEFAULT_MILESTONE_COLOR).toLowerCase() === swatch.value.toLowerCase();
+                        return (
+                          <button
+                            key={swatch.value}
+                            type="button"
+                            aria-label={`Set milestone ${idx + 1} color to ${swatch.label}`}
+                            title={swatch.label}
+                            aria-pressed={selected}
+                            onClick={() => updateCheckpoint(checkpoint.id, { color: swatch.value }, true)}
+                            className={`h-7 w-7 border transition focus:outline-none focus:ring-2 focus:ring-slate-300 ${selected ? 'border-slate-900 ring-2 ring-slate-300' : 'border-slate-200 hover:border-slate-500'}`}
+                            style={{ backgroundColor: swatch.value }}
+                          >
+                            <span className="sr-only">{swatch.label}</span>
+                            {selected && <Check size={13} strokeWidth={3} className="mx-auto text-white drop-shadow" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -24,6 +24,14 @@ export const DEFAULT_PHASE_TYPES: PhaseType[] = [
 ];
 
 export const DEFAULT_MILESTONE_COLOR = '#64748b';
+export const MILESTONE_COLOR_SWATCHES = [
+  { label: 'Slate', value: '#64748b' },
+  { label: 'Red', value: '#ef4444' },
+  { label: 'Blue', value: '#2563eb' },
+  { label: 'Emerald', value: '#059669' },
+  { label: 'Amber', value: '#d97706' },
+  { label: 'Violet', value: '#7c3aed' },
+] as const;
 
 const pad = (value: number) => String(value).padStart(2, '0');
 const toDateString = (year: number, month: number, day: number) => `${year}-${pad(month + 1)}-${pad(day)}`;
