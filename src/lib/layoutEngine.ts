@@ -3,8 +3,9 @@ import { getPositionFromDate } from './dateUtils';
 import { PHASE_GAP } from '../constants';
 
 /**
- * Calculates collision-free independent tracks for exhibitions sharing the same gallery lane.
- * It strictly avoids overlaps by sorting and stepping projects down a Y-axis track.
+ * Calculates one stable vertical row per project within a gallery lane.
+ * The timeline has separate sidebar labels for each project, so sharing a row
+ * makes labels unreadable even when the date bars do not overlap.
  */
 export const calculateTracks = (
   projects: Exhibition[], 
@@ -13,7 +14,7 @@ export const calculateTracks = (
   phaseTypes: PhaseType[]
 ) => {
   const sorted = [...projects]
-    .map((project) => {
+    .map((project, sourceIndex) => {
       const prePhases = (project.phases || []).filter(phase => !phaseTypes.find(type => type.id === phase.typeId)?.isPost);
       const postPhases = (project.phases || []).filter(phase => phaseTypes.find(type => type.id === phase.typeId)?.isPost);
       const prePhaseWidth = prePhases.reduce((sum, phase) => sum + (phase.durationMonths * monthWidth), 0);
@@ -39,40 +40,29 @@ export const calculateTracks = (
 
       return {
         project,
+        sourceIndex,
         visualStart: projectStart - prePhaseWidth - preGapWidth - startBuffer,
         visualEnd: projectEnd + postPhaseWidth + postGapWidth + endBuffer,
-        requiredTracks: 1
+        laneOrder: Number.isFinite(project.laneOrder) ? project.laneOrder! : null
       };
     })
-    .sort((a, b) => a.visualStart - b.visualStart || a.visualEnd - b.visualEnd);
+    .sort((a, b) => {
+      if (a.laneOrder !== null && b.laneOrder !== null && a.laneOrder !== b.laneOrder) {
+        return a.laneOrder - b.laneOrder;
+      }
+      if (a.laneOrder !== null && b.laneOrder === null) return -1;
+      if (a.laneOrder === null && b.laneOrder !== null) return 1;
+      return (
+        a.visualStart - b.visualStart ||
+        a.visualEnd - b.visualEnd ||
+        a.sourceIndex - b.sourceIndex
+      );
+    });
 
   const tracks: { [id: string]: number } = {};
-  const trackAvailability: number[] = [];
-
-  sorted.forEach(({ project, visualStart, visualEnd, requiredTracks }) => {
-    let startTrack = 0;
-
-    while (true) {
-      let canFit = true;
-
-      for (let index = 0; index < requiredTracks; index += 1) {
-        const availability = trackAvailability[startTrack + index] ?? Number.NEGATIVE_INFINITY;
-        if (availability > visualStart) {
-          canFit = false;
-          startTrack += 1;
-          break;
-        }
-      }
-
-      if (canFit) {
-        tracks[project.id] = startTrack;
-        for (let index = 0; index < requiredTracks; index += 1) {
-          trackAvailability[startTrack + index] = visualEnd;
-        }
-        return;
-      }
-    }
+  sorted.forEach(({ project }, trackIndex) => {
+    tracks[project.id] = trackIndex;
   });
 
-  return { tracks, maxTracks: trackAvailability.length || 1 };
+  return { tracks, maxTracks: sorted.length || 1 };
 };

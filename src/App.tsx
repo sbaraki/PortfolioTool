@@ -1048,6 +1048,43 @@ export default function MasterScheduler() {
     return layouts;
   }, [filteredProjectsByGallery, portfolioGalleries, monthWidth, viewMonths, phaseTypes, isPrintMode, printSettings.showPhases]);
 
+  const orderedProjectIdsByGallery = useMemo(() => {
+    const result = new Map<string, string[]>();
+    portfolioGalleries.forEach(gallery => {
+      const layout = galleryLayouts[gallery.name];
+      const orderedIds = [...(filteredProjectsByGallery.get(gallery.name) || [])]
+        .sort((a, b) => (
+          (layout?.tracks[a.id] ?? 0) - (layout?.tracks[b.id] ?? 0) ||
+          a.startDate.localeCompare(b.startDate) ||
+          a.title.localeCompare(b.title)
+        ))
+        .map(ex => ex.id);
+      result.set(gallery.name, orderedIds);
+    });
+    return result;
+  }, [filteredProjectsByGallery, galleryLayouts, portfolioGalleries]);
+
+  const moveProjectInGallery = (projectId: string, direction: 'up' | 'down') => {
+    const project = projectById.get(projectId);
+    if (!project) return;
+    const orderedIds = orderedProjectIdsByGallery.get(project.gallery) || [];
+    const currentIndex = orderedIds.indexOf(projectId);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= orderedIds.length) return;
+
+    const nextIds = [...orderedIds];
+    [nextIds[currentIndex], nextIds[targetIndex]] = [nextIds[targetIndex], nextIds[currentIndex]];
+    const nextOrder = new Map(nextIds.map((id, index) => [id, (index + 1) * 100]));
+
+    commitHistory();
+    setExhibitions(prev => prev.map(ex => (
+      ex.gallery === project.gallery && nextOrder.has(ex.id)
+        ? { ...ex, laneOrder: nextOrder.get(ex.id) }
+        : ex
+    )));
+  };
+
   const mhFor = (_galleryName: string) => GALLERY_HEADER_HEIGHT;
 
 
@@ -1994,10 +2031,14 @@ export default function MasterScheduler() {
 	                          const shortStatus = ex.status === 'Open to Public' ? 'OPEN' : 
 	                            ex.status === 'In Development' ? 'DEV' : 
 	                            ex.status === 'TBC' ? 'TBC' : 'CLOSE';
+                            const orderedIds = orderedProjectIdsByGallery.get(gallery.name) || [];
+                            const laneIndex = orderedIds.indexOf(ex.id);
+                            const canMoveUp = laneIndex > 0;
+                            const canMoveDown = laneIndex !== -1 && laneIndex < orderedIds.length - 1;
 	                          return (
 	                            <div
 	                              key={`title-${ex.id}`}
-	                              className="absolute flex items-center overflow-hidden border-t border-slate-100 bg-white/95 first:border-t-0"
+	                              className="absolute flex items-center gap-1.5 overflow-hidden border-t border-slate-100 bg-white/95 pr-1 first:border-t-0"
 	                              style={{ 
 	                                top: topPos, 
 	                                height: `${currentTrackHeight}px`, 
@@ -2035,6 +2076,36 @@ export default function MasterScheduler() {
 	                                  </span>
 	                                )}
 	                              </div>
+                                <div className="no-print flex shrink-0 flex-col border border-slate-200 bg-white shadow-sm">
+                                  <button
+                                    type="button"
+                                    aria-label={`Move ${ex.title} up in ${gallery.name}`}
+                                    title="Move up in lane"
+                                    disabled={!canMoveUp}
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      moveProjectInGallery(ex.id, 'up');
+                                    }}
+                                    className="flex h-5 w-5 items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-25"
+                                  >
+                                    <ChevronUp size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label={`Move ${ex.title} down in ${gallery.name}`}
+                                    title="Move down in lane"
+                                    disabled={!canMoveDown}
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      moveProjectInGallery(ex.id, 'down');
+                                    }}
+                                    className="flex h-5 w-5 items-center justify-center border-t border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-25"
+                                  >
+                                    <ChevronDown size={12} />
+                                  </button>
+                                </div>
 	                            </div>
 	                          );
 	                        })}

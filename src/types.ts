@@ -45,6 +45,7 @@ export interface Exhibition {
   scheduleMode: ProjectScheduleMode;
   checkpoints: ProjectCheckpoint[];
   phases: ProjectPhase[];
+  laneOrder?: number;
   description?: string;
 }
 
