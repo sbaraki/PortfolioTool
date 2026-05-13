@@ -160,9 +160,11 @@ const PRINT_MILESTONE_ROW_TOP = 8;
 const PRINT_MILESTONE_ROW_GAP = 30;
 const PRINT_MILESTONE_BAND_PADDING_BOTTOM = 10;
 const MIN_PRINT_MILESTONE_ROWS = 3;
-const SCREEN_MILESTONE_BAND_HEIGHT = 82;
 const SCREEN_MILESTONE_LABEL_HEIGHT = 22;
-const SCREEN_MILESTONE_LABEL_ROWS = [7, 34, 61];
+const SCREEN_MILESTONE_ROW_TOP = 7;
+const SCREEN_MILESTONE_ROW_GAP = 27;
+const SCREEN_MILESTONE_BAND_PADDING_BOTTOM = 9;
+const MIN_SCREEN_MILESTONE_ROWS = 3;
 const PHASE_TINT_HEIGHT = 5;
 
 const formatPrintDateTime = (date: Date | null) => {
@@ -615,7 +617,7 @@ export default function MasterScheduler() {
   
   const currentTrackHeight = isPrintMode 
     ? (Math.max(STANDARD_BAR_HEIGHT, (printSettings.showDescription ? 34 : 0)) + printSettings.projectRowGap) 
-    : TRACK_HEIGHT;
+    : Math.max(TRACK_HEIGHT, 66);
 
   const getEffPhases = (ex: Exhibition) => {
     if (isPrintMode && !printSettings.showPhases) return [];
@@ -874,6 +876,8 @@ export default function MasterScheduler() {
     return grouped;
   }, [filteredExhibitions, portfolioGalleries]);
 
+  const totalTimelineWidth = viewMonths.length * monthWidth;
+
   const galleryHasMilestones = useMemo(() => {
     const result = new Map<string, boolean>();
     portfolioGalleries.forEach(gallery => {
@@ -882,29 +886,68 @@ export default function MasterScheduler() {
     return result;
   }, [filteredProjectsByGallery, portfolioGalleries]);
 
-  const galleryMilestoneCounts = useMemo(() => {
-    const result = new Map<string, number>();
+  const milestoneLabelWidthFor = (title: string, printMode: boolean) => {
+    if (!printMode) {
+      return Math.min(300, Math.max(170, (title.length * 6.4) + 78));
+    }
+    const maxPrintLabelWidth = Math.max(220, Math.min(520, totalTimelineWidth - 16));
+    return Math.min(maxPrintLabelWidth, Math.max(220, (title.length * 7.2) + 96));
+  };
+
+  const galleryMilestoneRowCounts = useMemo(() => {
+    const result = new Map<string, { screen: number; print: number }>();
+    const neededRowsFor = (galleryName: string, printMode: boolean) => {
+      const rowBoxes: Array<Array<{ x: number; width: number }>> = [];
+      const projects = filteredProjectsByGallery.get(galleryName) || [];
+      projects.forEach(ex => {
+        (ex.checkpoints || []).forEach(checkpoint => {
+          const checkpointX = getPositionFromDate(checkpoint.date, monthWidth, viewMonths);
+          const labelWidth = milestoneLabelWidthFor(checkpoint.title, printMode);
+          const centeredLeft = checkpointX - (labelWidth / 2);
+          const labelLeft = printMode
+            ? Math.max(0, Math.min(centeredLeft, totalTimelineWidth - labelWidth))
+            : centeredLeft;
+          const candidate = { x: labelLeft, width: labelWidth };
+          const padding = printMode ? 8 : 8;
+          let rowIndex = rowBoxes.findIndex(row => !row.some(box => (
+            candidate.x < box.x + box.width + padding &&
+            candidate.x + candidate.width + padding > box.x
+          )));
+          if (rowIndex === -1) {
+            rowIndex = rowBoxes.length;
+            rowBoxes.push([]);
+          }
+          rowBoxes[rowIndex].push(candidate);
+        });
+      });
+      return Math.max(printMode ? MIN_PRINT_MILESTONE_ROWS : MIN_SCREEN_MILESTONE_ROWS, rowBoxes.length);
+    };
     portfolioGalleries.forEach(gallery => {
-      const count = (filteredProjectsByGallery.get(gallery.name) || []).reduce(
-        (sum, ex) => sum + (ex.checkpoints?.length || 0),
-        0
-      );
-      result.set(gallery.name, count);
+      result.set(gallery.name, {
+        screen: neededRowsFor(gallery.name, false),
+        print: neededRowsFor(gallery.name, true),
+      });
     });
     return result;
-  }, [filteredProjectsByGallery, portfolioGalleries]);
+  }, [filteredProjectsByGallery, portfolioGalleries, monthWidth, totalTimelineWidth, viewMonths]);
 
   const printMilestoneRowsFor = (galleryName: string) => {
-    const rowCount = Math.max(MIN_PRINT_MILESTONE_ROWS, galleryMilestoneCounts.get(galleryName) || 0);
+    const rowCount = galleryMilestoneRowCounts.get(galleryName)?.print || MIN_PRINT_MILESTONE_ROWS;
     return Array.from({ length: rowCount }, (_, index) => PRINT_MILESTONE_ROW_TOP + (index * PRINT_MILESTONE_ROW_GAP));
+  };
+
+  const screenMilestoneRowsFor = (galleryName: string) => {
+    const rowCount = galleryMilestoneRowCounts.get(galleryName)?.screen || MIN_SCREEN_MILESTONE_ROWS;
+    return Array.from({ length: rowCount }, (_, index) => SCREEN_MILESTONE_ROW_TOP + (index * SCREEN_MILESTONE_ROW_GAP));
   };
 
   const milestoneBandHeightFor = (galleryName: string) => {
     if (!galleryHasMilestones.get(galleryName)) return 0;
-    if (!isPrintMode) return SCREEN_MILESTONE_BAND_HEIGHT;
-    const rows = printMilestoneRowsFor(galleryName);
-    const lastRowTop = rows[rows.length - 1] ?? PRINT_MILESTONE_ROW_TOP;
-    return lastRowTop + PRINT_MILESTONE_LABEL_HEIGHT + PRINT_MILESTONE_BAND_PADDING_BOTTOM;
+    const rows = isPrintMode ? printMilestoneRowsFor(galleryName) : screenMilestoneRowsFor(galleryName);
+    const lastRowTop = rows[rows.length - 1] ?? (isPrintMode ? PRINT_MILESTONE_ROW_TOP : SCREEN_MILESTONE_ROW_TOP);
+    const labelHeight = isPrintMode ? PRINT_MILESTONE_LABEL_HEIGHT : SCREEN_MILESTONE_LABEL_HEIGHT;
+    const paddingBottom = isPrintMode ? PRINT_MILESTONE_BAND_PADDING_BOTTOM : SCREEN_MILESTONE_BAND_PADDING_BOTTOM;
+    return lastRowTop + labelHeight + paddingBottom;
   };
 
   // ── Conflict detection ─────────────────────────────────────────────────
@@ -1045,9 +1088,7 @@ export default function MasterScheduler() {
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, isPrintMode, galleryHasMilestones, galleryMilestoneCounts]);
-
-  const totalTimelineWidth = viewMonths.length * monthWidth;
+  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, isPrintMode, galleryHasMilestones, galleryMilestoneRowCounts]);
 
   const todayPos = useMemo(() => {
     return getPositionFromDate(toISODate(new Date()), monthWidth, viewMonths);
@@ -1956,7 +1997,7 @@ export default function MasterScheduler() {
 	                          return (
 	                            <div
 	                              key={`title-${ex.id}`}
-	                              className="absolute flex items-center overflow-hidden"
+	                              className="absolute flex items-center overflow-hidden border-t border-slate-100 bg-white/95 first:border-t-0"
 	                              style={{ 
 	                                top: topPos, 
 	                                height: `${currentTrackHeight}px`, 
@@ -1964,17 +2005,17 @@ export default function MasterScheduler() {
 	                                right: '10px' 
 	                              }}
 	                            >
-	                              <div className="flex flex-col justify-center min-w-0 w-full gap-px py-0.5">
+	                              <div className="flex min-w-0 w-full flex-col justify-center gap-1 py-1.5">
 	                                <span 
-	                                  className="text-[10px] font-semibold text-slate-950 leading-[10.5px] overflow-hidden break-words [display:-webkit-box] [-webkit-box-orient:vertical]"
+	                                  className="text-[11px] font-semibold text-slate-950 leading-[12px] overflow-hidden break-words [display:-webkit-box] [-webkit-box-orient:vertical]"
 	                                  style={{ WebkitLineClamp: isPrintMode ? 3 : 2 }}
 	                                  title={ex.title}
 	                                >
 	                                  {ex.title}
 	                                </span>
-	                                <div className="flex items-center gap-1.5 min-w-0 text-[7px] leading-[9px]">
+	                                <div className="flex items-center gap-1.5 min-w-0 text-[8px] leading-[10px]">
 	                                  <span
-	                                    className="shrink-0 font-bold px-1 py-0 rounded-[2px] uppercase tracking-tighter border font-mono leading-[9px]"
+	                                    className="shrink-0 font-bold px-1 py-0.5 rounded-[2px] uppercase tracking-tighter border font-mono leading-[9px]"
 	                                    style={{ backgroundColor: s.bg, color: s.text, borderColor: s.border }}
 	                                  >
 	                                    {shortStatus}
@@ -2386,23 +2427,14 @@ export default function MasterScheduler() {
                                   const placedMilestoneLabelBoxes: TimelineRect[] = [];
                                   const useMilestoneBand = milestoneBandHeight > 0;
                                   const milestoneLabelRows = useMilestoneBand
-                                    ? (isPrintMode ? printMilestoneRowsFor(g) : SCREEN_MILESTONE_LABEL_ROWS).map(offset => mhFor(g) + offset)
+                                    ? (isPrintMode ? printMilestoneRowsFor(g) : screenMilestoneRowsFor(g)).map(offset => mhFor(g) + offset)
                                     : [mainBarY - 30, mainBarY - 52, mainBarY - 74];
                                   const isSelectedMilestoneProject = selectedProjectId === ex.id;
                                   const milestoneLayouts = (ex.checkpoints || []).map((checkpoint) => {
                                     const isDraggingThisMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.checkpointId === checkpoint.id;
                                     const effectiveMilestoneDate = isDraggingThisMilestone ? draggingMilestone.tempDate : checkpoint.date;
                                     const checkpointX = getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths);
-                                    const screenFullLabelWidth = Math.min(
-                                      300,
-                                      Math.max(170, (checkpoint.title.length * 6.4) + 78)
-                                    );
-                                    const maxPrintLabelWidth = Math.max(220, Math.min(520, totalTimelineWidth - 16));
-                                    const printFullLabelWidth = Math.min(
-                                      maxPrintLabelWidth,
-                                      Math.max(220, (checkpoint.title.length * 7.2) + 96)
-                                    );
-                                    const fullLabelWidth = isPrintMode ? printFullLabelWidth : screenFullLabelWidth;
+                                    const fullLabelWidth = milestoneLabelWidthFor(checkpoint.title, isPrintMode);
                                     const compactLabelWidth = isPrintMode ? 172 : 88;
                                     const fullLabelHeight = isPrintMode ? PRINT_MILESTONE_LABEL_HEIGHT : SCREEN_MILESTONE_LABEL_HEIGHT;
                                     const occupiedMilestoneBoxes = isPrintMode ? printMilestoneLabelBoxes : placedMilestoneLabelBoxes;

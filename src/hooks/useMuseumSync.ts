@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { CONFIG_STORAGE_KEY, LEGACY_CONFIG_STORAGE_KEYS, LEGACY_MILESTONES_STORAGE_KEYS, STORAGE_KEY, LEGACY_STORAGE_KEYS, DEFAULT_PHASE_TYPES, DEFAULT_GALLERIES } from '../constants';
-import { Exhibition, Gallery, PhaseType } from '../types';
+import { CheckpointKind, Exhibition, Gallery, PhaseType } from '../types';
 import { getGistData, updateGistData } from '../lib/githubGist';
 
 const galleryIdFromName = (name: string) => `gal_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || Math.random().toString(36).slice(2, 8)}`;
@@ -47,13 +47,25 @@ const normalizeExhibitions = (raw: unknown): Exhibition[] => {
     const scheduleMode = ex?.scheduleMode === 'single-date' || ex?.isMilestone === true ? 'single-date' : 'range';
     const startDate = (ex?.startDate || '').toString();
     const endDate = scheduleMode === 'single-date' ? startDate : (ex?.endDate || startDate).toString();
+    const checkpoints = Array.isArray(ex?.checkpoints)
+      ? ex.checkpoints
+          .map((checkpoint: any) => ({
+            id: (checkpoint?.id || Math.random().toString(36).slice(2, 11)).toString(),
+            title: (checkpoint?.title || 'MILESTONE').toString(),
+            date: (checkpoint?.date || startDate).toString(),
+            kind: (['kickoff', 'review', 'approval', 'install', 'opening', 'close', 'other'].includes(checkpoint?.kind)
+              ? checkpoint.kind
+              : 'other') as CheckpointKind,
+          }))
+          .filter((checkpoint) => checkpoint.date)
+      : [];
     const { milestones: _milestones, isMilestone: _isMilestone, locationMilestones: _locationMilestones, checkpoints: _checkpoints, ...rest } = ex || {};
     return {
       ...rest,
       startDate,
       endDate,
       scheduleMode,
-      checkpoints: []
+      checkpoints
     };
   });
 };
