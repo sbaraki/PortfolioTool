@@ -2059,15 +2059,15 @@ export default function MasterScheduler() {
                   {showMilestoneOverview && (
                     <div
                       style={{ height: `${overviewLaneHeight}px` }}
-                      className="relative border-b-2 border-slate-300 overflow-hidden bg-slate-900 text-white print:bg-white print:text-slate-900"
+                      className="relative border-b-2 border-slate-300 overflow-hidden bg-slate-100 text-slate-900 print:bg-white"
                     >
-                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-red-500" />
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-red-400" />
                       <div className="absolute inset-x-0 top-0 flex h-full flex-col justify-center gap-1 pl-4 pr-3">
                         <div className="flex items-center gap-2">
-                          <Flag size={13} className="shrink-0 text-red-300 print:text-slate-700" />
+                          <Flag size={13} className="shrink-0 text-red-500 print:text-slate-700" />
                           <span className="text-[12px] font-bold uppercase tracking-[0.08em] leading-tight">All milestones</span>
                         </div>
-                        <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-300 print:text-slate-600">
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-500 print:text-slate-600">
                           {overviewMilestones.length} key date{overviewMilestones.length === 1 ? '' : 's'}
                         </span>
                       </div>
