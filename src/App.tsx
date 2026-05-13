@@ -2994,7 +2994,7 @@ export default function MasterScheduler() {
                                               top: `${labelTop}px`,
                                               width: `${labelWidth}px`,
                                               height: `${markerTop + 12}px`,
-                                              zIndex: isSelectedMilestoneProject || isDraggingThisMilestone ? 36 : 31,
+                                              zIndex: isPrintMode ? undefined : (isSelectedMilestoneProject || isDraggingThisMilestone ? 36 : 31),
                                               opacity: milestoneOpacity,
                                             }}
                                             title={`${checkpoint.title} - ${milestoneKind.label} - ${formatBarDate(effectiveMilestoneDate)}`}
@@ -3007,30 +3007,30 @@ export default function MasterScheduler() {
                                             {useMilestoneBand && connectorHeight > 0 && (
                                               <div
                                                 className="absolute block w-px -translate-x-1/2 print:bg-slate-500"
-                                                style={{ left: `${markerLeft}px`, top: `${connectorTop}px`, height: `${connectorHeight}px`, backgroundColor: milestoneAccent, opacity: connectorOpacity }}
+                                                style={{ left: `${markerLeft}px`, top: `${connectorTop}px`, height: `${connectorHeight}px`, backgroundColor: milestoneAccent, opacity: connectorOpacity, zIndex: 12 }}
                                                 aria-hidden="true"
                                               />
                                             )}
                                             {useMilestoneBand && (
                                               <div
                                                 className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm print:shadow-none"
-                                                style={{ left: `${markerLeft}px`, top: `${markerTop}px`, backgroundColor: milestoneAccent, opacity: dimUnselectedMilestones ? 0.45 : 0.9 }}
+                                                style={{ left: `${markerLeft}px`, top: `${markerTop}px`, backgroundColor: milestoneAccent, opacity: dimUnselectedMilestones ? 0.45 : 0.9, zIndex: 14 }}
                                                 aria-hidden="true"
                                               />
                                             )}
                                             <div
                                               className={`absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-2 shadow-[1px_1px_0_0_rgba(0,0,0,1)] print:shadow-none ${milestoneKind.markerClass}`}
-                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px`, borderColor: milestoneAccent }}
+                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px`, borderColor: milestoneAccent, zIndex: 15 }}
                                               aria-hidden="true"
                                             />
                                             <div
                                               className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white"
-                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px` }}
+                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px`, zIndex: 16 }}
                                               aria-hidden="true"
                                             />
                                             <div
                                               className={`absolute left-0 top-0 pointer-events-auto bg-white border py-[3px] pl-2 pr-1.5 shadow-sm print:bg-white print:shadow-none ${isSelectedMilestoneProject ? 'border-slate-700' : milestoneKind.labelBorderClass}`}
-                                              style={{ width: `${labelWidth}px`, zIndex: 32, borderLeftColor: milestoneAccent, borderLeftWidth: '3px' }}
+                                              style={{ width: `${labelWidth}px`, zIndex: isPrintMode ? 48 : 32, borderLeftColor: milestoneAccent, borderLeftWidth: '3px' }}
                                               onPointerDown={(e) => onMilestonePointerDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
                                             >
                                               <div
