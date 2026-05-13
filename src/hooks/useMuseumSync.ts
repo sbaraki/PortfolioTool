@@ -6,6 +6,13 @@ import { getGistData, updateGistData } from '../lib/githubGist';
 
 const galleryIdFromName = (name: string) => `gal_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || Math.random().toString(36).slice(2, 8)}`;
 
+const normalizeCheckpointKind = (kind: unknown): CheckpointKind => {
+  if (kind === 'deliverable' || kind === 'presentation' || kind === 'external' || kind === 'date') return kind;
+  if (kind === 'review' || kind === 'approval') return 'presentation';
+  if (kind === 'install') return 'external';
+  return 'date';
+};
+
 // Accept legacy string[] payloads from localStorage/Gist and upgrade them in place.
 const normalizeGalleries = (raw: unknown): Gallery[] => {
   if (!Array.isArray(raw)) return DEFAULT_GALLERIES;
@@ -53,9 +60,7 @@ const normalizeExhibitions = (raw: unknown): Exhibition[] => {
             id: (checkpoint?.id || Math.random().toString(36).slice(2, 11)).toString(),
             title: (checkpoint?.title || 'MILESTONE').toString(),
             date: (checkpoint?.date || startDate).toString(),
-            kind: (['kickoff', 'review', 'approval', 'install', 'opening', 'close', 'other'].includes(checkpoint?.kind)
-              ? checkpoint.kind
-              : 'other') as CheckpointKind,
+            kind: normalizeCheckpointKind(checkpoint?.kind),
             color: /^#[0-9a-fA-F]{6}$/.test((checkpoint?.color || '').toString())
               ? checkpoint.color.toString()
               : DEFAULT_MILESTONE_COLOR,

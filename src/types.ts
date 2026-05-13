@@ -25,7 +25,7 @@ export interface ProjectPhase {
 
 export type ProjectScheduleMode = 'range' | 'single-date';
 
-export type CheckpointKind = 'kickoff' | 'review' | 'approval' | 'install' | 'opening' | 'close' | 'other';
+export type CheckpointKind = 'deliverable' | 'presentation' | 'external' | 'date';
 
 export interface ProjectCheckpoint {
   title: string;

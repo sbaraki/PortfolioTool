@@ -6,22 +6,17 @@ import { DEFAULT_MILESTONE_COLOR, getStatusStyles } from '../constants';
 import { DatePicker } from './DatePicker';
 
 const CHECKPOINT_PRESETS: { kind: CheckpointKind; label: string; title: string }[] = [
-  { kind: 'kickoff', label: 'Kickoff', title: 'KICKOFF' },
-  { kind: 'review', label: 'Review', title: 'REVIEW' },
-  { kind: 'approval', label: 'Approval', title: 'APPROVAL' },
-  { kind: 'install', label: 'Install', title: 'INSTALL' },
-  { kind: 'opening', label: 'Opening', title: 'OPENING' },
-  { kind: 'close', label: 'Close', title: 'CLOSE' },
+  { kind: 'deliverable', label: 'Deliverable', title: 'DELIVERABLE' },
+  { kind: 'presentation', label: 'Presentation', title: 'PRESENTATION' },
+  { kind: 'external', label: 'External', title: 'EXTERNAL' },
+  { kind: 'date', label: 'Date', title: 'DATE' },
 ];
 
 const CHECKPOINT_KIND_LABELS: Record<CheckpointKind, string> = {
-  kickoff: 'Kickoff',
-  review: 'Review',
-  approval: 'Approval',
-  install: 'Install',
-  opening: 'Opening',
-  close: 'Close',
-  other: 'Other',
+  deliverable: 'Deliverable',
+  presentation: 'Presentation',
+  external: 'External',
+  date: 'Date',
 };
 
 type SaveStatus = 'saved' | 'saving' | 'error';
@@ -300,7 +295,7 @@ export const DetailPanel = ({
       id: createId(),
       title: preset?.title || 'NEW MILESTONE',
       date: toISODate(new Date()),
-      kind: preset?.kind || 'other',
+      kind: preset?.kind || 'date',
       color: DEFAULT_MILESTONE_COLOR,
     };
     setFocusedCheckpointId(newCheckpoint.id);
@@ -384,7 +379,7 @@ export const DetailPanel = ({
             onChange={(e) => applyDraft(prev => ({ ...prev, status: e.target.value as Exhibition['status'] }), true)}
             onKeyDown={commitOnEnter}
           >
-            {['TBC', 'In Development', 'Open to Public', 'Closed'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+            {['TBC', 'In Development', 'Open to Public', 'Closed'].map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
 

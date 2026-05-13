@@ -26,12 +26,10 @@ import {
   ZoomOut,
   Printer,
   Calendar,
-  Eye,
+  CalendarDays,
   CalendarOff,
   RefreshCw,
-  CircleCheck,
   Copy,
-  Clock,
   Layers,
   ChevronRight,
   ChevronUp,
@@ -46,9 +44,10 @@ import {
   GripVertical,
   Flag,
   Users,
-  BadgeCheck,
+  PackageCheck,
   Truck,
   Star,
+  Presentation,
   LogOut,
   LogIn,
   Cloud,
@@ -70,54 +69,33 @@ const MILESTONE_KIND_META: Record<CheckpointKind, {
   iconClass: string;
   labelBorderClass: string;
 }> = {
-  kickoff: {
-    label: 'Kickoff',
-    Icon: Flag,
-    markerClass: 'bg-sky-600',
-    iconClass: 'bg-sky-50 text-sky-700 border-sky-200',
-    labelBorderClass: 'border-sky-200',
-  },
-  review: {
-    label: 'Review',
-    Icon: Eye,
-    markerClass: 'bg-violet-600',
-    iconClass: 'bg-violet-50 text-violet-700 border-violet-200',
-    labelBorderClass: 'border-violet-200',
-  },
-  approval: {
-    label: 'Approval',
-    Icon: BadgeCheck,
-    markerClass: 'bg-emerald-600',
-    iconClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    labelBorderClass: 'border-emerald-200',
-  },
-  install: {
-    label: 'Install',
-    Icon: Truck,
-    markerClass: 'bg-amber-600',
-    iconClass: 'bg-amber-50 text-amber-700 border-amber-200',
-    labelBorderClass: 'border-amber-200',
-  },
-  opening: {
-    label: 'Opening',
-    Icon: Star,
-    markerClass: 'bg-rose-600',
-    iconClass: 'bg-rose-50 text-rose-700 border-rose-200',
-    labelBorderClass: 'border-rose-200',
-  },
-  close: {
-    label: 'Close',
-    Icon: CircleCheck,
-    markerClass: 'bg-slate-700',
+  deliverable: {
+    label: 'Deliverable',
+    Icon: PackageCheck,
+    markerClass: 'bg-slate-600',
     iconClass: 'bg-slate-50 text-slate-700 border-slate-200',
-    labelBorderClass: 'border-slate-300',
+    labelBorderClass: 'border-slate-200',
   },
-  other: {
-    label: 'Other',
-    Icon: Clock,
-    markerClass: 'bg-red-600',
-    iconClass: 'bg-red-50 text-red-700 border-red-200',
-    labelBorderClass: 'border-red-200',
+  presentation: {
+    label: 'Presentation',
+    Icon: Presentation,
+    markerClass: 'bg-slate-600',
+    iconClass: 'bg-slate-50 text-slate-700 border-slate-200',
+    labelBorderClass: 'border-slate-200',
+  },
+  external: {
+    label: 'External',
+    Icon: Truck,
+    markerClass: 'bg-slate-600',
+    iconClass: 'bg-slate-50 text-slate-700 border-slate-200',
+    labelBorderClass: 'border-slate-200',
+  },
+  date: {
+    label: 'Date',
+    Icon: CalendarDays,
+    markerClass: 'bg-slate-600',
+    iconClass: 'bg-slate-50 text-slate-700 border-slate-200',
+    labelBorderClass: 'border-slate-200',
   },
 };
 
@@ -502,7 +480,7 @@ const QuickMilestonePopover = ({
   onClose: () => void;
 }) => {
   const [title, setTitle] = useState(checkpoint?.title || 'NEW MILESTONE');
-  const [kind, setKind] = useState<CheckpointKind>(checkpoint?.kind || 'other');
+  const [kind, setKind] = useState<CheckpointKind>(checkpoint?.kind || 'date');
   const [color] = useState(checkpoint?.color || DEFAULT_MILESTONE_COLOR);
   const [milestoneDate, setMilestoneDate] = useState(checkpoint?.date || date);
   const [dateError, setDateError] = useState('');
@@ -2035,9 +2013,6 @@ export default function MasterScheduler() {
                           // floats above the timeline bar by ~28-48px.
                           const topPos = mhFor(gallery.name) + milestoneBandHeight + LANE_TOP_PADDING + lastTrackTop;
 	                          const s = getStatusStyles(ex.status);
-	                          const shortStatus = ex.status === 'Open to Public' ? 'OPEN' : 
-	                            ex.status === 'In Development' ? 'DEV' : 
-	                            ex.status === 'TBC' ? 'TBC' : 'CLOSE';
                             const orderedIds = orderedProjectIdsByGallery.get(gallery.name) || [];
                             const laneIndex = orderedIds.indexOf(ex.id);
                             const canMoveUp = laneIndex > 0;
@@ -2063,10 +2038,11 @@ export default function MasterScheduler() {
 	                                </span>
 	                                <div className="flex items-center gap-1.5 min-w-0 text-[8px] leading-[10px]">
 	                                  <span
-	                                    className="shrink-0 font-bold px-1 py-0.5 rounded-[2px] uppercase tracking-tighter border font-mono leading-[9px]"
+	                                    className="min-w-0 max-w-full truncate font-bold px-1 py-0.5 rounded-[2px] border leading-[9px]"
 	                                    style={{ backgroundColor: s.bg, color: s.text, borderColor: s.border }}
+                                      title={ex.status}
 	                                  >
-	                                    {shortStatus}
+	                                    {ex.status}
 	                                  </span>
 	                                  {ex.exhibitionId && (
 	                                    <span
@@ -2552,7 +2528,7 @@ export default function MasterScheduler() {
                                       isDraggingThisMilestone,
                                       effectiveMilestoneDate,
                                       checkpointX,
-                                      milestoneKind: MILESTONE_KIND_META[checkpoint.kind] || MILESTONE_KIND_META.other,
+                                      milestoneKind: MILESTONE_KIND_META[checkpoint.kind] || MILESTONE_KIND_META.date,
                                       labelWidth,
                                       labelLeft,
                                       markerLeft: checkpointX - labelLeft,
@@ -3125,15 +3101,10 @@ export default function MasterScheduler() {
               <span className="font-semibold uppercase tracking-[0.08em] text-slate-500">Status</span>
               {ALL_STATUSES.map(status => {
                 const statusStyle = getStatusStyles(status);
-                const shortLabel = status === 'Open to Public'
-                  ? 'Open'
-                  : status === 'In Development'
-                    ? 'Dev'
-                    : status;
                 return (
                   <span key={status} className="inline-flex items-center gap-1" title={status}>
                     <span className="h-2 w-3 border border-slate-300" style={{ backgroundColor: statusStyle.barBg }} />
-                    <span className="font-medium text-slate-600">{shortLabel}</span>
+                    <span className="font-medium text-slate-600">{status}</span>
                   </span>
                 );
               })}
