@@ -146,6 +146,12 @@ const MIN_SCREEN_MILESTONE_ROWS = 3;
 const SCREEN_MILESTONE_COMPACT_LABEL_WIDTH = 88;
 const EXTRA_SCREEN_MILESTONE_ROWS = 1;
 const PHASE_TINT_HEIGHT = 5;
+const OVERVIEW_MILESTONE_LABEL_WIDTH = 190;
+const OVERVIEW_MILESTONE_LABEL_HEIGHT = 28;
+const OVERVIEW_MILESTONE_ROW_TOP = 42;
+const OVERVIEW_MILESTONE_ROW_GAP = 34;
+const OVERVIEW_MILESTONE_PADDING_BOTTOM = 16;
+const MIN_OVERVIEW_MILESTONE_ROWS = 3;
 const MIN_TIMELINE_MONTH_WIDTH = 24;
 const MAX_TIMELINE_MONTH_WIDTH = 180;
 const TIMELINE_ZOOM_FACTOR = 1.2;
@@ -602,7 +608,7 @@ export default function MasterScheduler() {
   const [quickPopover, setQuickPopover] = useState<QuickPopoverState | null>(null);
   
   const currentTrackHeight = isPrintMode 
-    ? (Math.max(STANDARD_BAR_HEIGHT, (printSettings.showDescription ? 34 : 0)) + printSettings.projectRowGap) 
+    ? (Math.max(STANDARD_BAR_HEIGHT, (printSettings.showDescription ? 58 : 0)) + printSettings.projectRowGap) 
     : Math.max(TRACK_HEIGHT, 66);
 
   const getEffPhases = (ex: Exhibition) => {
@@ -887,6 +893,51 @@ export default function MasterScheduler() {
   }, [filteredExhibitions, portfolioGalleries]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
+
+  const overviewMilestones = useMemo(() => (
+    filteredExhibitions
+      .flatMap(ex => (ex.checkpoints || []).map(checkpoint => ({ project: ex, checkpoint })))
+      .filter(({ checkpoint }) => {
+        const x = getPositionFromDate(checkpoint.date, monthWidth, viewMonths);
+        return x >= -OVERVIEW_MILESTONE_LABEL_WIDTH && x <= totalTimelineWidth + OVERVIEW_MILESTONE_LABEL_WIDTH;
+      })
+      .sort((a, b) => (
+        a.checkpoint.date.localeCompare(b.checkpoint.date) ||
+        a.project.title.localeCompare(b.project.title) ||
+        a.checkpoint.title.localeCompare(b.checkpoint.title)
+      ))
+  ), [filteredExhibitions, monthWidth, totalTimelineWidth, viewMonths]);
+
+  const showMilestoneOverview = allCollapsed && overviewMilestones.length > 0;
+
+  const overviewMilestoneRowCount = useMemo(() => {
+    if (!showMilestoneOverview) return 0;
+    const rowBoxes: Array<Array<{ x: number; width: number }>> = [];
+    overviewMilestones.forEach(({ checkpoint }) => {
+      const checkpointX = getPositionFromDate(checkpoint.date, monthWidth, viewMonths);
+      const centeredLeft = checkpointX - (OVERVIEW_MILESTONE_LABEL_WIDTH / 2);
+      const labelLeft = Math.max(0, Math.min(centeredLeft, totalTimelineWidth - OVERVIEW_MILESTONE_LABEL_WIDTH));
+      const candidate = { x: labelLeft, width: OVERVIEW_MILESTONE_LABEL_WIDTH };
+      let rowIndex = rowBoxes.findIndex(row => !row.some(box => (
+        candidate.x < box.x + box.width + 8 &&
+        candidate.x + candidate.width + 8 > box.x
+      )));
+      if (rowIndex === -1) {
+        rowIndex = rowBoxes.length;
+        rowBoxes.push([]);
+      }
+      rowBoxes[rowIndex].push(candidate);
+    });
+    return Math.max(MIN_OVERVIEW_MILESTONE_ROWS, rowBoxes.length);
+  }, [monthWidth, overviewMilestones, showMilestoneOverview, totalTimelineWidth, viewMonths]);
+
+  const overviewMilestoneRows = useMemo(() => (
+    Array.from({ length: overviewMilestoneRowCount }, (_, index) => OVERVIEW_MILESTONE_ROW_TOP + (index * OVERVIEW_MILESTONE_ROW_GAP))
+  ), [overviewMilestoneRowCount]);
+
+  const overviewLaneHeight = showMilestoneOverview
+    ? (OVERVIEW_MILESTONE_ROW_TOP + ((overviewMilestoneRowCount - 1) * OVERVIEW_MILESTONE_ROW_GAP) + OVERVIEW_MILESTONE_LABEL_HEIGHT + OVERVIEW_MILESTONE_PADDING_BOTTOM)
+    : 0;
 
   const galleryHasMilestones = useMemo(() => {
     const result = new Map<string, boolean>();
@@ -1994,6 +2045,23 @@ export default function MasterScheduler() {
                       </div>
                     </div>
                     <div className="flex flex-col flex-1 bg-white relative z-10 print:pt-2" ref={sidebarListRef}>
+                  {showMilestoneOverview && (
+                    <div
+                      style={{ height: `${overviewLaneHeight}px` }}
+                      className="relative border-b-2 border-slate-300 overflow-hidden bg-slate-900 text-white print:bg-white print:text-slate-900"
+                    >
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-red-500" />
+                      <div className="absolute inset-x-0 top-0 flex h-full flex-col justify-center gap-1 pl-4 pr-3">
+                        <div className="flex items-center gap-2">
+                          <Flag size={13} className="shrink-0 text-red-300 print:text-slate-700" />
+                          <span className="text-[12px] font-bold uppercase tracking-[0.08em] leading-tight">All milestones</span>
+                        </div>
+                        <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-300 print:text-slate-600">
+                          {overviewMilestones.length} key date{overviewMilestones.length === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   {portfolioGalleries.map((gallery) => {
                     const laneHeight = galleryLaneHeights[gallery.name] || BASE_LANE_HEIGHT;
                     const galleryProjects = filteredProjectsByGallery.get(gallery.name) || [];
@@ -2375,9 +2443,89 @@ export default function MasterScheduler() {
                                 <Plus size={12} />
                                 New Project
                               </div>
-                            </div>
+	                            </div>
 	                        </div>
 	                      )}
+                        {showMilestoneOverview && (
+                          <div
+                            style={{ height: `${overviewLaneHeight}px` }}
+                            className="relative overflow-hidden border-b-2 border-slate-300 bg-white print:bg-white"
+                          >
+                            <div className="absolute inset-x-0 top-0 h-8 border-b border-slate-200 bg-slate-50/90 print:bg-white" />
+                            <div className="absolute left-3 top-2 z-20 inline-flex items-center gap-1.5 border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-700 shadow-sm print:shadow-none">
+                              <Flag size={11} className="text-red-500" />
+                              Milestone overview
+                            </div>
+                            <div className="absolute left-0 right-0 bottom-4 border-t border-dashed border-slate-300" />
+                            <div className="absolute inset-0 z-10 pointer-events-none">
+                              {(() => {
+                                const rowBoxes: Array<Array<{ x: number; width: number }>> = [];
+                                return overviewMilestones.map(({ project, checkpoint }) => {
+                                  const checkpointX = getPositionFromDate(checkpoint.date, monthWidth, viewMonths);
+                                  const centeredLeft = checkpointX - (OVERVIEW_MILESTONE_LABEL_WIDTH / 2);
+                                  const labelLeft = Math.max(0, Math.min(centeredLeft, totalTimelineWidth - OVERVIEW_MILESTONE_LABEL_WIDTH));
+                                  const candidate = { x: labelLeft, width: OVERVIEW_MILESTONE_LABEL_WIDTH };
+                                  let rowIndex = rowBoxes.findIndex(row => !row.some(box => (
+                                    candidate.x < box.x + box.width + 8 &&
+                                    candidate.x + candidate.width + 8 > box.x
+                                  )));
+                                  if (rowIndex === -1) {
+                                    rowIndex = Math.max(0, rowBoxes.length);
+                                    rowBoxes.push([]);
+                                  }
+                                  rowBoxes[rowIndex].push(candidate);
+                                  const labelTop = overviewMilestoneRows[rowIndex] ?? overviewMilestoneRows[overviewMilestoneRows.length - 1] ?? OVERVIEW_MILESTONE_ROW_TOP;
+                                  const milestoneAccent = checkpoint.color || DEFAULT_MILESTONE_COLOR;
+                                  const milestoneKind = MILESTONE_KIND_META[checkpoint.kind] || MILESTONE_KIND_META.date;
+                                  const MilestoneKindIcon = milestoneKind.Icon;
+                                  const markerTop = overviewLaneHeight - 16;
+                                  const markerLeft = checkpointX - labelLeft;
+                                  return (
+                                    <button
+                                      key={`overview-${project.id}-${checkpoint.id}`}
+                                      type="button"
+                                      onClick={() => setSelectedProjectId(project.id)}
+                                      className="absolute pointer-events-auto bg-white border border-slate-200 py-[4px] pl-2 pr-2 text-left shadow-sm hover:border-slate-500 hover:z-40 print:shadow-none"
+                                      style={{
+                                        left: `${labelLeft}px`,
+                                        top: `${labelTop}px`,
+                                        width: `${OVERVIEW_MILESTONE_LABEL_WIDTH}px`,
+                                        borderLeftColor: milestoneAccent,
+                                        borderLeftWidth: '3px',
+                                      }}
+                                      title={`${checkpoint.title} - ${project.title} - ${formatBarDate(checkpoint.date)}`}
+                                    >
+                                      <div
+                                        className="absolute w-px -translate-x-1/2 bg-slate-400"
+                                        style={{
+                                          left: `${markerLeft}px`,
+                                          top: `${OVERVIEW_MILESTONE_LABEL_HEIGHT - 1}px`,
+                                          height: `${Math.max(0, markerTop - labelTop - OVERVIEW_MILESTONE_LABEL_HEIGHT - 3)}px`,
+                                          backgroundColor: milestoneAccent,
+                                          opacity: 0.45,
+                                        }}
+                                        aria-hidden="true"
+                                      />
+                                      <div
+                                        className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-white bg-slate-600"
+                                        style={{ left: `${markerLeft}px`, top: `${markerTop - labelTop}px`, backgroundColor: milestoneAccent }}
+                                        aria-hidden="true"
+                                      />
+                                      <div className="flex min-w-0 items-center gap-1.5 leading-none">
+                                        <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${milestoneKind.iconClass}`}>
+                                          <MilestoneKindIcon size={9} strokeWidth={2.25} />
+                                        </span>
+                                        <span className="shrink-0 font-mono text-[9px] font-bold uppercase tracking-[0.04em] text-slate-700">{formatMilestoneDate(checkpoint.date)}</span>
+                                        <span className="min-w-0 truncate text-[9px] font-semibold uppercase tracking-[0.03em] text-slate-900">{checkpoint.title}</span>
+                                      </div>
+                                      <div className="mt-1 truncate text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-500">{project.title}</div>
+                                    </button>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </div>
+                        )}
 	                      {portfolioGalleries.map((gallery) => {
 	                         const g = gallery.name;
 	                         const laneHeight = galleryLaneHeights[g] || BASE_LANE_HEIGHT;
@@ -2916,13 +3064,6 @@ export default function MasterScheduler() {
                   </div>
                 </div>
               </main>
-              {isPrintMode && printSettings.footerNote && (
-                <div className="hidden print:block mt-6 px-4 py-3 border-t border-slate-200 text-right">
-                  <p className="text-[10px] font-medium text-slate-600 uppercase tracking-wide">
-                    {printSettings.footerNote}
-                  </p>
-                </div>
-              )}
               {isPrintMode && printSettings.includeSummary && (
                 <div className="hidden print:block mt-12 px-4 pt-8 border-t border-slate-300 break-before-page">
                   <h2 className="text-[14px] font-bold uppercase tracking-[0.2em] text-slate-900 mb-6 border-b border-slate-900 pb-2">Project Inventory & Phase Log</h2>
@@ -2948,6 +3089,11 @@ export default function MasterScheduler() {
                                   <td className="py-3 pr-4">
                                     <div className="text-[11px] font-bold text-slate-900">{ex.title}</div>
                                     {ex.exhibitionId && <div className="text-[9px] font-mono text-slate-400 mt-0.5">{ex.exhibitionId}</div>}
+                                    {printSettings.showDescription && ex.description && (
+                                      <div className="mt-1.5 text-[9px] leading-snug text-slate-600">
+                                        {ex.description}
+                                      </div>
+                                    )}
                                   </td>
                                   <td className="py-3 pr-4">
                                     <span className="text-[9px] font-semibold uppercase tracking-tight px-1.5 py-0.5 border border-slate-200 text-slate-600">
@@ -2960,7 +3106,7 @@ export default function MasterScheduler() {
                                   </td>
                                   <td className="py-3">
                                     <div className="space-y-2">
-                                      {(ex.phases || []).length > 0 && (
+                                      {printSettings.showPhases && (ex.phases || []).length > 0 && (
                                         <div className="flex flex-wrap gap-x-3 gap-y-1">
                                           {ex.phases?.map(p => (
                                             <div key={p.id} className="text-[9px] text-slate-600">
@@ -2968,6 +3114,11 @@ export default function MasterScheduler() {
                                               <span className="ml-1 text-slate-400">{p.durationMonths}m</span>
                                             </div>
                                           ))}
+                                        </div>
+                                      )}
+                                      {!printSettings.showPhases && (
+                                        <div className="text-[9px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                                          Phases hidden
                                         </div>
                                       )}
                                       {(ex.checkpoints || []).length > 0 && (
@@ -2993,6 +3144,13 @@ export default function MasterScheduler() {
                       );
                     })}
                   </div>
+                </div>
+              )}
+              {isPrintMode && printSettings.footerNote?.trim() && (
+                <div className="hidden print:block mt-8 px-4 py-3 border-t border-slate-300 text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700">
+                    {printSettings.footerNote.trim()}
+                  </p>
                 </div>
               )}
             </div>
