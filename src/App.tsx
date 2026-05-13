@@ -146,6 +146,9 @@ const MIN_SCREEN_MILESTONE_ROWS = 3;
 const SCREEN_MILESTONE_COMPACT_LABEL_WIDTH = 88;
 const EXTRA_SCREEN_MILESTONE_ROWS = 1;
 const PHASE_TINT_HEIGHT = 5;
+const MIN_TIMELINE_MONTH_WIDTH = 24;
+const MAX_TIMELINE_MONTH_WIDTH = 180;
+const TIMELINE_ZOOM_FACTOR = 1.2;
 
 const formatPrintDateTime = (date: Date | null) => {
   if (!date) return 'Preparing print';
@@ -815,6 +818,30 @@ export default function MasterScheduler() {
       5: 32
     };
     setMonthWidth(presetWidths[years] || 56);
+  };
+
+  const zoomTimeline = (direction: 'in' | 'out') => {
+    const currentWidth = monthWidth;
+    const factor = direction === 'in' ? TIMELINE_ZOOM_FACTOR : 1 / TIMELINE_ZOOM_FACTOR;
+    const nextWidth = Math.max(
+      MIN_TIMELINE_MONTH_WIDTH,
+      Math.min(MAX_TIMELINE_MONTH_WIDTH, Math.round(currentWidth * factor))
+    );
+    if (nextWidth === currentWidth) return;
+
+    const scrollEl = timelineRef.current;
+    const centeredMonthOffset = scrollEl
+      ? (scrollEl.scrollLeft + (scrollEl.clientWidth / 2)) / currentWidth
+      : null;
+
+    setMonthWidth(nextWidth);
+
+    if (centeredMonthOffset !== null) {
+      requestAnimationFrame(() => {
+        if (!timelineRef.current) return;
+        timelineRef.current.scrollLeft = (centeredMonthOffset * nextWidth) - (timelineRef.current.clientWidth / 2);
+      });
+    }
   };
 
   const printGalleryIds = useMemo(() => {
@@ -1755,6 +1782,32 @@ export default function MasterScheduler() {
                         {y}Y
                       </button>
                     ))}
+                  </div>
+
+                  <div className="w-px h-4 bg-slate-200 shrink-0" />
+
+                  <div className="flex items-center gap-0.5 shrink-0" role="group" aria-label="Timeline zoom">
+                    <button
+                      type="button"
+                      onClick={() => zoomTimeline('out')}
+                      disabled={monthWidth <= MIN_TIMELINE_MONTH_WIDTH}
+                      className="p-1 text-slate-500 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="Zoom out without changing dates"
+                    >
+                      <ZoomOut size={13} />
+                    </button>
+                    <span className="min-w-[48px] text-center font-mono text-[10px] text-slate-500 tabular-nums" title={`${monthWidth}px per month`}>
+                      {Math.round((monthWidth / 56) * 100)}%
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => zoomTimeline('in')}
+                      disabled={monthWidth >= MAX_TIMELINE_MONTH_WIDTH}
+                      className="p-1 text-slate-500 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      title="Zoom in without changing dates"
+                    >
+                      <ZoomIn size={13} />
+                    </button>
                   </div>
 
                 </div>
