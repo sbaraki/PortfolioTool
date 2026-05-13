@@ -15,12 +15,23 @@ interface DatePickerProps {
 export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur, label, className = "", error }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    const initialDate = value ? parseISO(value) : new Date();
+    return isValid(initialDate) ? initialDate : new Date();
+  });
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedDate = value ? parseISO(value) : undefined;
+  const validSelectedDate = selectedDate && isValid(selectedDate) ? selectedDate : undefined;
+
+  const syncCalendarToValue = (nextValue = value) => {
+    const parsed = nextValue ? parseISO(nextValue) : undefined;
+    if (parsed && isValid(parsed)) setCalendarMonth(parsed);
+  };
 
   useEffect(() => {
     setInputValue(value);
+    if (!isOpen) syncCalendarToValue(value);
   }, [value]);
 
   useEffect(() => {
@@ -30,6 +41,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur,
       }
     };
     if (isOpen) {
+      syncCalendarToValue();
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
@@ -41,6 +53,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur,
     if (date && isValid(date)) {
       const nextValue = format(date, 'yyyy-MM-dd');
       setInputValue(nextValue);
+      setCalendarMonth(date);
       onChange(nextValue);
       setIsOpen(false);
     }
@@ -61,6 +74,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur,
           value={inputValue}
           placeholder="YYYY-MM-DD"
           inputMode="numeric"
+          onFocus={() => {
+            syncCalendarToValue(inputValue);
+            setIsOpen(true);
+          }}
           onChange={(event) => setInputValue(event.target.value)}
           onBlur={commitTypedValue}
           onKeyDown={(event) => {
@@ -94,7 +111,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur,
         <div className="absolute z-[110] mt-1 bg-white border border-slate-200 shadow-xl p-3 left-0 sm:left-auto sm:right-0">
           <DayPicker
             mode="single"
-            selected={selectedDate}
+            selected={validSelectedDate}
+            month={calendarMonth}
+            onMonthChange={setCalendarMonth}
             onSelect={handleSelect}
             classNames={{
               root: "p-0",
