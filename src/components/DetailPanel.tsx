@@ -36,6 +36,65 @@ const isValidISODate = (value: string) => {
   return !Number.isNaN(date.getTime()) && toISODate(date) === value;
 };
 
+const NumberField = ({
+  id,
+  value,
+  onCommit,
+  min = 0,
+  step = 0.1,
+  className = '',
+  ariaLabel,
+}: {
+  id?: string;
+  value: number;
+  onCommit: (value: number) => void;
+  min?: number;
+  step?: number;
+  className?: string;
+  ariaLabel?: string;
+}) => {
+  const [draftValue, setDraftValue] = useState(String(value));
+
+  useEffect(() => {
+    setDraftValue(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const parsed = parseFloat(draftValue);
+    if (Number.isNaN(parsed)) {
+      setDraftValue(String(value));
+      return;
+    }
+    const next = Math.max(min, parsed);
+    setDraftValue(String(next));
+    onCommit(next);
+  };
+
+  return (
+    <input
+      id={id}
+      type="number"
+      min={min}
+      step={step}
+      aria-label={ariaLabel}
+      className={className}
+      value={draftValue}
+      onChange={(event) => setDraftValue(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commit();
+          event.currentTarget.blur();
+        } else if (event.key === 'Escape') {
+          setDraftValue(String(value));
+          event.currentTarget.blur();
+        }
+      }}
+    />
+  );
+};
+
 export const DetailPanel = ({
   exhibition,
   onClose,
@@ -251,7 +310,7 @@ export const DetailPanel = ({
     applyDraft(prev => ({
       ...prev,
       checkpoints: (patch.date ? sortCheckpoints : (items: ProjectCheckpoint[]) => items)((prev.checkpoints || []).map(checkpoint =>
-        checkpoint.id === id ? { ...checkpoint, ...patch, title: (patch.title ?? checkpoint.title).trim() || checkpoint.title } : checkpoint
+        checkpoint.id === id ? { ...checkpoint, ...patch } : checkpoint
       ))
     }), immediate);
   };
@@ -260,8 +319,8 @@ export const DetailPanel = ({
     applyDraft(prev => ({ ...prev, checkpoints: (prev.checkpoints || []).filter(checkpoint => checkpoint.id !== id) }), true);
   };
 
-  const inputCls = "w-full bg-white border border-slate-200 px-2 py-1.5 text-[12px] text-slate-900 outline-none focus:border-slate-400 transition-colors";
-  const compactInputCls = "bg-white border border-slate-200 px-2 py-1 text-[11px] text-slate-900 outline-none focus:border-slate-400 transition-colors";
+  const inputCls = "w-full bg-white border border-slate-200 px-2.5 py-2 text-[12px] text-slate-900 outline-none transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-200";
+  const compactInputCls = "w-full bg-white border border-slate-200 px-2.5 py-2 text-[12px] text-slate-900 outline-none transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-200";
   const labelCls = "text-[10px] font-medium uppercase tracking-tight text-slate-600";
   const sectionCls = "border border-slate-200 bg-white p-3 space-y-3";
   const sectionHeaderCls = "text-[11px] font-semibold uppercase tracking-tight text-slate-700";
@@ -269,14 +328,17 @@ export const DetailPanel = ({
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 w-full sm:w-[440px] bg-white border-l border-slate-200 z-[140] flex flex-col no-print shadow-[-8px_0_24px_rgba(15,23,42,0.06)]"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Project details for ${draft.title}`}
+      className="fixed left-1/2 top-1/2 z-[150] flex h-[min(820px,calc(100vh-48px))] w-[min(1040px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col border border-slate-200 bg-white shadow-2xl no-print"
     >
       <div className="px-4 py-3 border-b border-slate-200 flex justify-between items-start gap-3 bg-white">
         <div className="flex-1 min-w-0 space-y-2">
           <label htmlFor="ex-title" className={labelCls}>Project Title</label>
           <input
             id="ex-title"
-            className="w-full text-[14px] font-semibold text-slate-900 bg-white border border-slate-200 px-2 py-1.5 outline-none focus:border-slate-400 transition-colors uppercase tracking-tight"
+            className="w-full bg-white border border-slate-200 px-2.5 py-2 text-[14px] font-semibold uppercase tracking-tight text-slate-900 outline-none transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             value={draft.title}
             onChange={(e) => applyDraft(prev => ({ ...prev, title: e.target.value.toUpperCase() }))}
             onBlur={() => flushSave()}
@@ -310,7 +372,8 @@ export const DetailPanel = ({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-slate-50">
+      <div className="grid flex-1 gap-3 overflow-y-auto p-4 custom-scrollbar bg-slate-50 lg:grid-cols-[minmax(300px,0.9fr)_minmax(420px,1.1fr)]">
+        <div className="space-y-3">
         <div className={sectionCls}>
           <span className={sectionHeaderCls}>Status</span>
           <select
@@ -409,16 +472,13 @@ export const DetailPanel = ({
               <div className="pt-2 border-t border-slate-100">
                 <label htmlFor="ex-duration" className={labelCls}>Total duration</label>
                 <div className="flex items-center gap-2 mt-1">
-                  <input
+                  <NumberField
                     id="ex-duration"
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    className="w-20 bg-white border border-slate-200 px-2 py-1.5 text-[12px] font-medium text-slate-900 outline-none focus:border-slate-400 transition-colors"
+                    min={0.1}
+                    step={0.1}
+                    className="w-24 bg-white border border-slate-200 px-2.5 py-2 text-[12px] font-medium tabular-nums text-slate-900 outline-none transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                     value={totalProjectDuration}
-                    onChange={(e) => updateDuration(parseFloat(e.target.value))}
-                    onBlur={() => flushSave()}
-                    onKeyDown={commitOnEnter}
+                    onCommit={updateDuration}
                   />
                   <span className="text-[10px] font-medium uppercase tracking-tight text-slate-600">months</span>
                 </div>
@@ -426,7 +486,9 @@ export const DetailPanel = ({
             </>
           )}
         </div>
+        </div>
 
+        <div className="space-y-3">
         <div className={sectionCls}>
           <div className="flex items-center justify-between gap-2">
             <span className={sectionHeaderCls}>Phases</span>
@@ -457,41 +519,23 @@ export const DetailPanel = ({
           <div className="space-y-1.5">
             {draft.phases.length === 0 && <p className="text-[10px] text-slate-400 italic">No phases yet.</p>}
             {draft.phases.map((phase, idx) => (
-              <div key={phase.id} className="border border-slate-200 p-2 bg-white">
-                <div className="grid grid-cols-[18px_1fr_64px_108px_auto] gap-1.5 items-center">
-                  <div className="w-4 h-4 bg-slate-900 text-white flex items-center justify-center text-[9px] font-medium shrink-0 leading-none">{idx + 1}</div>
+              <div key={phase.id} className="border border-slate-200 p-2.5 bg-white space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 bg-slate-900 text-white flex items-center justify-center text-[10px] font-semibold shrink-0 leading-none">{idx + 1}</div>
+                  <span className="h-5 w-1.5 shrink-0" style={{ backgroundColor: phaseTypeById.get(phase.typeId)?.color }} />
+                  <label htmlFor={`phase-label-${phase.id}`} className="sr-only">Phase {idx + 1} label</label>
                   <input
+                    id={`phase-label-${phase.id}`}
                     aria-label={`Phase ${idx + 1} label`}
                     autoFocus={focusedPhaseId === phase.id}
-                    className={`${compactInputCls} uppercase min-w-0`}
+                    className={`${compactInputCls} uppercase min-w-0 font-medium`}
                     value={phase.label}
                     onFocus={() => setFocusedPhaseId(phase.id)}
                     onChange={(e) => updatePhase(phase.id, { label: e.target.value.toUpperCase() })}
                     onBlur={() => flushSave()}
                     onKeyDown={commitOnEnter}
                   />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    aria-label={`Phase ${idx + 1} duration`}
-                    className={compactInputCls}
-                    value={phase.durationMonths}
-                    onChange={(e) => updatePhase(phase.id, { durationMonths: parseFloat(e.target.value) || 0 })}
-                    onBlur={() => flushSave()}
-                    onKeyDown={commitOnEnter}
-                  />
-                  <select
-                    aria-label={`Phase ${idx + 1} type`}
-                    className={`${compactInputCls} min-w-0`}
-                    value={phase.typeId}
-                    onChange={(e) => updatePhase(phase.id, { typeId: e.target.value }, true)}
-                    onKeyDown={commitOnEnter}
-                  >
-                    {phaseTypes.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}
-                  </select>
-                  <div className="flex items-center gap-0.5">
-                    <span className="w-1.5 h-4 shrink-0" style={{ backgroundColor: phaseTypeById.get(phase.typeId)?.color }} />
+                  <div className="flex shrink-0 items-center gap-0.5">
                     <button aria-label={`Move phase ${idx + 1} up`} disabled={idx === 0} onClick={() => movePhase(idx, 'up')} className="p-1 text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed">
                       <ChevronUp size={11} />
                     </button>
@@ -501,6 +545,33 @@ export const DetailPanel = ({
                     <button aria-label={`Remove phase ${idx + 1}`} onClick={() => removePhase(phase.id)} className="p-1 text-slate-400 hover:bg-red-50 hover:text-red-600">
                       <Trash2 size={11} />
                     </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-[96px_1fr] gap-2">
+                  <div className="space-y-1">
+                    <label htmlFor={`phase-duration-${phase.id}`} className={labelCls}>Months</label>
+                    <NumberField
+                      id={`phase-duration-${phase.id}`}
+                      min={0}
+                      step={0.1}
+                      ariaLabel={`Phase ${idx + 1} duration`}
+                      className={`${compactInputCls} tabular-nums`}
+                      value={phase.durationMonths}
+                      onCommit={(nextValue) => updatePhase(phase.id, { durationMonths: nextValue }, true)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor={`phase-type-${phase.id}`} className={labelCls}>Type</label>
+                    <select
+                      id={`phase-type-${phase.id}`}
+                      aria-label={`Phase ${idx + 1} type`}
+                      className={`${compactInputCls} min-w-0`}
+                      value={phase.typeId}
+                      onChange={(e) => updatePhase(phase.id, { typeId: e.target.value }, true)}
+                      onKeyDown={commitOnEnter}
+                    >
+                      {phaseTypes.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -534,41 +605,58 @@ export const DetailPanel = ({
           {(draft.checkpoints || []).length === 0 && <p className="text-[10px] text-slate-400 italic">No milestones yet.</p>}
           <div className="space-y-1.5">
             {(draft.checkpoints || []).map((checkpoint, idx) => (
-              <div key={checkpoint.id} className="border border-slate-200 p-2 bg-white">
-                <div className="grid grid-cols-[18px_1fr_108px_100px_auto] gap-1.5 items-center">
-                  <Flag size={12} strokeWidth={2} className="text-slate-500" />
+              <div key={checkpoint.id} className="border border-slate-200 p-2.5 bg-white space-y-2">
+                <div className="flex items-center gap-2">
+                  <Flag size={13} strokeWidth={2} className="shrink-0 text-slate-500" />
+                  <label htmlFor={`milestone-title-${checkpoint.id}`} className="sr-only">Milestone {idx + 1} title</label>
                   <input
+                    id={`milestone-title-${checkpoint.id}`}
                     aria-label={`Milestone ${idx + 1} title`}
                     autoFocus={focusedCheckpointId === checkpoint.id}
-                    className={`${compactInputCls} uppercase min-w-0`}
+                    className={`${compactInputCls} uppercase min-w-0 font-medium`}
                     value={checkpoint.title}
                     onFocus={() => setFocusedCheckpointId(checkpoint.id)}
                     onChange={(e) => updateCheckpoint(checkpoint.id, { title: e.target.value.toUpperCase() })}
                     onBlur={() => flushSave()}
                     onKeyDown={commitOnEnter}
                   />
-                  <DatePicker
-                    value={checkpoint.date}
-                    onChange={(val) => updateCheckpoint(checkpoint.id, { date: val }, true)}
-                    onBlur={(val) => {
-                      if (isValidISODate(val)) updateCheckpoint(checkpoint.id, { date: val }, true);
-                    }}
-                    label=""
-                    className="min-w-0"
-                  />
-                  <select
-                    className={`${compactInputCls} min-w-0`}
-                    value={checkpoint.kind}
-                    onChange={(e) => updateCheckpoint(checkpoint.id, { kind: e.target.value as CheckpointKind }, true)}
-                    onKeyDown={commitOnEnter}
-                  >
-                    {Object.entries(CHECKPOINT_KIND_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label.toUpperCase()}</option>
-                    ))}
-                  </select>
-                  <button aria-label={`Remove milestone ${idx + 1}`} onClick={() => removeCheckpoint(checkpoint.id)} className="p-1 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                  <button aria-label={`Remove milestone ${idx + 1}`} onClick={() => removeCheckpoint(checkpoint.id)} className="shrink-0 p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
                     <Trash2 size={11} />
                   </button>
+                </div>
+                <div className="grid grid-cols-[1fr_132px] gap-2">
+                  <DatePicker
+                    value={checkpoint.date}
+                    onChange={(val) => {
+                      setDateError(`checkpoint-${checkpoint.id}`);
+                      updateCheckpoint(checkpoint.id, { date: val }, true);
+                    }}
+                    onBlur={(val) => {
+                      if (isValidISODate(val)) {
+                        setDateError(`checkpoint-${checkpoint.id}`);
+                        updateCheckpoint(checkpoint.id, { date: val }, true);
+                      } else {
+                        setDateError(`checkpoint-${checkpoint.id}`, 'Use YYYY-MM-DD');
+                      }
+                    }}
+                    error={dateErrors[`checkpoint-${checkpoint.id}`]}
+                    label="Date"
+                    className="min-w-0"
+                  />
+                  <div className="space-y-1">
+                    <label htmlFor={`milestone-kind-${checkpoint.id}`} className={labelCls}>Kind</label>
+                    <select
+                      id={`milestone-kind-${checkpoint.id}`}
+                      className={`${compactInputCls} min-w-0`}
+                      value={checkpoint.kind}
+                      onChange={(e) => updateCheckpoint(checkpoint.id, { kind: e.target.value as CheckpointKind }, true)}
+                      onKeyDown={commitOnEnter}
+                    >
+                      {Object.entries(CHECKPOINT_KIND_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             ))}
@@ -584,6 +672,7 @@ export const DetailPanel = ({
             onChange={(e) => applyDraft(prev => ({ ...prev, description: e.target.value.toUpperCase() }))}
             onBlur={() => flushSave()}
           />
+        </div>
         </div>
       </div>
 

@@ -24,10 +24,9 @@ export const calculateTracks = (
       const projectEnd = getPositionFromDate(project.endDate, monthWidth, vMonths);
 
       const actualWidth = projectEnd - projectStart;
-      const hasPrePhases = prePhases.length > 0;
       const hasPostPhases = postPhases.length > 0;
-      
-      // Calculate buffers for labels that extend beyond the bars/phases
+
+      // Calculate buffers for markers and labels that extend beyond the project bar.
       let startBuffer = 0;
       let endBuffer = 0;
 
@@ -35,8 +34,6 @@ export const calculateTracks = (
         startBuffer = 10; // diamond offset
         endBuffer = 140;  // title + date label
       } else {
-        if (hasPrePhases) startBuffer = 120; // pre-phase labels
-        if (hasPostPhases) endBuffer = 120;  // post-phase labels
         if (actualWidth < 80 && !hasPostPhases) endBuffer = 120; // external title pill
       }
 
@@ -44,7 +41,7 @@ export const calculateTracks = (
         project,
         visualStart: projectStart - prePhaseWidth - preGapWidth - startBuffer,
         visualEnd: projectEnd + postPhaseWidth + postGapWidth + endBuffer,
-        requiredTracks: prePhases.length + 1
+        requiredTracks: 1
       };
     })
     .sort((a, b) => a.visualStart - b.visualStart || a.visualEnd - b.visualEnd);

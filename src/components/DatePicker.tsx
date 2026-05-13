@@ -39,13 +39,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur,
 
   const handleSelect = (date: Date | undefined) => {
     if (date && isValid(date)) {
-      onChange(format(date, 'yyyy-MM-dd'));
+      const nextValue = format(date, 'yyyy-MM-dd');
+      setInputValue(nextValue);
+      onChange(nextValue);
       setIsOpen(false);
     }
   };
 
   const commitTypedValue = () => {
-    onBlur?.(inputValue);
+    const nextValue = inputValue.trim();
+    setInputValue(nextValue);
+    onBlur?.(nextValue);
   };
 
   return (
@@ -56,6 +60,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur,
           type="text"
           value={inputValue}
           placeholder="YYYY-MM-DD"
+          inputMode="numeric"
           onChange={(event) => setInputValue(event.target.value)}
           onBlur={commitTypedValue}
           onKeyDown={(event) => {
@@ -63,15 +68,20 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange, onBlur,
               event.preventDefault();
               commitTypedValue();
               event.currentTarget.blur();
+            } else if (event.key === 'Escape') {
+              setInputValue(value);
+              setIsOpen(false);
+              event.currentTarget.blur();
             }
           }}
-          className={`w-full bg-white border px-2 py-1.5 pr-8 text-[12px] text-slate-900 outline-none focus:border-slate-400 transition-colors ${error ? 'border-red-300 bg-red-50/40' : 'border-slate-200'}`}
+          className={`w-full bg-white border px-2 py-2 pr-9 text-[12px] font-medium tabular-nums text-slate-900 outline-none transition-colors focus:border-slate-500 focus:ring-2 focus:ring-slate-200 ${error ? 'border-red-300 bg-red-50/40' : 'border-slate-200'}`}
         />
         <button
           type="button"
           aria-label="Open calendar"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => setIsOpen(!isOpen)}
-          className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-50"
+          className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-700"
         >
           <CalendarIcon 
             size={14} 

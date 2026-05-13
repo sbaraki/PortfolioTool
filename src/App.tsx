@@ -1,7 +1,7 @@
 import { useStore } from './store/useStore';
 import { useMuseumSync } from './hooks/useMuseumSync';
 import { useMuseumActions } from './hooks/useMuseumActions';
-import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, PHASE_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, GALLERY_HEADER_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './constants';
+import { getStatusStyles, MONTHS, FY_QUARTERS, BASE_LANE_HEIGHT, COLLAPSED_LANE_HEIGHT, TRACK_HEIGHT, HEADER_HEIGHT, STANDARD_BAR_HEIGHT, LANE_TOP_PADDING, LANE_BOTTOM_PADDING, PHASE_GAP, WEEKLY_GRID_THRESHOLD, EDGE_HIT_ZONE, GALLERY_HEADER_HEIGHT, PRINT_DPI, PRINT_PAGE_SIZES_IN, PRINT_MARGIN_IN, MIN_PRINT_SCALE, MIN_READABLE_PRINT_SCALE, PRINT_SHELL_PADDING_X, PRINT_SHELL_PADDING_Y, PRINT_COLUMN_GAP } from './constants';
 import { toISODate, getPositionFromDate, getDateFromPosition, formatBarDate, getDateWithMonthDuration, getDurationDays, getDurationMonths, snapDate } from './lib/dateUtils';
 import { calculateTracks } from './lib/layoutEngine';
 import { calculatePrintScale } from './lib/printLayout';
@@ -22,7 +22,6 @@ import {
   Edit2,
   Building2,
   Settings,
-  ArrowLeft,
   ZoomIn,
   ZoomOut,
   Printer,
@@ -156,9 +155,15 @@ const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   footerNote: '',
 };
 
-const PRINT_MILESTONE_BAND_HEIGHT = 96;
 const PRINT_MILESTONE_LABEL_HEIGHT = 24;
-const PRINT_MILESTONE_LABEL_ROWS = [8, 38, 68];
+const PRINT_MILESTONE_ROW_TOP = 8;
+const PRINT_MILESTONE_ROW_GAP = 30;
+const PRINT_MILESTONE_BAND_PADDING_BOTTOM = 10;
+const MIN_PRINT_MILESTONE_ROWS = 3;
+const SCREEN_MILESTONE_BAND_HEIGHT = 82;
+const SCREEN_MILESTONE_LABEL_HEIGHT = 22;
+const SCREEN_MILESTONE_LABEL_ROWS = [7, 34, 61];
+const PHASE_TINT_HEIGHT = 5;
 
 const formatPrintDateTime = (date: Date | null) => {
   if (!date) return 'Preparing print';
@@ -877,9 +882,30 @@ export default function MasterScheduler() {
     return result;
   }, [filteredProjectsByGallery, portfolioGalleries]);
 
-  const milestoneBandHeightFor = (galleryName: string) => (
-    isPrintMode && galleryHasMilestones.get(galleryName) ? PRINT_MILESTONE_BAND_HEIGHT : 0
-  );
+  const galleryMilestoneCounts = useMemo(() => {
+    const result = new Map<string, number>();
+    portfolioGalleries.forEach(gallery => {
+      const count = (filteredProjectsByGallery.get(gallery.name) || []).reduce(
+        (sum, ex) => sum + (ex.checkpoints?.length || 0),
+        0
+      );
+      result.set(gallery.name, count);
+    });
+    return result;
+  }, [filteredProjectsByGallery, portfolioGalleries]);
+
+  const printMilestoneRowsFor = (galleryName: string) => {
+    const rowCount = Math.max(MIN_PRINT_MILESTONE_ROWS, galleryMilestoneCounts.get(galleryName) || 0);
+    return Array.from({ length: rowCount }, (_, index) => PRINT_MILESTONE_ROW_TOP + (index * PRINT_MILESTONE_ROW_GAP));
+  };
+
+  const milestoneBandHeightFor = (galleryName: string) => {
+    if (!galleryHasMilestones.get(galleryName)) return 0;
+    if (!isPrintMode) return SCREEN_MILESTONE_BAND_HEIGHT;
+    const rows = printMilestoneRowsFor(galleryName);
+    const lastRowTop = rows[rows.length - 1] ?? PRINT_MILESTONE_ROW_TOP;
+    return lastRowTop + PRINT_MILESTONE_LABEL_HEIGHT + PRINT_MILESTONE_BAND_PADDING_BOTTOM;
+  };
 
   // ── Conflict detection ─────────────────────────────────────────────────
   // A Set of exhibition IDs that overlap with at least one peer in the same gallery.
@@ -982,10 +1008,7 @@ export default function MasterScheduler() {
   const mhFor = (_galleryName: string) => GALLERY_HEADER_HEIGHT;
 
 
-  const getProjectPhaseRows = (project: Exhibition) => {
-    const prePhasesCount = getEffPhases(project).filter(p => !phaseTypeById.get(p.typeId)?.isPost).length;
-    return Math.max(1, prePhasesCount + 1);
-  };
+  const getProjectPhaseRows = (_project: Exhibition) => 1;
 
   const galleryTrackLayouts = useMemo(() => {
     const out: Record<string, { trackTops: number[]; total: number; trackHeights: number[] }> = {};
@@ -1022,7 +1045,7 @@ export default function MasterScheduler() {
       );
       return acc;
     }, {} as Record<string, number>);
-  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, isPrintMode, galleryHasMilestones]);
+  }, [portfolioGalleries, galleryTrackLayouts, effectiveCollapsedGalleryIds, isPrintMode, galleryHasMilestones, galleryMilestoneCounts]);
 
   const totalTimelineWidth = viewMonths.length * monthWidth;
 
@@ -1547,7 +1570,7 @@ export default function MasterScheduler() {
         return (
           <>
             <div
-              className="fixed inset-0 bg-slate-900/40 z-[130] no-print backdrop-blur-[2px] pointer-events-none"
+              className="fixed inset-0 bg-slate-900/40 z-[145] no-print backdrop-blur-[2px] pointer-events-none"
               aria-hidden="true"
             />
             <DetailPanel
@@ -1918,10 +1941,8 @@ export default function MasterScheduler() {
                           const trackTops = layout?.trackTops ?? [];
                           const trackTop = trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
                           const milestoneBandHeight = milestoneBandHeightFor(gallery.name);
-                          // A project owns prePhases.length + 1 consecutive tracks. Position the title
-                          // on the LAST allocated track (where the main bar lives), not the first
-                          // (which holds the topmost pre-phase). This keeps the sidebar title aligned
-                          // with the bar a viewer's eye lands on, mirroring the timeline layout.
+                          // Projects now own a single visual row; phase context is rendered as
+                          // quiet tinting around the bar rather than separate phase tracks.
                           const lastTrackIdx = Math.min(trackIndex + getProjectPhaseRows(ex) - 1, Math.max(0, trackTops.length - 1));
                           const lastTrackTop = trackTops[lastTrackIdx] ?? trackTop;
                           // Mirror the timeline's project-bar Y offset: top strip +
@@ -2316,7 +2337,6 @@ export default function MasterScheduler() {
                                   const trackTops = trackLayout?.trackTops ?? [];
                                   const maxTracks = Math.max(1, galleryLayouts[g]?.maxTracks || trackTops.length || 1);
                                   const ownerTrackTop = trackTops[trackIndex] ?? trackIndex * currentTrackHeight;
-                                  const trackTop = mhFor(g) + milestoneBandHeight + LANE_TOP_PADDING + ownerTrackTop;
                                   const projectRowTop = (rowOffset: number) => {
                                     const absoluteTrackIndex = Math.min(trackIndex + rowOffset, maxTracks - 1);
                                     const fallback = ownerTrackTop + (rowOffset * currentTrackHeight);
@@ -2332,6 +2352,10 @@ export default function MasterScheduler() {
                                       : p.durationMonths;
                                   const prePhasesRaw = getEffPhases(ex).filter(p => !phaseTypeById.get(p.typeId)?.isPost);
                                   const postPhasesRaw = getEffPhases(ex).filter(p => phaseTypeById.get(p.typeId)?.isPost);
+                                  const isSingleDateProject = ex.scheduleMode === 'single-date';
+                                  const mainBarY = projectRowTop(0) + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2;
+                                  const markerCenterY = mainBarY + STANDARD_BAR_HEIGHT / 2;
+                                  const phaseTintY = mainBarY + STANDARD_BAR_HEIGHT - PHASE_TINT_HEIGHT;
 
                                   const totalPrePhaseWidthOnly = prePhasesRaw.reduce((acc, p) => acc + phaseDurationFor(p) * monthWidth, 0);
                                   const totalPreGaps = prePhasesRaw.length * PHASE_GAP;
@@ -2343,72 +2367,66 @@ export default function MasterScheduler() {
                                     const pWidth = phaseDurationFor(p) * monthWidth;
                                     const pStart = phaseStartPos + preOffset;
                                     const pEnd = pStart + pWidth;
-                                    const pY = projectRowTop(i) + (currentTrackHeight - PHASE_BAR_HEIGHT) / 2;
+                                    const pY = phaseTintY;
                                     preOffset += pWidth + PHASE_GAP;
                                     return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypeById.get(p.typeId), i, isPost: false };
                                   });
-
-                                  const isSingleDateProject = ex.scheduleMode === 'single-date';
-                                  const mainBarY = isSingleDateProject && prePhasesRaw.length > 0
-                                    ? projectRowTop(prePhasesRaw.length - 1) + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2
-                                    : projectRowTop(prePhasesRaw.length) + (currentTrackHeight - STANDARD_BAR_HEIGHT) / 2;
 
                                   let postOffset = PHASE_GAP;
                                   const renderedPost = isSingleDateProject ? [] : postPhasesRaw.map((p, i) => {
                                     const pWidth = phaseDurationFor(p) * monthWidth;
                                     const pStart = endPos + postOffset;
                                     const pEnd = pStart + pWidth;
-                                    const targetYIndex = prePhasesRaw.length > 0 ? prePhasesRaw.length - 1 : 0;
-                                    const pY = projectRowTop(targetYIndex) + (currentTrackHeight - PHASE_BAR_HEIGHT) / 2;
+                                    const pY = phaseTintY;
                                     postOffset += pWidth + PHASE_GAP;
                                     return { ...p, startX: pStart, width: pWidth, endX: pEnd, y: pY, type: phaseTypeById.get(p.typeId), i: i, isPost: true };
                                   });
 
                                   const renderedPhases = [...renderedPre, ...renderedPost];
-                                  const phaseLabelBoxes: TimelineRect[] = renderedPhases.map((phase) => {
-                                    const labelY = phase.y + PHASE_BAR_HEIGHT / 2 - 7;
-                                    return phase.isPost
-                                      ? { x: phase.endX + 6, y: labelY, width: 132, height: 14 }
-                                      : { x: phase.startX - 138, y: labelY, width: 132, height: 14 };
-                                  });
                                   const placedMilestoneLabelBoxes: TimelineRect[] = [];
-                                  const usePrintMilestoneBand = isPrintMode && milestoneBandHeight > 0;
-                                  const milestoneLabelRows = usePrintMilestoneBand
-                                    ? PRINT_MILESTONE_LABEL_ROWS.map(offset => mhFor(g) + offset)
-                                    : [mainBarY - 30, mainBarY - 50, mainBarY - 70];
+                                  const useMilestoneBand = milestoneBandHeight > 0;
+                                  const milestoneLabelRows = useMilestoneBand
+                                    ? (isPrintMode ? printMilestoneRowsFor(g) : SCREEN_MILESTONE_LABEL_ROWS).map(offset => mhFor(g) + offset)
+                                    : [mainBarY - 30, mainBarY - 52, mainBarY - 74];
                                   const isSelectedMilestoneProject = selectedProjectId === ex.id;
                                   const milestoneLayouts = (ex.checkpoints || []).map((checkpoint) => {
                                     const isDraggingThisMilestone = draggingMilestone?.projectId === ex.id && draggingMilestone.checkpointId === checkpoint.id;
                                     const effectiveMilestoneDate = isDraggingThisMilestone ? draggingMilestone.tempDate : checkpoint.date;
                                     const checkpointX = getPositionFromDate(effectiveMilestoneDate, monthWidth, viewMonths);
                                     const screenFullLabelWidth = Math.min(
-                                      260,
-                                      Math.max(142, (checkpoint.title.length * 5.8) + 58)
+                                      300,
+                                      Math.max(170, (checkpoint.title.length * 6.4) + 78)
                                     );
+                                    const maxPrintLabelWidth = Math.max(220, Math.min(520, totalTimelineWidth - 16));
                                     const printFullLabelWidth = Math.min(
-                                      320,
-                                      Math.max(190, (checkpoint.title.length * 7.2) + 76)
+                                      maxPrintLabelWidth,
+                                      Math.max(220, (checkpoint.title.length * 7.2) + 96)
                                     );
-                                    const fullLabelWidth = usePrintMilestoneBand ? printFullLabelWidth : screenFullLabelWidth;
-                                    const compactLabelWidth = usePrintMilestoneBand ? 172 : 74;
-                                    const fullLabelHeight = usePrintMilestoneBand ? PRINT_MILESTONE_LABEL_HEIGHT : 20;
-                                    const occupiedMilestoneBoxes = usePrintMilestoneBand ? printMilestoneLabelBoxes : placedMilestoneLabelBoxes;
+                                    const fullLabelWidth = isPrintMode ? printFullLabelWidth : screenFullLabelWidth;
+                                    const compactLabelWidth = isPrintMode ? 172 : 88;
+                                    const fullLabelHeight = isPrintMode ? PRINT_MILESTONE_LABEL_HEIGHT : SCREEN_MILESTONE_LABEL_HEIGHT;
+                                    const occupiedMilestoneBoxes = isPrintMode ? printMilestoneLabelBoxes : placedMilestoneLabelBoxes;
+                                    const labelLeftFor = (labelWidth: number) => {
+                                      const centeredLeft = checkpointX - (labelWidth / 2);
+                                      if (!isPrintMode) return centeredLeft;
+                                      return Math.max(0, Math.min(centeredLeft, totalTimelineWidth - labelWidth));
+                                    };
                                     const findRow = (labelWidth: number) => milestoneLabelRows.find((candidateY) => {
                                       const candidateBox = {
-                                        x: checkpointX - (labelWidth / 2),
+                                        x: labelLeftFor(labelWidth),
                                         y: candidateY,
                                         width: labelWidth,
                                         height: fullLabelHeight,
                                       };
-                                      const blockers = usePrintMilestoneBand ? occupiedMilestoneBoxes : [...phaseLabelBoxes, ...occupiedMilestoneBoxes];
-                                      return !blockers.some(box => timelineRectsOverlap(candidateBox, box, usePrintMilestoneBand ? 8 : 4));
+                                      return !occupiedMilestoneBoxes.some(box => timelineRectsOverlap(candidateBox, box, useMilestoneBand ? 8 : 5));
                                     });
                                     const fullRow = findRow(fullLabelWidth);
-                                    const shouldCompact = fullRow === undefined && (usePrintMilestoneBand || !isSelectedMilestoneProject);
+                                    const shouldCompact = fullRow === undefined && !isPrintMode && !isSelectedMilestoneProject;
                                     const labelWidth = shouldCompact ? compactLabelWidth : fullLabelWidth;
                                     const labelTop = fullRow ?? findRow(labelWidth) ?? milestoneLabelRows[milestoneLabelRows.length - 1];
+                                    const labelLeft = labelLeftFor(labelWidth);
                                     const labelBox = {
-                                      x: checkpointX - (labelWidth / 2),
+                                      x: labelLeft,
                                       y: labelTop,
                                       width: labelWidth,
                                       height: fullLabelHeight,
@@ -2421,120 +2439,48 @@ export default function MasterScheduler() {
                                       checkpointX,
                                       milestoneKind: MILESTONE_KIND_META[checkpoint.kind] || MILESTONE_KIND_META.other,
                                       labelWidth,
+                                      labelLeft,
+                                      markerLeft: checkpointX - labelLeft,
                                       labelTop,
                                       isCompact: shouldCompact,
-                                      usePrintMilestoneBand,
+                                      useMilestoneBand,
                                     };
                                   });
 
                                   return (
                                     <React.Fragment key={ex.id}>
                                       <div className={`absolute pointer-events-none transition-opacity duration-200 ${isDraggingThis ? 'opacity-30' : ''} ${isPrintMode && !printSettings.showPhases ? 'print:hidden' : ''}`}>
-	                                        {renderedPhases.map((phase, idx) => {
-	                                          const phaseLabel = phase.type?.label || phase.label;
-	                                          const yCenter = phase.y + PHASE_BAR_HEIGHT / 2;
-                                          let nextYCenter = -1;
-                                          let nextX = -1;
-                                          let hasNext = true;
-
-                                          if (!phase.isPost) {
-                                            const preIdx = idx;
-                                            if (preIdx < renderedPre.length - 1) {
-                                              nextYCenter = renderedPre[preIdx + 1].y + PHASE_BAR_HEIGHT / 2;
-                                              nextX = renderedPre[preIdx + 1].startX;
-                                            } else {
-                                              nextYCenter = mainBarY + STANDARD_BAR_HEIGHT / 2;
-                                              nextX = startPos;
-                                            }
-                                          } else {
-                                            const postIdx = idx - renderedPre.length;
-                                            if (postIdx < renderedPost.length - 1) {
-                                              nextYCenter = renderedPost[postIdx + 1].y + PHASE_BAR_HEIGHT / 2;
-                                              nextX = renderedPost[postIdx + 1].startX;
-                                            } else {
-                                              hasNext = false;
-                                            }
-                                          }
-
-	                                          return (
-	                                            <React.Fragment key={phase.id}>
-	                                              {phase.isPost ? (
-	                                                <>
-	                                                  {/* Post-phase label: sits to the RIGHT of the bar */}
-	                                                  <div
-	                                                    data-print-phase-label
-	                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.04em] text-slate-700 leading-none truncate print:text-slate-900"
-	                                                    style={{ left: `${phase.endX + 6}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '132px', zIndex: 10 }}
-	                                                    title={phaseLabel}
-	                                                  >
-	                                                    {phaseLabel}
-	                                                  </div>
-                                                </>
-                                              ) : (
-                                                <>
-                                                  {/* Pre-phase label: sits to the LEFT of the bar, right-aligned */}
-	                                                  <div
-	                                                    data-print-phase-label
-	                                                    className="absolute pointer-events-none text-[9px] font-semibold uppercase tracking-[0.04em] text-slate-700 leading-none truncate text-right print:text-slate-900"
-	                                                    style={{ left: `${phase.startX - 138}px`, top: `${phase.y + PHASE_BAR_HEIGHT / 2 - 5}px`, width: '132px', zIndex: 10 }}
-	                                                    title={phaseLabel}
-	                                                  >
-	                                                    {phaseLabel}
-	                                                  </div>
-                                                </>
-                                              )}
-	                                              <div
-	                                                className="absolute shadow-sm hover:shadow-md hover:opacity-90 transition-all pointer-events-auto border border-white/60 overflow-hidden"
-	                                                style={{ left: `${phase.startX}px`, top: `${phase.y}px`, width: `${Math.max(phase.width - 2, 0)}px`, height: `${PHASE_BAR_HEIGHT}px`, backgroundColor: phase.type?.color || '#eee' }}
-	                                                title={`${phaseLabel} — drag right edge to resize`}
-	                                              />
+                                        {renderedPhases.map((phase) => {
+                                          const phaseLabel = phase.type?.label || phase.label;
+                                          return (
+                                            <React.Fragment key={phase.id}>
+                                              <div
+                                                className="absolute pointer-events-auto border border-white/70 opacity-70 transition-opacity hover:opacity-95 print:border-white/40 print:opacity-45"
+                                                style={{
+                                                  left: `${phase.startX}px`,
+                                                  top: `${phase.y}px`,
+                                                  width: `${Math.max(phase.width - 2, 0)}px`,
+                                                  height: `${PHASE_TINT_HEIGHT}px`,
+                                                  backgroundColor: phase.type?.color || '#eee',
+                                                  zIndex: 18
+                                                }}
+                                                title={`${phaseLabel} - ${phase.durationMonths} months`}
+                                              />
                                               <div
                                                 aria-label={`Resize phase ${phaseLabel}`}
-                                                className="absolute cursor-ew-resize pointer-events-auto bg-slate-900/10 hover:bg-slate-900/30 transition-colors no-print"
+                                                className="absolute cursor-ew-resize pointer-events-auto bg-transparent hover:bg-slate-900/15 transition-colors no-print"
                                                 style={{
                                                   left: `${phase.endX - EDGE_HIT_ZONE}px`,
-                                                  top: `${phase.y}px`,
+                                                  top: `${phase.y - 4}px`,
                                                   width: `${EDGE_HIT_ZONE}px`,
-                                                  height: `${PHASE_BAR_HEIGHT}px`,
+                                                  height: `${PHASE_TINT_HEIGHT + 8}px`,
                                                   zIndex: 27
                                                 }}
                                                 onPointerDown={(e) => onPhaseHandlePointerDown(e, ex.id, phase as ProjectPhase)}
                                               />
-                                              {hasNext && (
-                                                <svg className="absolute overflow-visible pointer-events-none z-0" style={{ left: 0, top: 0, width: 1, height: 1 }}>
-                                                  <path
-                                                    d={nextYCenter === yCenter
-                                                      ? `M ${phase.endX} ${yCenter} L ${nextX} ${nextYCenter}`
-                                                      : `M ${phase.endX} ${yCenter} L ${phase.endX + 3} ${yCenter} L ${phase.endX + 3} ${nextYCenter} L ${nextX} ${nextYCenter}`
-                                                    }
-                                                    fill="none"
-                                                    stroke="#cbd5e1"
-                                                    strokeWidth="1"
-                                                  />
-                                                </svg>
-                                              )}
                                             </React.Fragment>
                                           );
                                         })}
-
-                                        {renderedPost.length > 0 && (() => {
-                                          const nX = renderedPost[0].startX;
-                                          const nYCenter = renderedPost[0].y + PHASE_BAR_HEIGHT / 2;
-                                          const curYCenter = mainBarY + STANDARD_BAR_HEIGHT / 2;
-                                          return (
-                                            <svg className="absolute overflow-visible pointer-events-none z-0" style={{ left: 0, top: 0, width: 1, height: 1 }}>
-                                              <path
-                                                d={nYCenter === curYCenter
-                                                  ? `M ${endPos} ${curYCenter} L ${nX} ${nYCenter}`
-                                                  : `M ${endPos} ${curYCenter} L ${endPos + 3} ${curYCenter} L ${endPos + 3} ${nYCenter} L ${nX} ${nYCenter}`
-                                                }
-                                                fill="none"
-                                                stroke="#cbd5e1"
-                                                strokeWidth="1"
-                                              />
-                                            </svg>
-                                          );
-                                        })()}
                                       </div>
 
                                       {isSingleDateProject ? (
@@ -2722,18 +2668,17 @@ export default function MasterScheduler() {
                                         );
                                       })()}
 
-                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelTop, isCompact, usePrintMilestoneBand }) => {
+                                      {milestoneLayouts.map(({ checkpoint, isDraggingThisMilestone, effectiveMilestoneDate, checkpointX, milestoneKind, labelWidth, labelLeft, markerLeft, labelTop, isCompact, useMilestoneBand }) => {
                                         const MilestoneKindIcon = milestoneKind.Icon;
-                                        const markerCenterY = mainBarY + STANDARD_BAR_HEIGHT / 2;
                                         const markerTop = markerCenterY - labelTop;
-                                        const connectorTop = usePrintMilestoneBand ? PRINT_MILESTONE_LABEL_HEIGHT - 1 : 20;
+                                        const connectorTop = isPrintMode ? PRINT_MILESTONE_LABEL_HEIGHT - 1 : SCREEN_MILESTONE_LABEL_HEIGHT - 1;
                                         const connectorHeight = Math.max(0, markerTop - connectorTop - 7);
                                         return (
                                           <div
                                             key={`milestone-${checkpoint.id}`}
                                             className={`absolute pointer-events-auto ${isDraggingThisMilestone ? 'cursor-grabbing' : 'cursor-grab'}`}
                                             style={{
-                                              left: `${checkpointX - (labelWidth / 2)}px`,
+                                              left: `${labelLeft}px`,
                                               top: `${labelTop}px`,
                                               width: `${labelWidth}px`,
                                               height: `${markerTop + 12}px`,
@@ -2746,43 +2691,43 @@ export default function MasterScheduler() {
                                             onClick={(e) => e.stopPropagation()}
                                             onDoubleClick={(e) => e.stopPropagation()}
                                           >
-                                            {usePrintMilestoneBand && connectorHeight > 0 && (
+                                            {useMilestoneBand && connectorHeight > 0 && (
                                               <div
-                                                className="absolute left-1/2 hidden w-px -translate-x-1/2 bg-slate-400 print:block"
-                                                style={{ top: `${connectorTop}px`, height: `${connectorHeight}px` }}
+                                                className="absolute block w-px -translate-x-1/2 bg-slate-400/80 print:bg-slate-500"
+                                                style={{ left: `${markerLeft}px`, top: `${connectorTop}px`, height: `${connectorHeight}px` }}
                                                 aria-hidden="true"
                                               />
                                             )}
                                             <div
-                                              className={`absolute left-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] print:shadow-none ${milestoneKind.markerClass}`}
-                                              style={{ top: `${markerTop}px` }}
+                                              className={`absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-slate-900 shadow-[1px_1px_0_0_rgba(0,0,0,1)] print:shadow-none ${milestoneKind.markerClass}`}
+                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px` }}
                                               aria-hidden="true"
                                             />
                                             <div
-                                              className="absolute left-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white"
-                                              style={{ top: `${markerTop}px` }}
+                                              className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-white"
+                                              style={{ left: `${markerLeft}px`, top: `${markerTop}px` }}
                                               aria-hidden="true"
                                             />
                                             <div
-                                              className={`absolute left-0 top-0 pointer-events-auto bg-white/95 border px-1.5 py-[2px] shadow-sm print:bg-white print:shadow-none ${isSelectedMilestoneProject ? 'border-slate-500' : milestoneKind.labelBorderClass}`}
+                                              className={`absolute left-0 top-0 pointer-events-auto bg-white border px-1.5 py-[3px] shadow-sm print:bg-white print:shadow-none ${isSelectedMilestoneProject ? 'border-slate-600' : milestoneKind.labelBorderClass}`}
                                               style={{ width: `${labelWidth}px`, zIndex: 32 }}
                                               onPointerDown={(e) => onMilestonePointerDown(e, ex, checkpoint.id, effectiveMilestoneDate)}
                                             >
                                               <div
-                                                className={`absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[5px] rotate-45 border-b border-r bg-white ${usePrintMilestoneBand ? 'print:hidden' : ''} ${isSelectedMilestoneProject ? 'border-slate-500' : milestoneKind.labelBorderClass}`}
+                                                className={`absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-[5px] rotate-45 border-b border-r bg-white ${useMilestoneBand ? 'hidden' : ''} ${isSelectedMilestoneProject ? 'border-slate-600' : milestoneKind.labelBorderClass}`}
                                                 aria-hidden="true"
                                               />
-                                              <div className={`flex min-w-0 items-center leading-none ${usePrintMilestoneBand ? 'gap-1.5' : 'gap-1'}`}>
-                                                <span className={`flex shrink-0 items-center justify-center border ${usePrintMilestoneBand ? 'h-4 w-4' : 'h-3.5 w-3.5'} ${milestoneKind.iconClass}`} title={milestoneKind.label}>
-                                                  <MilestoneKindIcon size={usePrintMilestoneBand ? 10 : 9} strokeWidth={2.25} />
+                                              <div className={`flex min-w-0 items-center leading-none ${isPrintMode ? 'gap-1.5' : 'gap-1.5'}`}>
+                                                <span className={`flex shrink-0 items-center justify-center border ${isPrintMode ? 'h-4 w-4' : 'h-3.5 w-3.5'} ${milestoneKind.iconClass}`} title={milestoneKind.label}>
+                                                  <MilestoneKindIcon size={isPrintMode ? 10 : 9} strokeWidth={2.25} />
                                                 </span>
                                                 {!isCompact && (
                                                   <>
-                                                    <span className={`truncate font-semibold uppercase tracking-[0.04em] text-slate-800 ${usePrintMilestoneBand ? 'text-[10px]' : 'text-[8px]'}`}>{checkpoint.title}</span>
-                                                    <span className={`${usePrintMilestoneBand ? 'h-3' : 'h-2'} w-px shrink-0 bg-slate-300`} />
+                                                    <span className={`font-semibold uppercase tracking-[0.04em] text-slate-800 ${isPrintMode ? 'whitespace-nowrap text-[10px]' : 'min-w-0 truncate text-[9px]'}`}>{checkpoint.title}</span>
+                                                    <span className={`${isPrintMode ? 'h-3' : 'h-2.5'} w-px shrink-0 bg-slate-300`} />
                                                   </>
                                                 )}
-                                                <span className={`shrink-0 font-medium uppercase tracking-[0.04em] text-slate-500 ${usePrintMilestoneBand ? 'text-[10px]' : 'text-[8px]'}`}>{formatMilestoneDate(effectiveMilestoneDate)}</span>
+                                                <span className={`shrink-0 font-semibold uppercase tracking-[0.04em] text-slate-600 ${isPrintMode ? 'text-[10px]' : 'text-[9px]'}`}>{formatMilestoneDate(effectiveMilestoneDate)}</span>
                                                 <button
                                                   type="button"
                                                   aria-label={`Edit milestone ${checkpoint.title}`}
@@ -2899,17 +2844,23 @@ export default function MasterScheduler() {
         </div>
         </>
         ) : (
-          <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 no-print">
-            <div className="max-w-3xl mx-auto px-5 py-5 space-y-5">
-              <div className="flex items-center justify-between">
+          <div className="fixed inset-0 z-[135] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px] no-print">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Settings"
+              className="flex h-[min(760px,calc(100vh-48px))] w-[min(980px,calc(100vw-32px))] flex-col border border-slate-200 bg-white shadow-2xl"
+            >
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3">
+                <h2 className="text-[12px] font-semibold uppercase tracking-tight text-slate-700">Settings</h2>
                 <button
                   onClick={() => setActiveTab('portfolio')}
-                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 hover:bg-white border border-slate-200 bg-white px-2 py-1 leading-none transition-colors"
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50 border border-slate-200 bg-white px-2 py-1 leading-none transition-colors"
                 >
-                  <ArrowLeft size={11} /> Back
+                  <X size={11} /> Close
                 </button>
-                <h2 className="text-[12px] font-semibold uppercase tracking-tight text-slate-700">Settings</h2>
               </div>
+              <div className="grid flex-1 gap-3 overflow-y-auto bg-slate-50 p-4 custom-scrollbar lg:grid-cols-[minmax(260px,0.8fr)_minmax(360px,1.1fr)]">
 
               <section className="border border-slate-200 bg-white p-3 space-y-2">
                 <div className="flex items-center gap-1.5">
@@ -2927,7 +2878,7 @@ export default function MasterScheduler() {
                 </div>
               </section>
 
-              <section className="border border-slate-200 bg-white p-3 space-y-2">
+              <section className="border border-slate-200 bg-white p-3 space-y-2 lg:row-span-2">
                 <div className="flex items-center gap-1.5">
                   <Palette size={12} className="text-slate-500" />
                   <span className="text-[11px] font-semibold uppercase tracking-tight text-slate-700">Phase types</span>
@@ -3034,14 +2985,47 @@ export default function MasterScheduler() {
                   ))}
                 </div>
               </section>
+              </div>
             </div>
           </div>
         )}
       </main>
 
       {activeTab === 'portfolio' && (
-        <footer className="fixed bottom-0 left-0 right-0 z-[130] h-6 bg-white border-t border-slate-200 flex items-center justify-end px-3 text-[10px] text-slate-600 leading-none print:hidden">
-          <span className="font-mono text-slate-500">PortfolioTool-v3 by SB</span>
+        <footer className="fixed bottom-0 left-0 right-0 z-[130] h-7 bg-white border-t border-slate-200 flex items-center justify-between gap-3 px-3 text-[10px] text-slate-600 leading-none print:hidden">
+          <div className="flex min-w-0 items-center gap-3 overflow-hidden">
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span className="font-semibold uppercase tracking-[0.08em] text-slate-500">Status</span>
+              {ALL_STATUSES.map(status => {
+                const statusStyle = getStatusStyles(status);
+                const shortLabel = status === 'Open to Public'
+                  ? 'Open'
+                  : status === 'In Development'
+                    ? 'Dev'
+                    : status;
+                return (
+                  <span key={status} className="inline-flex items-center gap-1" title={status}>
+                    <span className="h-2 w-3 border border-slate-300" style={{ backgroundColor: statusStyle.barBg }} />
+                    <span className="font-medium text-slate-600">{shortLabel}</span>
+                  </span>
+                );
+              })}
+            </div>
+            {phaseTypes.length > 0 && (
+              <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                <span className="shrink-0 font-semibold uppercase tracking-[0.08em] text-slate-500">Phases</span>
+                <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+                  {phaseTypes.map(type => (
+                    <span key={type.id} className="inline-flex min-w-0 shrink-0 items-center gap-1" title={type.label}>
+                      <span className="h-1.5 w-4 border border-slate-300" style={{ backgroundColor: type.color }} />
+                      <span className="max-w-20 truncate font-medium text-slate-600">{type.label}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <span className="shrink-0 font-mono text-slate-500">PortfolioTool-v3 by SB</span>
         </footer>
       )}
     </div>
