@@ -2475,7 +2475,7 @@ export default function MasterScheduler() {
                             <div className="absolute inset-0 z-10 pointer-events-none">
                               {(() => {
                                 const rowBoxes: Array<Array<{ x: number; width: number }>> = [];
-                                return overviewMilestones.map(({ project, checkpoint }) => {
+                                const overviewLayouts = overviewMilestones.map(({ project, checkpoint }) => {
                                   const checkpointX = getPositionFromDate(checkpoint.date, monthWidth, viewMonths);
                                   const centeredLeft = checkpointX - (OVERVIEW_MILESTONE_LABEL_WIDTH / 2);
                                   const labelLeft = Math.max(0, Math.min(centeredLeft, totalTimelineWidth - OVERVIEW_MILESTONE_LABEL_WIDTH));
@@ -2492,51 +2492,66 @@ export default function MasterScheduler() {
                                   const labelTop = overviewMilestoneRows[rowIndex] ?? overviewMilestoneRows[overviewMilestoneRows.length - 1] ?? OVERVIEW_MILESTONE_ROW_TOP;
                                   const milestoneAccent = checkpoint.color || DEFAULT_MILESTONE_COLOR;
                                   const milestoneKind = MILESTONE_KIND_META[checkpoint.kind] || MILESTONE_KIND_META.date;
-                                  const MilestoneKindIcon = milestoneKind.Icon;
                                   const markerTop = overviewLaneHeight - 16;
                                   const markerLeft = checkpointX - labelLeft;
-                                  return (
-                                    <button
-                                      key={`overview-${project.id}-${checkpoint.id}`}
-                                      type="button"
-                                      onClick={() => setSelectedProjectId(project.id)}
-                                      className="absolute pointer-events-auto bg-white border border-slate-200 py-[4px] pl-2 pr-2 text-left shadow-sm hover:border-slate-500 hover:z-40 print:shadow-none"
-                                      style={{
-                                        left: `${labelLeft}px`,
-                                        top: `${labelTop}px`,
-                                        width: `${OVERVIEW_MILESTONE_LABEL_WIDTH}px`,
-                                        borderLeftColor: milestoneAccent,
-                                        borderLeftWidth: '3px',
-                                      }}
-                                      title={`${checkpoint.title} - ${project.title} - ${formatBarDate(checkpoint.date)}`}
-                                    >
-                                      <div
-                                        className="absolute w-px -translate-x-1/2 bg-slate-400"
-                                        style={{
-                                          left: `${markerLeft}px`,
-                                          top: `${OVERVIEW_MILESTONE_LABEL_HEIGHT - 1}px`,
-                                          height: `${Math.max(0, markerTop - labelTop - OVERVIEW_MILESTONE_LABEL_HEIGHT - 3)}px`,
-                                          backgroundColor: milestoneAccent,
-                                          opacity: 0.45,
-                                        }}
-                                        aria-hidden="true"
-                                      />
-                                      <div
-                                        className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-white bg-slate-600"
-                                        style={{ left: `${markerLeft}px`, top: `${markerTop - labelTop}px`, backgroundColor: milestoneAccent }}
-                                        aria-hidden="true"
-                                      />
-                                      <div className="flex min-w-0 items-center gap-1.5 leading-none">
-                                        <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${milestoneKind.iconClass}`}>
-                                          <MilestoneKindIcon size={9} strokeWidth={2.25} />
-                                        </span>
-                                        <span className="shrink-0 font-mono text-[9px] font-bold uppercase tracking-[0.04em] text-slate-700">{formatMilestoneDate(checkpoint.date)}</span>
-                                        <span className="min-w-0 truncate text-[9px] font-semibold uppercase tracking-[0.03em] text-slate-900">{checkpoint.title}</span>
-                                      </div>
-                                      <div className="mt-1 truncate text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-500">{project.title}</div>
-                                    </button>
-                                  );
+                                  return { project, checkpoint, labelLeft, labelTop, markerLeft, markerTop, milestoneAccent, milestoneKind };
                                 });
+                                return (
+                                  <>
+                                    <div className="absolute inset-0 z-10 pointer-events-none">
+                                      {overviewLayouts.map(({ project, checkpoint, labelLeft, labelTop, markerLeft, markerTop, milestoneAccent }) => (
+                                        <React.Fragment key={`overview-line-${project.id}-${checkpoint.id}`}>
+                                          <div
+                                            className="absolute w-px -translate-x-1/2 bg-slate-400"
+                                            style={{
+                                              left: `${labelLeft + markerLeft}px`,
+                                              top: `${labelTop + OVERVIEW_MILESTONE_LABEL_HEIGHT - 1}px`,
+                                              height: `${Math.max(0, markerTop - labelTop - OVERVIEW_MILESTONE_LABEL_HEIGHT - 3)}px`,
+                                              backgroundColor: milestoneAccent,
+                                              opacity: 0.38,
+                                            }}
+                                            aria-hidden="true"
+                                          />
+                                          <div
+                                            className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border border-white bg-slate-600"
+                                            style={{ left: `${labelLeft + markerLeft}px`, top: `${markerTop}px`, backgroundColor: milestoneAccent }}
+                                            aria-hidden="true"
+                                          />
+                                        </React.Fragment>
+                                      ))}
+                                    </div>
+                                    <div className="absolute inset-0 z-30 pointer-events-none">
+                                      {overviewLayouts.map(({ project, checkpoint, labelLeft, labelTop, milestoneAccent, milestoneKind }) => {
+                                        const MilestoneKindIcon = milestoneKind.Icon;
+                                        return (
+                                          <button
+                                            key={`overview-${project.id}-${checkpoint.id}`}
+                                            type="button"
+                                            onClick={() => setSelectedProjectId(project.id)}
+                                            className="absolute pointer-events-auto bg-white border border-slate-200 py-[4px] pl-2 pr-2 text-left shadow-sm hover:border-slate-500 hover:z-40 print:shadow-none"
+                                            style={{
+                                              left: `${labelLeft}px`,
+                                              top: `${labelTop}px`,
+                                              width: `${OVERVIEW_MILESTONE_LABEL_WIDTH}px`,
+                                              borderLeftColor: milestoneAccent,
+                                              borderLeftWidth: '3px',
+                                            }}
+                                            title={`${checkpoint.title} - ${project.title} - ${formatBarDate(checkpoint.date)}`}
+                                          >
+                                            <div className="flex min-w-0 items-center gap-1.5 leading-none">
+                                              <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${milestoneKind.iconClass}`}>
+                                                <MilestoneKindIcon size={9} strokeWidth={2.25} />
+                                              </span>
+                                              <span className="shrink-0 font-mono text-[9px] font-bold uppercase tracking-[0.04em] text-slate-700">{formatMilestoneDate(checkpoint.date)}</span>
+                                              <span className="min-w-0 truncate text-[9px] font-semibold uppercase tracking-[0.03em] text-slate-900">{checkpoint.title}</span>
+                                            </div>
+                                            <div className="mt-1 truncate text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-500">{project.title}</div>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </>
+                                );
                               })()}
                             </div>
                           </div>
@@ -2994,7 +3009,6 @@ export default function MasterScheduler() {
                                               top: `${labelTop}px`,
                                               width: `${labelWidth}px`,
                                               height: `${markerTop + 12}px`,
-                                              zIndex: isPrintMode ? undefined : (isSelectedMilestoneProject || isDraggingThisMilestone ? 36 : 31),
                                               opacity: milestoneOpacity,
                                             }}
                                             title={`${checkpoint.title} - ${milestoneKind.label} - ${formatBarDate(effectiveMilestoneDate)}`}
